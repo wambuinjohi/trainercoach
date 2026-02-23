@@ -38,13 +38,13 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       normalized = normalized.slice(1)
     }
 
-    // Convert 07 to 254 (Kenya format)
-    if (normalized.startsWith('07')) {
+    // Convert 07 or 01 to 254 (Kenya format)
+    if (normalized.startsWith('07') || normalized.startsWith('01')) {
       normalized = '254' + normalized.slice(1)
     }
 
     // Add country code if not present
-    if (!normalized.startsWith('254') && normalized.startsWith('7')) {
+    if (!normalized.startsWith('254') && (normalized.startsWith('7') || normalized.startsWith('1'))) {
       normalized = '254' + normalized
     }
 
@@ -248,7 +248,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             amount: clientTotal,
             account_reference: bookingData?.id || 'booking',
             booking_id: bookingData?.id || null,
-            client_id: user.id || null
+            client_id: user.id || null,
+            trainer_id: trainer.id
           }, { headers: withAuth() })
           console.log('STK initiate response:', initResult)
         } catch (e: any) {
@@ -298,21 +299,22 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
         if (!success) {
           // mark failed
-          try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, user_id: user.id, amount: clientTotal, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
+          try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
           try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'pending' }, { headers: withAuth() }) } catch {}
           toast({ title: 'Payment not completed', description: 'You can retry from your dashboard', variant: 'destructive' })
           setLoading(false)
           return
         }
 
-        paymentRecord = { booking_id: bookingData?.id || null, user_id: user.id, amount: clientTotal, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
+        paymentRecord = { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
         try { await apiRequest('payment_insert', paymentRecord, { headers: withAuth() }) } catch {}
         try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed' }, { headers: withAuth() }) } catch {}
       } else {
         // Mock immediate success
         paymentRecord = {
           booking_id: bookingData?.id || null,
-          user_id: user.id,
+          client_id: user.id,
+          trainer_id: trainer.id,
           amount: clientTotal,
           status: 'completed',
           method: 'mock',
