@@ -2467,24 +2467,29 @@ switch ($action) {
 
     // INSERT PAYMENT
     case 'payment_insert':
-        if (!isset($input['client_id']) || !isset($input['trainer_id']) || !isset($input['amount'])) {
-            respond("error", "Missing client_id, trainer_id, or amount.", null, 400);
+        if (!isset($input['client_id']) && !isset($input['user_id'])) {
+            respond("error", "Missing client_id or user_id.", null, 400);
+        }
+        if (!isset($input['trainer_id']) || !isset($input['amount'])) {
+            respond("error", "Missing trainer_id or amount.", null, 400);
         }
 
-        $clientId = $conn->real_escape_string($input['client_id']);
+        $clientId = $conn->real_escape_string($input['client_id'] ?? $input['user_id']);
+        $userId = $clientId; // Map to user_id as well
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $amount = floatval($input['amount']);
         $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'completed';
+        $method = isset($input['method']) ? $conn->real_escape_string($input['method']) : 'mpesa';
         $bookingId = isset($input['booking_id']) ? $conn->real_escape_string($input['booking_id']) : NULL;
         $paymentId = 'payment_' . uniqid();
         $now = date('Y-m-d H:i:s');
 
         $stmt = $conn->prepare("
             INSERT INTO payments (
-                id, client_id, trainer_id, booking_id, amount, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, user_id, client_id, trainer_id, booking_id, amount, status, method, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("sssssssss", $paymentId, $clientId, $trainerId, $bookingId, $amount, $status, $now, $now);
+        $stmt->bind_param("sssssdssss", $paymentId, $userId, $clientId, $trainerId, $bookingId, $amount, $status, $method, $now, $now);
 
         if ($stmt->execute()) {
             $stmt->close();
@@ -4021,6 +4026,7 @@ switch ($action) {
     // ============================================================================
 
     // INITIATE STK PUSH PAYMENT
+    case 'mpesa_stk_initiate':
     case 'stk_push_initiate':
         error_log("[API STK PUSH] === STK PUSH INITIATE REQUEST START ===");
         error_log("[API STK PUSH] Request input: phone=" . ($input['phone'] ?? 'N/A') . ", amount=" . ($input['amount'] ?? 'N/A') . ", booking_id=" . ($input['booking_id'] ?? 'none'));
@@ -4039,6 +4045,8 @@ switch ($action) {
         $phone = $conn->real_escape_string($input['phone']);
         $amount = floatval($input['amount']);
         $bookingId = isset($input['booking_id']) ? $conn->real_escape_string($input['booking_id']) : null;
+        $clientId = isset($input['client_id']) ? $conn->real_escape_string($input['client_id']) : ($user['id'] ?? null);
+        $trainerId = isset($input['trainer_id']) ? $conn->real_escape_string($input['trainer_id']) : null;
         $accountReference = isset($input['account_reference']) ? $conn->real_escape_string($input['account_reference']) : 'payment_' . uniqid();
         $description = isset($input['transaction_description']) ? $conn->real_escape_string($input['transaction_description']) : 'Service Payment';
 
@@ -4094,6 +4102,8 @@ switch ($action) {
         $createTableSql = "
             CREATE TABLE IF NOT EXISTS `stk_push_sessions` (
                 `id` VARCHAR(36) PRIMARY KEY,
+                `client_id` VARCHAR(36),
+                `trainer_id` VARCHAR(36),
                 `phone_number` VARCHAR(20) NOT NULL,
                 `amount` DECIMAL(15, 2) NOT NULL,
                 `booking_id` VARCHAR(36),
@@ -4110,6 +4120,8 @@ switch ($action) {
                 INDEX `idx_status` (`status`),
                 INDEX `idx_checkout` (`checkout_request_id`),
                 INDEX `idx_booking_id` (`booking_id`),
+                INDEX `idx_client_id` (`client_id`),
+                INDEX `idx_trainer_id` (`trainer_id`),
                 INDEX `idx_created_at` (`created_at` DESC)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ";
@@ -4117,8 +4129,8 @@ switch ($action) {
 
         $stmt = $conn->prepare("
             INSERT INTO stk_push_sessions (
-                id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, client_id, trainer_id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         if (!$stmt) {
@@ -4126,7 +4138,7 @@ switch ($action) {
         }
 
         $merchantRequestId = $stkResult['merchant_request_id'] ?? '';
-        $stmt->bind_param("ssdssssssss", $sessionId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $initStatus, $now, $now);
+        $stmt->bind_param("ssssdssssssss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $initStatus, $now, $now);
 
         if (!$stmt->execute()) {
             $stmt->close();
@@ -4156,6 +4168,7 @@ switch ($action) {
         break;
 
     // QUERY STK PUSH STATUS
+    case 'mpesa_stk_query':
     case 'stk_push_query':
         error_log("[API STK QUERY] === STK QUERY REQUEST START ===");
         error_log("[API STK QUERY] Request input: checkout_request_id=" . ($input['checkout_request_id'] ?? 'N/A'));
@@ -4201,6 +4214,16 @@ switch ($action) {
         error_log("[API STK QUERY] Calling querySTKPushStatus() for checkout_request_id=" . $checkoutRequestId);
         $queryResult = querySTKPushStatus($mpesaCreds, $checkoutRequestId);
         error_log("[API STK QUERY] Query result: success=" . ($queryResult['success'] ? 'true' : 'false') . ", result_code=" . ($queryResult['result_code'] ?? 'N/A'));
+
+        if ($queryResult['success'] && $queryResult['result_code'] === '0') {
+            // Record payment if not already recorded (via helper)
+            recordMpesaPayment($conn, $session, $queryResult['result_code'], $queryResult['result_description']);
+
+            // Also update session status in DB if needed
+            if ($session['status'] !== 'success') {
+                $conn->query("UPDATE stk_push_sessions SET status = 'success', result_code = '0', updated_at = NOW() WHERE checkout_request_id = '$checkoutRequestId'");
+            }
+        }
 
         if (!$queryResult['success']) {
             error_log("[API STK QUERY] Query failed, returning cached data");
@@ -5037,133 +5060,6 @@ switch ($action) {
     // M-PESA STK PUSH PAYMENT ENDPOINTS
     // ============================================================================
 
-    // INITIATE STK PUSH PAYMENT
-    case 'mpesa_stk_initiate':
-        if (!isset($input['phone']) || !isset($input['amount'])) {
-            respond("error", "Missing phone or amount.", null, 400);
-        }
-
-        $phone = $conn->real_escape_string($input['phone']);
-        $amount = intval($input['amount']);
-        $accountReference = $conn->real_escape_string($input['account_reference'] ?? 'booking');
-        $clientId = $conn->real_escape_string($input['client_id'] ?? $user['id'] ?? null);
-        $bookingId = $conn->real_escape_string($input['booking_id'] ?? null);
-
-        $credentials = getMpesaCredentials();
-        if (!$credentials) {
-            respond("error", "M-Pesa credentials not configured.", null, 500);
-        }
-
-        $result = initiateSTKPush($credentials, $phone, $amount, $accountReference);
-
-        if ($result['success']) {
-            // Store STK session record for callback matching
-            $checkoutRequestId = $result['checkout_request_id'];
-
-            // Ensure table exists first
-            $checkTableSql = "SHOW TABLES LIKE 'stk_push_sessions'";
-            $tableCheck = @$conn->query($checkTableSql);
-
-            if (!$tableCheck || $tableCheck->num_rows === 0) {
-                // Create table if it doesn't exist
-                $createTableSql = "
-                    CREATE TABLE stk_push_sessions (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        checkout_request_id VARCHAR(255) UNIQUE NOT NULL,
-                        booking_id VARCHAR(255),
-                        client_id VARCHAR(255),
-                        status VARCHAR(50) DEFAULT 'pending',
-                        result_code VARCHAR(50),
-                        result_description TEXT,
-                        merchant_request_id VARCHAR(255),
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        INDEX idx_checkout (checkout_request_id),
-                        INDEX idx_booking (booking_id),
-                        INDEX idx_client (client_id)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                ";
-
-                @$conn->query($createTableSql);
-                error_log("[STK SESSION] Table created");
-            }
-
-            // Insert STK session with booking_id and client_id for callback matching
-            // First, clean up any existing session for this checkout ID
-            // (handles test retries and ensures fresh data)
-            $deleteStmt = $conn->prepare("DELETE FROM stk_push_sessions WHERE checkout_request_id = ?");
-            if ($deleteStmt) {
-                $deleteStmt->bind_param("s", $checkoutRequestId);
-                $deleteStmt->execute();
-                error_log("[STK SESSION DELETE] Cleanup - Rows removed: " . $deleteStmt->affected_rows);
-                $deleteStmt->close();
-            }
-
-            // Now insert the fresh session
-            $insertStmt = $conn->prepare("
-                INSERT INTO stk_push_sessions (checkout_request_id, booking_id, client_id, status)
-                VALUES (?, ?, ?, 'pending')
-            ");
-
-            if ($insertStmt) {
-                $insertStmt->bind_param("sss", $checkoutRequestId, $bookingId, $clientId);
-
-                error_log("[STK SESSION INSERT] Attempting - CheckoutRequestID: $checkoutRequestId, BookingID: $bookingId, ClientID: $clientId");
-
-                if ($insertStmt->execute()) {
-                    $affectedRows = $insertStmt->affected_rows;
-                    error_log("[STK SESSION INSERT] Result - Rows affected: $affectedRows, MySQL error: " . ($insertStmt->error ?: "none"));
-
-                    if ($affectedRows > 0) {
-                        error_log("[STK SESSION] Session created successfully");
-                    } else {
-                        error_log("[STK SESSION] WARNING: Insert executed but 0 rows inserted!");
-                    }
-                } else {
-                    error_log("[STK SESSION INSERT] Execute failed - MySQL error: " . $insertStmt->error);
-                }
-                $insertStmt->close();
-            } else {
-                error_log("[STK SESSION] Prepare failed: " . $conn->error);
-            }
-
-            respond("success", "STK push initiated successfully.", [
-                "checkout_request_id" => $result['checkout_request_id'],
-                "merchant_request_id" => $result['merchant_request_id'],
-                "response_code" => $result['response_code'],
-                "response_description" => $result['response_description']
-            ]);
-        } else {
-            respond("error", $result['error'] ?? "Failed to initiate STK push.", null, 500);
-        }
-        break;
-
-    // QUERY STK PUSH STATUS
-    case 'mpesa_stk_query':
-        if (!isset($input['checkout_request_id'])) {
-            respond("error", "Missing checkout_request_id.", null, 400);
-        }
-
-        $checkoutRequestId = $conn->real_escape_string($input['checkout_request_id']);
-
-        $credentials = getMpesaCredentials();
-        if (!$credentials) {
-            respond("error", "M-Pesa credentials not configured.", null, 500);
-        }
-
-        $result = querySTKPushStatus($credentials, $checkoutRequestId);
-
-        if ($result['success']) {
-            respond("success", "STK push status queried successfully.", [
-                "result_code" => $result['result_code'],
-                "result_description" => $result['result_description'],
-                "merchant_request_id" => $result['merchant_request_id'],
-                "checkout_request_id" => $result['checkout_request_id']
-            ]);
-        } else {
-            respond("error", $result['error'] ?? "Failed to query STK push status.", null, 500);
-        }
-        break;
 
     // UNKNOWN ACTION
     default:

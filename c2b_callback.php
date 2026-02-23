@@ -177,84 +177,12 @@ try {
                         'phone' => $phoneNumber,
                         'receipt' => $mpesaReceiptNumber
                     ]);
-                    
-                    // If payment successful, record payment with trainer info and fee breakdown
-                    if ($status === 'success' && $amount && $session['id']) {
-                        // Fetch booking details to get trainer info and fee breakdown
-                        $bookingId = $session['booking_id'];
-                        $bookingStmt = $conn->prepare("
-                            SELECT trainer_id, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount
-                            FROM bookings
-                            WHERE id = ?
-                            LIMIT 1
-                        ");
 
-                        if ($bookingStmt) {
-                            $bookingStmt->bind_param("s", $bookingId);
-                            $bookingStmt->execute();
-                            $bookingResult = $bookingStmt->get_result();
-
-                            if ($bookingResult && $bookingResult->num_rows > 0) {
-                                $booking = $bookingResult->fetch_assoc();
-                                $trainerId = $booking['trainer_id'];
-                                $baseServiceAmount = floatval($booking['base_service_amount'] ?? 0);
-                                $transportFee = floatval($booking['transport_fee'] ?? 0);
-                                $platformFee = floatval($booking['platform_fee'] ?? 0);
-                                $vatAmount = floatval($booking['vat_amount'] ?? 0);
-                                $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? 0);
-
-                                // Record in payments table with trainer and fee breakdown
-                                $paymentId = 'payment_' . uniqid();
-                                $now = date('Y-m-d H:i:s');
-
-                                $paymentStmt = $conn->prepare("
-                                    INSERT INTO payments (
-                                        id, user_id, booking_id, trainer_id, amount,
-                                        base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount,
-                                        status, method, transaction_reference, created_at, updated_at
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                ");
-
-                                if ($paymentStmt) {
-                                    $method = 'stk';
-                                    $paymentStatus = 'completed';
-                                    $clientId = $session['client_id'] ?? null;
-
-                                    $paymentStmt->bind_param(
-                                        "ssssddddddsssss",
-                                        $paymentId,           // id
-                                        $clientId,             // user_id (client who paid)
-                                        $bookingId,            // booking_id
-                                        $trainerId,            // trainer_id
-                                        $amount,               // amount (what client paid)
-                                        $baseServiceAmount,    // base_service_amount
-                                        $transportFee,         // transport_fee
-                                        $platformFee,          // platform_fee
-                                        $vatAmount,            // vat_amount
-                                        $trainerNetAmount,     // trainer_net_amount (what trainer earns)
-                                        $paymentStatus,        // status
-                                        $method,               // method
-                                        $mpesaReceiptNumber,   // transaction_reference
-                                        $now,                  // created_at
-                                        $now                   // updated_at
-                                    );
-                                    $paymentStmt->execute();
-                                    $paymentStmt->close();
-
-                                    logC2BEvent('payment_recorded', [
-                                        'payment_id' => $paymentId,
-                                        'booking_id' => $bookingId,
-                                        'client_id' => $clientId,
-                                        'trainer_id' => $trainerId,
-                                        'amount' => $amount,
-                                        'trainer_net_amount' => $trainerNetAmount,
-                                        'transport_fee' => $transportFee
-                                    ]);
-                                }
-                            } else {
-                                logC2BEvent('booking_not_found', ['booking_id' => $bookingId]);
-                            }
-                            $bookingStmt->close();
+                    // If payment successful, record payment
+                    if ($status === 'success') {
+                        $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount, $mpesaReceiptNumber);
+                        if ($recorded) {
+                            logC2BEvent('payment_processed', ['checkout_request_id' => $checkoutRequestId]);
                         }
                     } elseif (($status === 'failed' || $status === 'timeout') && $session['id']) {
                         logC2BEvent('payment_failed', [

@@ -212,7 +212,9 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
 
     // Use default C2B callback URL if not provided (for STK Push payments)
     if (empty($callback_url)) {
-        $callback_url = 'https://trainercoachconnect.com/c2b_callback.php';
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+        $host = $_SERVER['HTTP_HOST'] ?? 'trainercoachconnect.com';
+        $callback_url = $protocol . $host . '/c2b_callback.php';
     }
 
     error_log("[STK PUSH INIT] Callback URL: $callback_url");
@@ -508,11 +510,15 @@ function initiateB2CPayment($credentials, $phone, $amount, $command_id = null, $
     error_log("[B2C REQUEST] Environment: $environment, Shortcode: $shortcode, InitiatorName: $initiator_name");
 
     // Use default B2C callback URLs if not provided (for payouts)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'] ?? 'trainercoachconnect.com';
+    $default_callback = $protocol . $host . '/b2c_callback.php';
+
     if (empty($queue_timeout_url)) {
-        $queue_timeout_url = 'https://trainercoachconnect.com/b2c_callback.php';
+        $queue_timeout_url = $default_callback;
     }
     if (empty($result_url)) {
-        $result_url = 'https://trainercoachconnect.com/b2c_callback.php';
+        $result_url = $default_callback;
     }
 
     $b2c_url = ($environment === 'production')
@@ -670,6 +676,113 @@ function maskSecret($secret) {
     }
     $visible = strlen($secret) <= 6 ? 3 : 3;
     return substr($secret, 0, $visible) . '...' . substr($secret, -3);
+}
+
+// Record M-Pesa payment from session data
+function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount = null, $receipt = null) {
+    if ($resultCode !== 0 && $resultCode !== '0') {
+        error_log("[MPESA RECORD] Skipping record for non-zero ResultCode: $resultCode");
+        return false;
+    }
+
+    $checkoutRequestId = $session['checkout_request_id'] ?? null;
+    $bookingId = $session['booking_id'] ?? null;
+    $clientId = $session['client_id'] ?? null;
+    $trainerId = $session['trainer_id'] ?? null;
+    $amount = $amount ?? $session['amount'] ?? 0;
+
+    // Check for existing payment by receipt
+    if (!empty($receipt)) {
+        $checkStmt = $conn->prepare("SELECT id FROM payments WHERE transaction_reference = ? LIMIT 1");
+        if ($checkStmt) {
+            $checkStmt->bind_param("s", $receipt);
+            $checkStmt->execute();
+            $checkRes = $checkStmt->get_result();
+            if ($checkRes && $checkRes->num_rows > 0) {
+                error_log("[MPESA RECORD] Duplicate payment for receipt: $receipt");
+                $checkStmt->close();
+                return true; // Already recorded
+            }
+            $checkStmt->close();
+        }
+    }
+
+    // Check for existing payment for this booking
+    if ($bookingId) {
+        $checkSessionStmt = $conn->prepare("SELECT id FROM payments WHERE booking_id = ? AND status = 'completed' LIMIT 1");
+        if ($checkSessionStmt) {
+            $checkSessionStmt->bind_param("s", $bookingId);
+            $checkSessionStmt->execute();
+            $checkRes = $checkSessionStmt->get_result();
+            if ($checkRes && $checkRes->num_rows > 0) {
+                 error_log("[MPESA RECORD] Payment already exists for booking: $bookingId");
+                 $checkSessionStmt->close();
+                 return true;
+            }
+            $checkSessionStmt->close();
+        }
+    }
+
+    // Fetch booking details if available to get fee breakdown
+    $baseServiceAmount = $amount;
+    $transportFee = 0;
+    $platformFee = 0;
+    $vatAmount = 0;
+    $trainerNetAmount = $amount;
+
+    if ($bookingId) {
+        $bookingStmt = $conn->prepare("SELECT trainer_id, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount FROM bookings WHERE id = ? LIMIT 1");
+        if ($bookingStmt) {
+            $bookingStmt->bind_param("s", $bookingId);
+            $bookingStmt->execute();
+            $bookingResult = $bookingStmt->get_result();
+            if ($bookingResult && $bookingResult->num_rows > 0) {
+                $booking = $bookingResult->fetch_assoc();
+                $trainerId = $trainerId ?? $booking['trainer_id'];
+                $baseServiceAmount = floatval($booking['base_service_amount'] ?? $amount);
+                $transportFee = floatval($booking['transport_fee'] ?? 0);
+                $platformFee = floatval($booking['platform_fee'] ?? 0);
+                $vatAmount = floatval($booking['vat_amount'] ?? 0);
+                $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? $amount);
+            }
+            $bookingStmt->close();
+        }
+    }
+
+    $paymentId = 'payment_' . uniqid();
+    $now = date('Y-m-d H:i:s');
+    $status = 'completed';
+    $method = 'stk';
+
+    $paymentStmt = $conn->prepare("
+        INSERT INTO payments (
+            id, user_id, client_id, trainer_id, booking_id, amount,
+            base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount,
+            status, method, transaction_reference, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+
+    if ($paymentStmt) {
+        $paymentStmt->bind_param(
+            "sssssddddddsssss",
+            $paymentId, $clientId, $clientId, $trainerId, $bookingId, $amount,
+            $baseServiceAmount, $transportFee, $platformFee, $vatAmount, $trainerNetAmount,
+            $status, $method, $receipt, $now, $now
+        );
+        $res = $paymentStmt->execute();
+        $paymentStmt->close();
+
+        if ($res && $bookingId) {
+             // Update booking status
+             $conn->query("UPDATE bookings SET status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
+        }
+
+        error_log("[MPESA RECORD] Payment recorded: id=$paymentId, booking=$bookingId, amount=$amount");
+        return $res;
+    }
+
+    error_log("[MPESA RECORD ERROR] Failed to prepare payment insert statement: " . $conn->error);
+    return false;
 }
 
 // Log payment event
