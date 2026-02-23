@@ -213,9 +213,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       const bookingResponse = await apiRequest('booking_create', payload, { headers: withAuth() })
       const bookingData = { id: bookingResponse?.booking_id }
       const clientTotal = bookingResponse?.total_amount || 0
+      const baseServiceAmount = bookingResponse?.base_service_amount || 0
       const transportFee = bookingResponse?.transport_fee || 0
-      const platformFee = bookingResponse?.platform_fee || 0
+      const platformFee = bookingResponse?.platform_charge_client || bookingResponse?.platform_fee || 0
       const vatAmount = bookingResponse?.vat_amount || 0
+      const trainerNetAmount = bookingResponse?.trainer_net_amount || 0
 
       // in-app notifications: client, trainer, admins
       try {
@@ -299,14 +301,14 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
         if (!success) {
           // mark failed
-          try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
+          try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
           try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'pending' }, { headers: withAuth() }) } catch {}
           toast({ title: 'Payment not completed', description: 'You can retry from your dashboard', variant: 'destructive' })
           setLoading(false)
           return
         }
 
-        paymentRecord = { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
+        paymentRecord = { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
         try { await apiRequest('payment_insert', paymentRecord, { headers: withAuth() }) } catch {}
         try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed' }, { headers: withAuth() }) } catch {}
       } else {
@@ -316,6 +318,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           client_id: user.id,
           trainer_id: trainer.id,
           amount: clientTotal,
+          base_service_amount: baseServiceAmount,
+          transport_fee: transportFee,
+          platform_fee: platformFee,
+          vat_amount: vatAmount,
+          trainer_net_amount: trainerNetAmount,
           status: 'completed',
           method: 'mock',
           created_at: new Date().toISOString(),

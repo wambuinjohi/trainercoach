@@ -2481,15 +2481,39 @@ switch ($action) {
         $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'completed';
         $method = isset($input['method']) ? $conn->real_escape_string($input['method']) : 'mpesa';
         $bookingId = isset($input['booking_id']) ? $conn->real_escape_string($input['booking_id']) : NULL;
+        $baseServiceAmount = isset($input['base_service_amount']) ? floatval($input['base_service_amount']) : $amount;
+        $transportFee = isset($input['transport_fee']) ? floatval($input['transport_fee']) : 0;
+        $platformFee = isset($input['platform_fee']) ? floatval($input['platform_fee']) : 0;
+        $vatAmount = isset($input['vat_amount']) ? floatval($input['vat_amount']) : 0;
+        $trainerNetAmount = isset($input['trainer_net_amount']) ? floatval($input['trainer_net_amount']) : $amount;
+        $transactionReference = isset($input['transaction_reference']) ? $conn->real_escape_string($input['transaction_reference']) : NULL;
         $paymentId = 'payment_' . uniqid();
         $now = date('Y-m-d H:i:s');
 
+        // Ensure payments table has all required columns
+        $ensureColumnsSQL = "
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS base_service_amount DECIMAL(15, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS transport_fee DECIMAL(15, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS platform_fee DECIMAL(15, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS vat_amount DECIMAL(15, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS trainer_net_amount DECIMAL(15, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(255)
+        ";
+        @$conn->query($ensureColumnsSQL);
+
         $stmt = $conn->prepare("
             INSERT INTO payments (
-                id, user_id, client_id, trainer_id, booking_id, amount, status, method, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, user_id, client_id, trainer_id, booking_id, amount,
+                base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount,
+                status, method, transaction_reference, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("sssssdssss", $paymentId, $userId, $clientId, $trainerId, $bookingId, $amount, $status, $method, $now, $now);
+        $stmt->bind_param(
+            "sssssddddddsssss",
+            $paymentId, $userId, $clientId, $trainerId, $bookingId, $amount,
+            $baseServiceAmount, $transportFee, $platformFee, $vatAmount, $trainerNetAmount,
+            $status, $method, $transactionReference, $now, $now
+        );
 
         if ($stmt->execute()) {
             $stmt->close();
@@ -3374,6 +3398,62 @@ switch ($action) {
         } else {
             $stmt->close();
             respond("error", "Failed to create booking: " . $conn->error, null, 500);
+        }
+        break;
+
+    // UPDATE BOOKING STATUS
+    case 'booking_update':
+        if (!isset($input['id'])) {
+            respond("error", "Missing booking id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['id']);
+        $updates = [];
+        $params = [];
+        $types = "";
+
+        // List of allowed fields to update
+        $allowedFields = ['status', 'notes', 'client_location_label', 'client_location_lat', 'client_location_lng'];
+
+        foreach ($allowedFields as $field) {
+            if (isset($input[$field])) {
+                $updates[] = "`$field` = ?";
+                if ($field === 'client_location_lat' || $field === 'client_location_lng') {
+                    $params[] = floatval($input[$field]);
+                    $types .= "d";
+                } else {
+                    $params[] = $conn->real_escape_string($input[$field]);
+                    $types .= "s";
+                }
+            }
+        }
+
+        if (empty($updates)) {
+            respond("error", "No fields to update.", null, 400);
+        }
+
+        $updates[] = "`updated_at` = ?";
+        $params[] = date('Y-m-d H:i:s');
+        $types .= "s";
+        $params[] = $bookingId;
+        $types .= "s";
+
+        $sql = "UPDATE bookings SET " . implode(", ", $updates) . " WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param($types, ...$params);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('booking_updated', ['booking_id' => $bookingId]);
+            respond("success", "Booking updated successfully.", ["id" => $bookingId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to update booking: " . $conn->error, null, 500);
         }
         break;
 
