@@ -23,6 +23,7 @@ const ITEMS: MenuItem[] = [
   { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="h-4 w-4" /> },
   { key: 'promotions', label: 'Promotions', icon: <MessageSquare className="h-4 w-4" /> },
   { key: 'payouts', label: 'Payouts', icon: <DollarSign className="h-4 w-4" /> },
+  { key: 'sms', label: 'SMS Manager', icon: <MessageSquare className="h-4 w-4" /> },
   { key: 'categories', label: 'Categories', icon: <Plus className="h-4 w-4" /> },
   { key: 'waitlist', label: 'Waiting List', icon: <Clock className="h-4 w-4" /> },
   { key: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },

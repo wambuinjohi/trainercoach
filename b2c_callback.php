@@ -47,6 +47,9 @@ if (!headers_sent()) {
 // Include database connection
 require_once(__DIR__ . '/connection.php');
 
+// Include SMS helper if available
+@include_once(__DIR__ . '/sms_helper.php');
+
 // Utility function for logging
 function logB2CEvent($type, $details = []) {
     $timestamp = date('Y-m-d H:i:s');
@@ -184,18 +187,56 @@ try {
                         SET status = ?, transaction_id = ?, updated_at = NOW()
                         WHERE reference_id = ?
                     ");
-                    
+
                     if ($updateStmt) {
                         $status = 'completed';
                         $updateStmt->bind_param("sss", $status, $transactionID, $referenceId);
                         $updateStmt->execute();
                         $updateStmt->close();
-                        
+
                         logB2CEvent('payment_completed', [
                             'transaction_id' => $transactionID,
                             'reference_id' => $referenceId,
                             'amount' => $transactionAmount,
                         ]);
+
+                        // Send payout confirmation SMS (non-blocking)
+                        try {
+                            $payoutStmt = $conn->prepare("
+                                SELECT trainer_id FROM b2c_payments WHERE reference_id = ? LIMIT 1
+                            ");
+                            if ($payoutStmt) {
+                                $payoutStmt->bind_param("s", $referenceId);
+                                $payoutStmt->execute();
+                                $payoutResult = $payoutStmt->get_result();
+
+                                if ($payoutResult && $payoutRow = $payoutResult->fetch_assoc()) {
+                                    $trainerId = $payoutRow['trainer_id'];
+
+                                    // Get trainer phone
+                                    $userStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                                    if ($userStmt) {
+                                        $userStmt->bind_param("s", $trainerId);
+                                        $userStmt->execute();
+                                        $userResult = $userStmt->get_result();
+
+                                        if ($userResult && $userRow = $userResult->fetch_assoc()) {
+                                            if (!empty($userRow['phone']) && function_exists('sendPayoutSms')) {
+                                                @sendPayoutSms($trainerId, $userRow['phone'], [
+                                                    'id' => $referenceId,
+                                                    'amount' => $transactionAmount,
+                                                    'transaction_id' => $transactionID
+                                                ]);
+                                            }
+                                        }
+                                        $userStmt->close();
+                                    }
+                                }
+                                $payoutStmt->close();
+                            }
+                        } catch (Exception $e) {
+                            logB2CEvent('sms_send_error', ['error' => $e->getMessage()]);
+                        }
                     }
                 } elseif ($resultCode !== 0 && $referenceId) {
                     // Payment failed

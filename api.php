@@ -79,6 +79,9 @@ include('connection.php');
 // Include M-Pesa helper functions
 include('mpesa_helper.php');
 
+// Include SMS helper functions
+include('sms_helper.php');
+
 // Utility function for logging API events
 function logEvent($eventType, $details = []) {
     $timestamp = date('Y-m-d H:i:s');
@@ -970,6 +973,18 @@ switch ($action) {
         $stmt->bind_param("ssssss", $profileId, $userId, $userType, $fullName, $phone, $now);
         $stmt->execute();
         $stmt->close();
+
+        // Send registration SMS (non-blocking)
+        if (!empty($phone)) {
+            @sendRegistrationSms($phone, [
+                'id' => $userId,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $email,
+                'phone' => $phone,
+                'user_type' => $userType
+            ]);
+        }
 
         $token = base64_encode(json_encode([
             "id" => $userId,
@@ -3274,6 +3289,49 @@ switch ($action) {
 
         if ($stmt->execute()) {
             $stmt->close();
+
+            // Send booking confirmation SMS (non-blocking)
+            try {
+                $clientStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                $trainerStmt = $conn->prepare("SELECT full_name FROM user_profiles WHERE user_id = ? LIMIT 1");
+
+                if ($clientStmt && $trainerStmt) {
+                    $clientStmt->bind_param("s", $clientId);
+                    $clientStmt->execute();
+                    $clientResult = $clientStmt->get_result();
+
+                    $trainerStmt->bind_param("s", $trainerId);
+                    $trainerStmt->execute();
+                    $trainerResult = $trainerStmt->get_result();
+
+                    $clientPhone = null;
+                    $trainerName = "Your Trainer";
+
+                    if ($clientResult && $clientRow = $clientResult->fetch_assoc()) {
+                        $clientPhone = $clientRow['phone'];
+                    }
+
+                    if ($trainerResult && $trainerRow = $trainerResult->fetch_assoc()) {
+                        $trainerName = $trainerRow['full_name'];
+                    }
+
+                    $clientStmt->close();
+                    $trainerStmt->close();
+
+                    if ($clientPhone) {
+                        @sendBookingSms($clientId, $clientPhone, [
+                            'id' => $bookingId,
+                            'trainer_name' => $trainerName,
+                            'date' => $sessionDate,
+                            'time' => $sessionTime,
+                            'amount' => $totalAmount
+                        ]);
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("[BOOKING SMS ERROR] Failed to send booking SMS: " . $e->getMessage());
+            }
+
             $eventData = [
                 'booking_id' => $bookingId,
                 'client_id' => $clientId,
@@ -3930,6 +3988,430 @@ switch ($action) {
                 "mpesa" => null,
                 "mpesa_source" => null
             ]);
+        }
+        break;
+
+    // SMS: SAVE SMS SETTINGS
+    case 'settings_sms_save':
+        try {
+            if (!isset($input['sms_settings']) || !is_array($input['sms_settings'])) {
+                respond("error", "Invalid SMS settings format.", null, 400);
+            }
+
+            $settings = $input['sms_settings'];
+
+            // Validate required fields
+            if (empty($settings['sms_api_key']) || empty($settings['sms_client_id']) || empty($settings['sms_access_key'])) {
+                respond("error", "Missing required SMS credentials: api_key, client_id, access_key.", null, 400);
+            }
+
+            // Save SMS credentials
+            $saveResult = saveSmsCredentials($settings);
+            if (!$saveResult) {
+                respond("error", "Failed to save SMS credentials.", null, 500);
+            }
+
+            logEvent('admin_settings_updated', ['setting' => 'sms_credentials']);
+
+            respond("success", "SMS settings saved successfully.", [
+                "saved_at" => date('Y-m-d H:i:s'),
+                "sms_enabled" => $settings['enabled'] ?? true
+            ]);
+        } catch (Exception $e) {
+            logEvent('settings_sms_save_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to save SMS settings: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS: GET SMS SETTINGS
+    case 'settings_sms_get':
+        try {
+            $smsCreds = getSmsCredentials();
+
+            if (!$smsCreds) {
+                respond("success", "SMS settings retrieved (not configured).", [
+                    "sms_configured" => false,
+                    "sender_id" => "Skatryk"
+                ]);
+            }
+
+            respond("success", "SMS settings retrieved.", [
+                "sms_configured" => true,
+                "sms_enabled" => $smsCreds['enabled'],
+                "sms_sender_id" => $smsCreds['sender_id'],
+                "sms_source" => $smsCreds['source'],
+                "api_key_exists" => !empty($smsCreds['api_key']),
+                "client_id_exists" => !empty($smsCreds['client_id']),
+                "access_key_exists" => !empty($smsCreds['access_key'])
+            ]);
+        } catch (Exception $e) {
+            logEvent('settings_sms_get_error', ['error' => $e->getMessage()]);
+            respond("success", "SMS settings retrieved (error).", [
+                "sms_configured" => false
+            ]);
+        }
+        break;
+
+    // SMS TEMPLATES: GET ALL TEMPLATES
+    case 'sms_templates_get':
+        try {
+            // Ensure table exists
+            $tableCheck = @$conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME='sms_templates' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$tableCheck || $tableCheck->num_rows == 0) {
+                respond("success", "No SMS templates found.", ["data" => []]);
+            }
+
+            $result = $conn->query("
+                SELECT id, name, event_type, template_text, active, created_at, updated_at
+                FROM sms_templates
+                ORDER BY event_type, name
+            ");
+
+            if (!$result) {
+                respond("error", "Failed to fetch templates.", null, 500);
+            }
+
+            $templates = [];
+            while ($row = $result->fetch_assoc()) {
+                $templates[] = $row;
+            }
+
+            respond("success", "SMS templates fetched successfully.", ["data" => $templates]);
+        } catch (Exception $e) {
+            logEvent('sms_templates_get_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to fetch SMS templates: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS TEMPLATES: CREATE OR UPDATE TEMPLATE
+    case 'sms_templates_save':
+        try {
+            if (!isset($input['template']) || !is_array($input['template'])) {
+                respond("error", "Invalid template format.", null, 400);
+            }
+
+            $template = $input['template'];
+
+            if (empty($template['name']) || empty($template['event_type']) || empty($template['template_text'])) {
+                respond("error", "Missing required fields: name, event_type, template_text.", null, 400);
+            }
+
+            // Ensure table exists
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS `sms_templates` (
+                  `id` VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+                  `name` VARCHAR(255) NOT NULL UNIQUE,
+                  `event_type` VARCHAR(50) NOT NULL,
+                  `template_text` LONGTEXT NOT NULL,
+                  `active` BOOLEAN DEFAULT TRUE,
+                  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  INDEX `idx_event_type` (`event_type`),
+                  INDEX `idx_active` (`active`),
+                  INDEX `idx_name` (`name`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+
+            $id = $template['id'] ?? null;
+            $name = $conn->real_escape_string($template['name']);
+            $eventType = $conn->real_escape_string($template['event_type']);
+            $templateText = $conn->real_escape_string($template['template_text']);
+            $active = $template['active'] ?? true ? 1 : 0;
+
+            if ($id) {
+                // Update existing template
+                $stmt = $conn->prepare("
+                    UPDATE sms_templates
+                    SET name=?, event_type=?, template_text=?, active=?, updated_at=NOW()
+                    WHERE id=?
+                ");
+                $stmt->bind_param("sssss", $name, $eventType, $templateText, $active, $id);
+            } else {
+                // Create new template
+                $id = bin2hex(random_bytes(18));
+                $stmt = $conn->prepare("
+                    INSERT INTO sms_templates (id, name, event_type, template_text, active, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                ");
+                $stmt->bind_param("sssss", $id, $name, $eventType, $templateText, $active);
+            }
+
+            if (!$stmt->execute()) {
+                respond("error", "Failed to save template: " . $stmt->error, null, 500);
+            }
+
+            $stmt->close();
+            logEvent('sms_template_saved', ['template_id' => $id, 'name' => $name]);
+
+            respond("success", ($template['id'] ? "Template updated" : "Template created") . " successfully.", [
+                "template_id" => $id,
+                "name" => $name,
+                "event_type" => $eventType
+            ]);
+        } catch (Exception $e) {
+            logEvent('sms_templates_save_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to save SMS template: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS TEMPLATES: DELETE TEMPLATE
+    case 'sms_templates_delete':
+        try {
+            if (!isset($input['template_id'])) {
+                respond("error", "Missing template_id.", null, 400);
+            }
+
+            $templateId = $conn->real_escape_string($input['template_id']);
+
+            $stmt = $conn->prepare("DELETE FROM sms_templates WHERE id=?");
+            $stmt->bind_param("s", $templateId);
+
+            if (!$stmt->execute()) {
+                respond("error", "Failed to delete template.", null, 500);
+            }
+
+            $stmt->close();
+            logEvent('sms_template_deleted', ['template_id' => $templateId]);
+
+            respond("success", "Template deleted successfully.", ["template_id" => $templateId]);
+        } catch (Exception $e) {
+            logEvent('sms_templates_delete_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to delete SMS template: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS: SEND MANUAL SMS
+    case 'sms_send_manual':
+        try {
+            if (empty($input['message'])) {
+                respond("error", "Missing message content.", null, 400);
+            }
+
+            $message = $conn->real_escape_string($input['message']);
+            $phoneNumbers = [];
+            $userIds = [];
+
+            // Get phone numbers from direct list or from users
+            if (isset($input['phone_numbers']) && is_array($input['phone_numbers'])) {
+                $phoneNumbers = array_filter($input['phone_numbers']);
+            } elseif (isset($input['user_ids']) && is_array($input['user_ids'])) {
+                $userIds = array_filter($input['user_ids']);
+                // Fetch phone numbers for users
+                foreach ($userIds as $userId) {
+                    $stmt = $conn->prepare("SELECT phone FROM users WHERE id=? LIMIT 1");
+                    $stmt->bind_param("s", $userId);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    if ($result && $row = $result->fetch_assoc()) {
+                        if (!empty($row['phone'])) {
+                            $phoneNumbers[] = $row['phone'];
+                        }
+                    }
+                    $stmt->close();
+                }
+            } elseif (isset($input['user_group'])) {
+                // Send to user group
+                $group = $conn->real_escape_string($input['user_group']);
+
+                if ($group === 'all') {
+                    $result = $conn->query("SELECT id, phone FROM users WHERE phone IS NOT NULL AND phone != '' LIMIT 10000");
+                } elseif ($group === 'trainers') {
+                    $result = $conn->query("
+                        SELECT u.id, u.phone FROM users u
+                        INNER JOIN user_profiles up ON u.id = up.user_id
+                        WHERE up.user_type='trainer' AND u.phone IS NOT NULL AND u.phone != '' LIMIT 10000
+                    ");
+                } elseif ($group === 'clients') {
+                    $result = $conn->query("
+                        SELECT u.id, u.phone FROM users u
+                        INNER JOIN user_profiles up ON u.id = up.user_id
+                        WHERE up.user_type='client' AND u.phone IS NOT NULL AND u.phone != '' LIMIT 10000
+                    ");
+                } else {
+                    respond("error", "Invalid user group.", null, 400);
+                }
+
+                if ($result) {
+                    while ($row = $result->fetch_assoc()) {
+                        $phoneNumbers[] = $row['phone'];
+                        $userIds[] = $row['id'];
+                    }
+                }
+            } else {
+                respond("error", "Missing recipient information (phone_numbers, user_ids, or user_group).", null, 400);
+            }
+
+            if (empty($phoneNumbers)) {
+                respond("error", "No valid phone numbers to send SMS to.", null, 400);
+            }
+
+            // Send SMS
+            $credentials = getSmsCredentials();
+            if (!$credentials || !$credentials['enabled']) {
+                respond("error", "SMS service not configured.", null, 500);
+            }
+
+            $result = sendSmsViaOnfonmedia($phoneNumbers, $message, $credentials);
+
+            if (!$result['success']) {
+                respond("error", "Failed to send SMS: " . $result['error'], null, 500);
+            }
+
+            // Log SMS sends
+            $smsLogIds = [];
+            foreach ($phoneNumbers as $phone) {
+                $logId = logSmsEvent(null, $phone, $message, null, 'admin_manual', null, 'sent', $result['provider_response'] ?? null);
+                if ($logId) {
+                    $smsLogIds[] = $logId;
+                }
+            }
+
+            logEvent('sms_bulk_sent', [
+                'count' => count($phoneNumbers),
+                'group' => $input['user_group'] ?? 'manual'
+            ]);
+
+            respond("success", "SMS sent to " . count($phoneNumbers) . " recipient(s).", [
+                "sent_count" => count($phoneNumbers),
+                "sms_log_ids" => $smsLogIds
+            ]);
+        } catch (Exception $e) {
+            logEvent('sms_send_manual_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to send SMS: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS LOGS: GET SMS HISTORY
+    case 'sms_logs_get':
+        try {
+            $tableCheck = @$conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME='sms_logs' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$tableCheck || $tableCheck->num_rows == 0) {
+                respond("success", "No SMS logs found.", ["data" => []]);
+            }
+
+            // Build query with filters
+            $where = [];
+            $params = [];
+            $types = '';
+
+            if (isset($input['event_type']) && !empty($input['event_type'])) {
+                $where[] = "event_type = ?";
+                $params[] = $conn->real_escape_string($input['event_type']);
+                $types .= 's';
+            }
+
+            if (isset($input['status']) && !empty($input['status'])) {
+                $where[] = "status = ?";
+                $params[] = $conn->real_escape_string($input['status']);
+                $types .= 's';
+            }
+
+            if (isset($input['user_id']) && !empty($input['user_id'])) {
+                $where[] = "user_id = ?";
+                $params[] = $conn->real_escape_string($input['user_id']);
+                $types .= 's';
+            }
+
+            if (isset($input['date_from']) && !empty($input['date_from'])) {
+                $where[] = "created_at >= ?";
+                $params[] = $conn->real_escape_string($input['date_from']);
+                $types .= 's';
+            }
+
+            if (isset($input['date_to']) && !empty($input['date_to'])) {
+                $where[] = "created_at <= ?";
+                $params[] = $conn->real_escape_string($input['date_to']);
+                $types .= 's';
+            }
+
+            $whereClause = empty($where) ? '' : 'WHERE ' . implode(' AND ', $where);
+
+            // Get total count
+            $countSql = "SELECT COUNT(*) as total FROM sms_logs $whereClause";
+            $countResult = $conn->query($countSql);
+            $totalCount = $countResult ? $countResult->fetch_assoc()['total'] : 0;
+
+            // Pagination
+            $limit = $input['limit'] ?? 50;
+            $offset = $input['offset'] ?? 0;
+            $limit = min($limit, 1000);
+
+            $sql = "
+                SELECT id, user_id, phone_number, message, template_id, event_type, event_id, status, sent_at, created_at
+                FROM sms_logs
+                $whereClause
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if ($types) {
+                $params[] = $limit;
+                $params[] = $offset;
+                $types .= 'ii';
+
+                $stmt->bind_param($types, ...$params);
+            } else {
+                $stmt->bind_param('ii', $limit, $offset);
+            }
+
+            if (!$stmt->execute()) {
+                respond("error", "Failed to fetch SMS logs.", null, 500);
+            }
+
+            $result = $stmt->get_result();
+            $logs = [];
+            while ($row = $result->fetch_assoc()) {
+                $logs[] = $row;
+            }
+            $stmt->close();
+
+            respond("success", "SMS logs fetched successfully.", [
+                "data" => $logs,
+                "total" => $totalCount,
+                "limit" => $limit,
+                "offset" => $offset
+            ]);
+        } catch (Exception $e) {
+            logEvent('sms_logs_get_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to fetch SMS logs: " . $e->getMessage(), null, 500);
+        }
+        break;
+
+    // SMS LOGS: DELETE OLD LOGS
+    case 'sms_logs_delete':
+        try {
+            if (!isset($input['days'])) {
+                $days = 90; // Default: delete logs older than 90 days
+            } else {
+                $days = intval($input['days']);
+            }
+
+            if ($days < 1) {
+                respond("error", "Days must be at least 1.", null, 400);
+            }
+
+            $stmt = $conn->prepare("DELETE FROM sms_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)");
+            $stmt->bind_param("i", $days);
+
+            if (!$stmt->execute()) {
+                respond("error", "Failed to delete SMS logs.", null, 500);
+            }
+
+            $deletedCount = $conn->affected_rows;
+            $stmt->close();
+
+            logEvent('sms_logs_deleted', ['days' => $days, 'count' => $deletedCount]);
+
+            respond("success", "Deleted $deletedCount old SMS log(s).", [
+                "deleted_count" => $deletedCount,
+                "older_than_days" => $days
+            ]);
+        } catch (Exception $e) {
+            logEvent('sms_logs_delete_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to delete SMS logs: " . $e->getMessage(), null, 500);
         }
         break;
 
