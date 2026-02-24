@@ -13,6 +13,7 @@ import { CategoryForm } from './CategoryForm'
 import { CategoryList } from './CategoryList'
 import { ContactsList } from './ContactsList'
 import { WaitingListManager } from './WaitingListManager'
+import { AdminSMSManager } from './AdminSMSManager'
 import { useNavigate } from 'react-router-dom'
 import {
   Users,
@@ -2164,6 +2165,7 @@ export const AdminDashboard: React.FC = () => {
                 <TabsContent value="analytics">{renderAnalytics()}</TabsContent>
                 <TabsContent value="promotions">{renderPromotions()}</TabsContent>
                 <TabsContent value="payouts"><AdminPayoutManager /></TabsContent>
+                <TabsContent value="sms"><AdminSMSManager /></TabsContent>
                 <TabsContent value="categories">{renderCategories()}</TabsContent>
                 <TabsContent value="waitlist">
                   <div className="space-y-6">

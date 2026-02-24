@@ -777,6 +777,31 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
              $conn->query("UPDATE bookings SET status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
         }
 
+        // Send payment confirmation SMS if SMS helper is available
+        if ($res && $clientId) {
+            try {
+                $userStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                if ($userStmt) {
+                    $userStmt->bind_param("s", $clientId);
+                    $userStmt->execute();
+                    $userResult = $userStmt->get_result();
+                    if ($userResult && $row = $userResult->fetch_assoc()) {
+                        if (!empty($row['phone']) && function_exists('sendPaymentSms')) {
+                            @sendPaymentSms($clientId, $row['phone'], [
+                                'id' => $paymentId,
+                                'amount' => $amount,
+                                'transaction_reference' => $receipt,
+                                'booking_id' => $bookingId
+                            ]);
+                        }
+                    }
+                    $userStmt->close();
+                }
+            } catch (Exception $e) {
+                error_log("[MPESA SMS ERROR] Failed to send payment SMS: " . $e->getMessage());
+            }
+        }
+
         error_log("[MPESA RECORD] Payment recorded: id=$paymentId, booking=$bookingId, amount=$amount");
         return $res;
     }
