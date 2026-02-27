@@ -1848,51 +1848,51 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div>
             <Label>Consumer Key</Label>
-            <Input value={mpesa.consumerKey} onChange={(e)=>setMpesa({...mpesa, consumerKey:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.consumerKey || ''} onChange={(e)=>setMpesa({...mpesa, consumerKey:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Consumer Secret</Label>
-            <Input type="password" value={mpesa.consumerSecret} onChange={(e)=>setMpesa({...mpesa, consumerSecret:e.target.value})} className="bg-input border-border" />
+            <Input type="password" value={mpesa.consumerSecret || ''} onChange={(e)=>setMpesa({...mpesa, consumerSecret:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Passkey</Label>
-            <Input type="password" value={mpesa.passkey} onChange={(e)=>setMpesa({...mpesa, passkey:e.target.value})} className="bg-input border-border" />
+            <Input type="password" value={mpesa.passkey || ''} onChange={(e)=>setMpesa({...mpesa, passkey:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Initiator Name</Label>
-            <Input value={mpesa.initiatorName} onChange={(e)=>setMpesa({...mpesa, initiatorName:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.initiatorName || ''} onChange={(e)=>setMpesa({...mpesa, initiatorName:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Security Credential</Label>
-            <Input type="password" value={mpesa.securityCredential} onChange={(e)=>setMpesa({...mpesa, securityCredential:e.target.value})} className="bg-input border-border" />
+            <Input type="password" value={mpesa.securityCredential || ''} onChange={(e)=>setMpesa({...mpesa, securityCredential:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Shortcode</Label>
-            <Input value={mpesa.shortcode} onChange={(e)=>setMpesa({...mpesa, shortcode:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.shortcode || ''} onChange={(e)=>setMpesa({...mpesa, shortcode:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Result URL</Label>
-            <Input value={mpesa.resultUrl} onChange={(e)=>setMpesa({...mpesa, resultUrl:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.resultUrl || ''} onChange={(e)=>setMpesa({...mpesa, resultUrl:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>Queue Timeout URL</Label>
-            <Input value={mpesa.queueTimeoutUrl} onChange={(e)=>setMpesa({...mpesa, queueTimeoutUrl:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.queueTimeoutUrl || ''} onChange={(e)=>setMpesa({...mpesa, queueTimeoutUrl:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>C2B Callback URL</Label>
-            <Input value={mpesa.c2bCallbackUrl} onChange={(e)=>setMpesa({...mpesa, c2bCallbackUrl:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.c2bCallbackUrl || ''} onChange={(e)=>setMpesa({...mpesa, c2bCallbackUrl:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
             <Label>B2C Callback URL</Label>
-            <Input value={mpesa.b2cCallbackUrl} onChange={(e)=>setMpesa({...mpesa, b2cCallbackUrl:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.b2cCallbackUrl || ''} onChange={(e)=>setMpesa({...mpesa, b2cCallbackUrl:e.target.value})} className="bg-input border-border" />
           </div>
           <div className="md:col-span-2">
             <Label>Command ID</Label>
-            <Input value={mpesa.commandId} onChange={(e)=>setMpesa({...mpesa, commandId:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.commandId || ''} onChange={(e)=>setMpesa({...mpesa, commandId:e.target.value})} className="bg-input border-border" />
           </div>
           <div className="md:col-span-2">
             <Label>Transaction Type</Label>
-            <Input value={mpesa.transactionType} onChange={(e)=>setMpesa({...mpesa, transactionType:e.target.value})} className="bg-input border-border" />
+            <Input value={mpesa.transactionType || ''} onChange={(e)=>setMpesa({...mpesa, transactionType:e.target.value})} className="bg-input border-border" />
           </div>
           <div className="md:col-span-2 flex justify-end gap-2">
             <Button variant="outline" onClick={async ()=>{

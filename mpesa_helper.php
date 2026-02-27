@@ -9,16 +9,42 @@
  * ENHANCED: Detailed logging of all M-Pesa API calls and responses
  */
 
-// Get M-Pesa credentials from admin settings or environment
+// Get M-Pesa credentials from dedicated table, with fallback to platform_settings and environment
 function getMpesaCredentials() {
     global $conn;
-    
-    // Try to get from admin settings table first
-    $sql = "SELECT value FROM platform_settings WHERE setting_key = 'mpesa_credentials' LIMIT 1";
-    $result = $conn->query($sql);
+
+    // Try to get from dedicated mpesa_credentials table first
+    $sql = "SELECT * FROM mpesa_credentials ORDER BY updated_at DESC LIMIT 1";
+    $result = @$conn->query($sql);
 
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
+        if (!empty($row['consumerKey']) && !empty($row['consumerSecret'])) {
+            $creds = [
+                'consumer_key' => trim($row['consumerKey']),
+                'consumer_secret' => trim($row['consumerSecret']),
+                'shortcode' => trim($row['shortcode'] ?? ''),
+                'passkey' => trim($row['passkey'] ?? ''),
+                'environment' => trim($row['environment'] ?? 'sandbox'),
+                'result_url' => trim($row['resultUrl'] ?? ''),
+                'initiator_name' => trim($row['initiatorName'] ?? ''),
+                'security_credential' => trim($row['securityCredential'] ?? ''),
+                'c2b_callback_url' => trim($row['c2bCallbackUrl'] ?? ''),
+                'b2c_callback_url' => trim($row['b2cCallbackUrl'] ?? ''),
+                'source' => 'mpesa_credentials_table'
+            ];
+            error_log("[MPESA CREDS] Loaded from mpesa_credentials table. Environment: " . $creds['environment'] . ", Source: mpesa_credentials_table");
+            return $creds;
+        }
+    }
+
+    // Fallback to platform_settings table (for backward compatibility with old migrations)
+    error_log("[MPESA CREDS] mpesa_credentials table query failed or empty, checking platform_settings...");
+    $legacy_sql = "SELECT value FROM platform_settings WHERE setting_key = 'mpesa_credentials' LIMIT 1";
+    $legacy_result = @$conn->query($legacy_sql);
+
+    if ($legacy_result && $legacy_result->num_rows > 0) {
+        $row = $legacy_result->fetch_assoc();
         $settings = json_decode($row['value'], true);
         if ($settings && !empty($settings['consumerKey']) && !empty($settings['consumerSecret'])) {
             $creds = [
@@ -32,14 +58,15 @@ function getMpesaCredentials() {
                 'security_credential' => trim($settings['securityCredential'] ?? ''),
                 'c2b_callback_url' => trim($settings['c2bCallbackUrl'] ?? ''),
                 'b2c_callback_url' => trim($settings['b2cCallbackUrl'] ?? ''),
-                'source' => 'admin_settings'
+                'source' => 'platform_settings_legacy'
             ];
-            error_log("[MPESA CREDS] Loaded from database. Environment: " . $creds['environment'] . ", Source: admin_settings");
+            error_log("[MPESA CREDS] Loaded from platform_settings (legacy). Environment: " . $creds['environment'] . ", Source: platform_settings_legacy");
             return $creds;
         }
     }
-    
+
     // Fallback to environment variables
+    error_log("[MPESA CREDS] No credentials in database, checking environment variables...");
     $envCreds = [
         'consumer_key' => trim(getenv('MPESA_CONSUMER_KEY') ?: ''),
         'consumer_secret' => trim(getenv('MPESA_CONSUMER_SECRET') ?: ''),
@@ -53,14 +80,14 @@ function getMpesaCredentials() {
         'b2c_callback_url' => trim(getenv('MPESA_B2C_CALLBACK_URL') ?: ''),
         'source' => 'environment'
     ];
-    
+
     // Only return env credentials if all required fields are present
     if (!empty($envCreds['consumer_key']) && !empty($envCreds['consumer_secret'])) {
         error_log("[MPESA CREDS] Loaded from environment variables. Environment: " . $envCreds['environment']);
         return $envCreds;
     }
-    
-    error_log("[MPESA CREDS ERROR] No valid credentials found in database or environment");
+
+    error_log("[MPESA CREDS ERROR] No valid credentials found in mpesa_credentials table, platform_settings, or environment");
     return null;
 }
 
@@ -586,68 +613,149 @@ function initiateB2CPayment($credentials, $phone, $amount, $command_id = null, $
     ];
 }
 
-// Save M-Pesa credentials to admin settings
+// Save M-Pesa credentials to dedicated mpesa_credentials table
 function saveMpesaCredentials($credentials) {
     global $conn;
-    
+
     error_log("[MPESA SAVE] Saving credentials to database");
-    
-    // Ensure platform_settings table exists
+
+    // Ensure mpesa_credentials table exists
     $create_table_sql = "
-        CREATE TABLE IF NOT EXISTS platform_settings (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            setting_key VARCHAR(255) UNIQUE NOT NULL,
-            value LONGTEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_key (setting_key)
+        CREATE TABLE IF NOT EXISTS `mpesa_credentials` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `consumerKey` VARCHAR(255) NOT NULL,
+            `consumerSecret` VARCHAR(255) NOT NULL,
+            `shortcode` VARCHAR(20) NOT NULL,
+            `passkey` VARCHAR(255) NOT NULL,
+            `environment` VARCHAR(50) DEFAULT 'production',
+            `securityCredential` VARCHAR(500),
+            `resultUrl` TEXT,
+            `initiatorName` VARCHAR(255),
+            `commandId` VARCHAR(100) DEFAULT 'BusinessPayment',
+            `transactionType` VARCHAR(100) DEFAULT 'BusinessPayment',
+            `c2bCallbackUrl` TEXT,
+            `b2cCallbackUrl` TEXT,
+            `queueTimeoutUrl` TEXT,
+            `source` VARCHAR(100) DEFAULT 'admin_settings',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_created_at (created_at),
+            INDEX idx_updated_at (updated_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
-    
+
     if (!$conn->query($create_table_sql)) {
-        error_log("[MPESA SAVE ERROR] Failed to create platform_settings table: " . $conn->error);
+        error_log("[MPESA SAVE ERROR] Failed to create mpesa_credentials table: " . $conn->error);
         return false;
     }
-    
-    $creds_json = json_encode($credentials);
-    error_log("[MPESA SAVE] Credentials JSON: " . $creds_json);
-    
+
+    // Delete existing credentials and insert new ones (keeps history clean)
+    $delete_sql = "DELETE FROM mpesa_credentials";
+    if (!$conn->query($delete_sql)) {
+        error_log("[MPESA SAVE WARNING] Failed to delete old credentials: " . $conn->error);
+        // Don't return false, continue with insert
+    }
+
     $sql = "
-        INSERT INTO platform_settings (setting_key, value) 
-        VALUES ('mpesa_credentials', ?)
-        ON DUPLICATE KEY UPDATE 
-            value = VALUES(value),
-            updated_at = CURRENT_TIMESTAMP
+        INSERT INTO mpesa_credentials (
+            consumerKey, consumerSecret, shortcode, passkey, environment,
+            securityCredential, resultUrl, initiatorName, commandId, transactionType,
+            c2bCallbackUrl, b2cCallbackUrl, queueTimeoutUrl, source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ";
-    
+
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         error_log("[MPESA SAVE ERROR] Prepare failed: " . $conn->error);
         return false;
     }
-    
-    $stmt->bind_param("s", $creds_json);
+
+    // Extract values into variables for bind_param
+    $consumerKey = $credentials['consumerKey'];
+    $consumerSecret = $credentials['consumerSecret'];
+    $shortcode = $credentials['shortcode'];
+    $passkey = $credentials['passkey'];
+    $environment = $credentials['environment'] ?? 'production';
+    $securityCredential = $credentials['securityCredential'] ?? null;
+    $resultUrl = $credentials['resultUrl'] ?? null;
+    $initiatorName = $credentials['initiatorName'] ?? null;
+    $commandId = $credentials['commandId'] ?? 'BusinessPayment';
+    $transactionType = $credentials['transactionType'] ?? 'BusinessPayment';
+    $c2bCallbackUrl = $credentials['c2bCallbackUrl'] ?? null;
+    $b2cCallbackUrl = $credentials['b2cCallbackUrl'] ?? null;
+    $queueTimeoutUrl = $credentials['queueTimeoutUrl'] ?? null;
+    $source = $credentials['source'] ?? 'admin_settings';
+
+    $stmt->bind_param(
+        "ssssssssssssss",
+        $consumerKey,
+        $consumerSecret,
+        $shortcode,
+        $passkey,
+        $environment,
+        $securityCredential,
+        $resultUrl,
+        $initiatorName,
+        $commandId,
+        $transactionType,
+        $c2bCallbackUrl,
+        $b2cCallbackUrl,
+        $queueTimeoutUrl,
+        $source
+    );
+
     $result = $stmt->execute();
     $stmt->close();
-    
+
     if (!$result) {
         error_log("[MPESA SAVE ERROR] Execute failed: " . $conn->error);
         return false;
     }
-    
-    error_log("[MPESA SAVE SUCCESS] Credentials saved successfully");
-    
+
+    error_log("[MPESA SAVE SUCCESS] Credentials saved to mpesa_credentials table");
+
     // Log credential change
     logEvent('mpesa_credentials_updated', [
-        'source' => 'admin_settings',
+        'source' => $credentials['source'] ?? 'admin_settings',
         'environment' => $credentials['environment'] ?? 'unknown'
     ]);
-    
+
     return true;
 }
 
-// Get M-Pesa credentials (for admin use only)
+// Get M-Pesa credentials for admin display (with masked secrets)
 function getMpesaCredentialsForAdmin() {
+    global $conn;
+
+    // Try to get from dedicated mpesa_credentials table first
+    $sql = "SELECT * FROM mpesa_credentials ORDER BY updated_at DESC LIMIT 1";
+    $result = @$conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if (!empty($row['consumerKey']) && !empty($row['consumerSecret'])) {
+            // Return with masked secrets for display
+            return [
+                'environment' => $row['environment'] ?? 'production',
+                'consumerKey' => maskSecret($row['consumerKey']),
+                'consumerSecret' => maskSecret($row['consumerSecret']),
+                'shortcode' => $row['shortcode'] ?? '',
+                'passkey' => maskSecret($row['passkey']),
+                'resultUrl' => $row['resultUrl'] ?? '',
+                'initiatorName' => $row['initiatorName'] ?? '',
+                'securityCredential' => maskSecret($row['securityCredential'] ?? ''),
+                'commandId' => $row['commandId'] ?? 'BusinessPayment',
+                'transactionType' => $row['transactionType'] ?? 'BusinessPayment',
+                'c2bCallbackUrl' => $row['c2bCallbackUrl'] ?? '',
+                'b2cCallbackUrl' => $row['b2cCallbackUrl'] ?? '',
+                'queueTimeoutUrl' => $row['queueTimeoutUrl'] ?? '',
+                'source' => $row['source'] ?? 'admin_settings'
+            ];
+        }
+    }
+
+    // Fallback to using the full getMpesaCredentials() function for backward compatibility
+    error_log("[MPESA ADMIN] mpesa_credentials table query failed or empty, using getMpesaCredentials fallback...");
     $creds = getMpesaCredentials();
     if (!$creds) {
         return null;
