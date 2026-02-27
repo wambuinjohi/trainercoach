@@ -670,22 +670,38 @@ function saveMpesaCredentials($credentials) {
         return false;
     }
 
+    // Extract values into variables for bind_param
+    $consumerKey = $credentials['consumerKey'];
+    $consumerSecret = $credentials['consumerSecret'];
+    $shortcode = $credentials['shortcode'];
+    $passkey = $credentials['passkey'];
+    $environment = $credentials['environment'] ?? 'production';
+    $securityCredential = $credentials['securityCredential'] ?? null;
+    $resultUrl = $credentials['resultUrl'] ?? null;
+    $initiatorName = $credentials['initiatorName'] ?? null;
+    $commandId = $credentials['commandId'] ?? 'BusinessPayment';
+    $transactionType = $credentials['transactionType'] ?? 'BusinessPayment';
+    $c2bCallbackUrl = $credentials['c2bCallbackUrl'] ?? null;
+    $b2cCallbackUrl = $credentials['b2cCallbackUrl'] ?? null;
+    $queueTimeoutUrl = $credentials['queueTimeoutUrl'] ?? null;
+    $source = $credentials['source'] ?? 'admin_settings';
+
     $stmt->bind_param(
         "ssssssssssssss",
-        $credentials['consumerKey'],
-        $credentials['consumerSecret'],
-        $credentials['shortcode'],
-        $credentials['passkey'],
-        $credentials['environment'] ?? 'production',
-        $credentials['securityCredential'] ?? null,
-        $credentials['resultUrl'] ?? null,
-        $credentials['initiatorName'] ?? null,
-        $credentials['commandId'] ?? 'BusinessPayment',
-        $credentials['transactionType'] ?? 'BusinessPayment',
-        $credentials['c2bCallbackUrl'] ?? null,
-        $credentials['b2cCallbackUrl'] ?? null,
-        $credentials['queueTimeoutUrl'] ?? null,
-        $credentials['source'] ?? 'admin_settings'
+        $consumerKey,
+        $consumerSecret,
+        $shortcode,
+        $passkey,
+        $environment,
+        $securityCredential,
+        $resultUrl,
+        $initiatorName,
+        $commandId,
+        $transactionType,
+        $c2bCallbackUrl,
+        $b2cCallbackUrl,
+        $queueTimeoutUrl,
+        $source
     );
 
     $result = $stmt->execute();
