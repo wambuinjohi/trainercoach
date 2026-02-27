@@ -670,11 +670,11 @@ function saveMpesaCredentials($credentials) {
         return false;
     }
 
-    // Extract values into variables for bind_param
-    $consumerKey = $credentials['consumerKey'];
-    $consumerSecret = $credentials['consumerSecret'];
-    $shortcode = $credentials['shortcode'];
-    $passkey = $credentials['passkey'];
+    // Extract values into variables for bind_param (ensures they can be passed by reference)
+    $consumerKey = $credentials['consumerKey'] ?? '';
+    $consumerSecret = $credentials['consumerSecret'] ?? '';
+    $shortcode = $credentials['shortcode'] ?? '';
+    $passkey = $credentials['passkey'] ?? '';
     $environment = $credentials['environment'] ?? 'production';
     $securityCredential = $credentials['securityCredential'] ?? null;
     $resultUrl = $credentials['resultUrl'] ?? null;
