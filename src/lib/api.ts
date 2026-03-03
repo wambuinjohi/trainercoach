@@ -6,24 +6,24 @@ import { getMockResponse } from './mock-data'
 // Fallback to /api.php is automatically used if primary endpoint fails
 // Supports both local Apache servers and remote Capacitor deployments
 
-function getFallbackApiUrls(): string[] {
+// Dynamically get fallback URLs in case they change (e.g., localStorage)
+function getCurrentFallbackApiUrls(currentUrl: string): string[] {
   const urls: string[] = [];
 
-  // Add the primary configured URL as first fallback
+  // 1. Primary from config
   const primaryUrl = getApiBaseUrl();
   if (primaryUrl && !urls.includes(primaryUrl)) {
     urls.push(primaryUrl);
   }
 
-  // For non-Capacitor web apps, try the relative /api.php endpoint
-  if (!isCapacitorApp() && !urls.includes('/api.php')) {
+  // 2. Relative /api.php as a reliable fallback on web
+  if (typeof window !== 'undefined' && !urls.includes('/api.php')) {
     urls.push('/api.php');
   }
 
-  return urls;
+  // Filter out the current one we've already tried or are about to try
+  return urls.filter(u => u !== currentUrl);
 }
-
-const FALLBACK_API_URLS = getFallbackApiUrls()
 
 let lastSuccessfulApiUrl: string | null = null
 
@@ -93,9 +93,8 @@ export async function apiRequest<T = any>(action: string, payload: Record<string
     }
 
     // Try fallback URLs if primary fails
-    for (const fallbackUrl of FALLBACK_API_URLS) {
-      if (apiUrl === fallbackUrl) continue // Skip if we already tried this
-
+    const fallbackUrls = getCurrentFallbackApiUrls(apiUrl)
+    for (const fallbackUrl of fallbackUrls) {
       console.log(`[API] ${action} - trying fallback URL:`, fallbackUrl)
       try {
         const response = await apiRequest_Internal<T>(fallbackUrl, action, payload, headers, init)

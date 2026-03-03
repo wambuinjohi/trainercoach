@@ -123,9 +123,10 @@ function devApiPlugin() {
     name: "dev-api",
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
-        if (req.method !== "POST" && req.method !== "GET") return next();
+        if (req.method !== "POST" && req.method !== "GET" && req.method !== "OPTIONS") return next();
         const url = req.url?.split('?')[0] || "";
-        if (url !== "/api.php") return next();
+        // Support both /api.php and api.php
+        if (url !== "/api.php" && url !== "api.php" && !url.endsWith("/api.php")) return next();
 
         try {
           let body = {};
@@ -152,6 +153,18 @@ function devApiPlugin() {
           }
 
           const action = (body.action || "").toLowerCase().trim();
+
+          // Add CORS headers for broader compatibility
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+          res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Admin-Token");
+
+          // Handle OPTIONS (pre-flight)
+          if (req.method === "OPTIONS") {
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
 
           // Always set JSON content type first
           res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -253,6 +266,17 @@ function devApiPlugin() {
                 status: "success",
                 message: "Notifications retrieved",
                 data: []
+              }));
+              return;
+
+            case "trainer_categories_get":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Trainer categories retrieved",
+                data: [
+                  { category_id: 1, name: "Strength Training" },
+                  { category_id: 3, name: "Yoga" }
+                ]
               }));
               return;
 
