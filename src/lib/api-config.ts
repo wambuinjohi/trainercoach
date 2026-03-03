@@ -43,7 +43,8 @@ export function getUploadsBaseUrl(): string {
 export function getApiBaseUrl(): string {
   // Check if user has manually set an API URL
   const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('api_url') : null;
-  if (storedUrl) {
+  // Basic validation: must be a valid URL string or relative path
+  if (storedUrl && storedUrl.length > 5 && (storedUrl.startsWith('/') || storedUrl.includes('://'))) {
     if (typeof window !== 'undefined') {
       console.log('[API Config] Using URL from localStorage:', storedUrl);
     }
@@ -61,11 +62,15 @@ export function getApiBaseUrl(): string {
 
   // For native Capacitor apps, use the remote server
   if (isCapacitorApp()) {
-    const nativeUrl = 'https://trainercoachconnect.com/api.php';
-    if (typeof window !== 'undefined') {
-      console.log('[API Config] Using native app URL:', nativeUrl);
+    // Only use remote URL if we're actually on a native platform or explicitly told to
+    const isNative = (window as any).Capacitor?.isNative || (window as any).Capacitor?.platform !== 'web';
+    if (isNative) {
+      const nativeUrl = 'https://trainercoachconnect.com/api.php';
+      if (typeof window !== 'undefined') {
+        console.log('[API Config] Using native app URL:', nativeUrl);
+      }
+      return nativeUrl;
     }
-    return nativeUrl;
   }
 
   // For web apps, default to relative path (works with local/deployed servers)
@@ -81,19 +86,25 @@ export function getApiBaseUrl(): string {
  * Get the full API endpoint URL
  */
 export function getApiUrl(): string {
-  const baseUrl = getApiBaseUrl();
-  
+  let baseUrl = getApiBaseUrl();
+
+  // Convert relative path to absolute URL in browser environment
+  if (typeof window !== 'undefined' && baseUrl.startsWith('/')) {
+    const origin = window.location.origin;
+    baseUrl = origin + baseUrl;
+  }
+
   // If it already ends with api.php, return as-is
   if (baseUrl.endsWith('/api.php')) {
     return baseUrl;
   }
-  
+
   // If it's a domain without api.php, append it
   if (baseUrl.includes('://')) {
     return baseUrl.endsWith('/') ? baseUrl + 'api.php' : baseUrl + '/api.php';
   }
-  
-  // If it's a relative path like /api.php, return as-is
+
+  // If it's a relative path like /api.php (and we're not in a browser), return as-is
   return baseUrl;
 }
 
