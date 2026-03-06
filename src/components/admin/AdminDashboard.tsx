@@ -691,8 +691,19 @@ export const AdminDashboard: React.FC = () => {
       toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' })
       return
     }
-    if (!mpesa.consumerKey || !mpesa.consumerSecret || !mpesa.shortcode || !mpesa.passkey) {
+    // Check for required credentials (either main shortcode or Buy Goods shortcode)
+    if (!mpesa.consumerKey || !mpesa.consumerSecret || !mpesa.passkey) {
       toast({ title: 'Error', description: 'M-Pesa credentials are not configured. Please configure them first.', variant: 'destructive' })
+      return
+    }
+    // Ensure either main shortcode or Buy Goods shortcode is configured
+    if (!mpesa.shortcode && !mpesa.buyGoodsShortCode) {
+      toast({ title: 'Error', description: 'M-Pesa shortcode or Buy Goods shortcode must be configured.', variant: 'destructive' })
+      return
+    }
+    // For Buy Goods, also require merchant code
+    if (mpesa.buyGoodsShortCode && !mpesa.buyGoodsMerchantCode) {
+      toast({ title: 'Error', description: 'Buy Goods merchant code is required.', variant: 'destructive' })
       return
     }
 
@@ -1945,10 +1956,10 @@ export const AdminDashboard: React.FC = () => {
 
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground">M-Pesa STK Push Test</CardTitle>
+          <CardTitle className="text-foreground">M-Pesa STK Push Test (Buy Goods)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">Test M-Pesa STK Push payment initiation. This will send a prompt to the specified phone number. <span className="font-medium">Minimum amount: 5 KES</span></p>
+          <p className="text-sm text-muted-foreground">Test M-Pesa STK Push payment initiation using Buy Goods algorithm (CustomerBuyGoodsOnline). This will send a prompt to the specified phone number. <span className="font-medium">Minimum amount: 5 KES</span></p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

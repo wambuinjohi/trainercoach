@@ -196,7 +196,7 @@ function getMpesaAccessToken($credentials) {
 }
 
 // Initiate STK Push payment
-function initiateSTKPush($credentials, $phone, $amount, $account_reference, $callback_url = null) {
+function initiateSTKPush($credentials, $phone, $amount, $account_reference, $callback_url = null, $force_payment_type = null) {
     error_log("[STK PUSH INIT] ========== STARTING STK PUSH INITIATION ==========");
     error_log("[STK PUSH INIT] Raw Phone Input: $phone");
 
@@ -264,7 +264,9 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
     $timestamp = date('YmdHis');
 
     // Determine payment type and build appropriate payload
-    $payment_type = $credentials['payment_type'] ?? 'paybill';
+    // If a payment type is forced (e.g., for client bookings), use that; otherwise use credentials setting
+    $payment_type = $force_payment_type ?? ($credentials['payment_type'] ?? 'paybill');
+    error_log("[STK PUSH INIT] Payment type determination: force_payment_type=" . ($force_payment_type ?? 'null') . ", credentials payment_type=" . ($credentials['payment_type'] ?? 'paybill') . ", final payment_type=" . $payment_type);
 
     if ($payment_type === 'buygods') {
         // Buy Goods format
