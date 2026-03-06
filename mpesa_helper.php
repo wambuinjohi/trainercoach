@@ -25,6 +25,9 @@ function getMpesaCredentials() {
                 'consumer_secret' => trim($row['consumerSecret']),
                 'shortcode' => trim($row['shortcode'] ?? ''),
                 'passkey' => trim($row['passkey'] ?? ''),
+                'payment_type' => trim($row['paymentType'] ?? 'paybill'),
+                'buy_goods_shortcode' => trim($row['buyGoodsShortCode'] ?? ''),
+                'buy_goods_merchant_code' => trim($row['buyGoodsMerchantCode'] ?? ''),
                 'environment' => trim($row['environment'] ?? 'sandbox'),
                 'result_url' => trim($row['resultUrl'] ?? ''),
                 'initiator_name' => trim($row['initiatorName'] ?? ''),
@@ -33,7 +36,7 @@ function getMpesaCredentials() {
                 'b2c_callback_url' => trim($row['b2cCallbackUrl'] ?? ''),
                 'source' => 'mpesa_credentials_table'
             ];
-            error_log("[MPESA CREDS] Loaded from mpesa_credentials table. Environment: " . $creds['environment'] . ", Source: mpesa_credentials_table");
+            error_log("[MPESA CREDS] Loaded from mpesa_credentials table. Environment: " . $creds['environment'] . ", PaymentType: " . $creds['payment_type'] . ", Source: mpesa_credentials_table");
             return $creds;
         }
     }
@@ -52,6 +55,9 @@ function getMpesaCredentials() {
                 'consumer_secret' => trim($settings['consumerSecret']),
                 'shortcode' => trim($settings['shortcode'] ?? ''),
                 'passkey' => trim($settings['passkey'] ?? ''),
+                'payment_type' => trim($settings['paymentType'] ?? 'paybill'),
+                'buy_goods_shortcode' => trim($settings['buyGoodsShortCode'] ?? ''),
+                'buy_goods_merchant_code' => trim($settings['buyGoodsMerchantCode'] ?? ''),
                 'environment' => trim($settings['environment'] ?? 'sandbox'),
                 'result_url' => trim($settings['resultUrl'] ?? ''),
                 'initiator_name' => trim($settings['initiatorName'] ?? ''),
@@ -60,7 +66,7 @@ function getMpesaCredentials() {
                 'b2c_callback_url' => trim($settings['b2cCallbackUrl'] ?? ''),
                 'source' => 'platform_settings_legacy'
             ];
-            error_log("[MPESA CREDS] Loaded from platform_settings (legacy). Environment: " . $creds['environment'] . ", Source: platform_settings_legacy");
+            error_log("[MPESA CREDS] Loaded from platform_settings (legacy). Environment: " . $creds['environment'] . ", PaymentType: " . $creds['payment_type'] . ", Source: platform_settings_legacy");
             return $creds;
         }
     }
@@ -72,6 +78,9 @@ function getMpesaCredentials() {
         'consumer_secret' => trim(getenv('MPESA_CONSUMER_SECRET') ?: ''),
         'shortcode' => trim(getenv('MPESA_SHORTCODE') ?: ''),
         'passkey' => trim(getenv('MPESA_PASSKEY') ?: ''),
+        'payment_type' => trim(getenv('MPESA_PAYMENT_TYPE') ?: 'paybill'),
+        'buy_goods_shortcode' => trim(getenv('MPESA_BUY_GOODS_SHORTCODE') ?: ''),
+        'buy_goods_merchant_code' => trim(getenv('MPESA_BUY_GOODS_MERCHANT_CODE') ?: ''),
         'environment' => trim(getenv('MPESA_ENVIRONMENT') ?: 'sandbox'),
         'result_url' => trim(getenv('MPESA_RESULT_URL') ?: ''),
         'initiator_name' => trim(getenv('MPESA_INITIATOR_NAME') ?: ''),
@@ -253,24 +262,57 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
     error_log("[STK PUSH REQUEST] STK Push URL: $stk_url");
 
     $timestamp = date('YmdHis');
-    $password = base64_encode($shortcode . $passkey . $timestamp);
 
-    error_log("[STK PUSH REQUEST] Timestamp: $timestamp");
-    error_log("[STK PUSH REQUEST] Password (base64): " . substr($password, 0, 20) . "...");
+    // Determine payment type and build appropriate payload
+    $payment_type = $credentials['payment_type'] ?? 'paybill';
 
-    $payload = [
-        'BusinessShortCode' => $shortcode,
-        'Password' => $password,
-        'Timestamp' => $timestamp,
-        'TransactionType' => 'CustomerPayBillOnline',
-        'Amount' => intval($amount),
-        'PartyA' => $phone,
-        'PartyB' => $shortcode,
-        'PhoneNumber' => $phone,
-        'CallBackURL' => $callback_url,
-        'AccountReference' => $account_reference,
-        'TransactionDesc' => 'Payment for service'
-    ];
+    if ($payment_type === 'buygods') {
+        // Buy Goods format
+        $buy_goods_shortcode = $credentials['buy_goods_shortcode'] ?? $shortcode;
+        $buy_goods_merchant_code = $credentials['buy_goods_merchant_code'] ?? '';
+        $password = base64_encode($buy_goods_shortcode . $passkey . $timestamp);
+
+        error_log("[STK PUSH REQUEST] Payment Type: Buy Goods");
+        error_log("[STK PUSH REQUEST] Business ShortCode (Buy Goods): $buy_goods_shortcode");
+        error_log("[STK PUSH REQUEST] Merchant Code (PartyB): $buy_goods_merchant_code");
+        error_log("[STK PUSH REQUEST] Timestamp: $timestamp");
+        error_log("[STK PUSH REQUEST] Password (base64): " . substr($password, 0, 20) . "...");
+
+        $payload = [
+            'BusinessShortCode' => $buy_goods_shortcode,
+            'Password' => $password,
+            'Timestamp' => $timestamp,
+            'TransactionType' => 'CustomerBuyGoodsOnline',
+            'Amount' => intval($amount),
+            'PartyA' => $phone,
+            'PartyB' => $buy_goods_merchant_code,
+            'PhoneNumber' => $phone,
+            'CallBackURL' => $callback_url,
+            'AccountReference' => $account_reference,
+            'TransactionDesc' => 'Payment for service'
+        ];
+    } else {
+        // Default Paybill format (original behavior)
+        $password = base64_encode($shortcode . $passkey . $timestamp);
+
+        error_log("[STK PUSH REQUEST] Payment Type: Paybill");
+        error_log("[STK PUSH REQUEST] Timestamp: $timestamp");
+        error_log("[STK PUSH REQUEST] Password (base64): " . substr($password, 0, 20) . "...");
+
+        $payload = [
+            'BusinessShortCode' => $shortcode,
+            'Password' => $password,
+            'Timestamp' => $timestamp,
+            'TransactionType' => 'CustomerPayBillOnline',
+            'Amount' => intval($amount),
+            'PartyA' => $phone,
+            'PartyB' => $shortcode,
+            'PhoneNumber' => $phone,
+            'CallBackURL' => $callback_url,
+            'AccountReference' => $account_reference,
+            'TransactionDesc' => 'Payment for service'
+        ];
+    }
 
     error_log("[STK PUSH PAYLOAD] " . json_encode($payload, JSON_PRETTY_PRINT));
 
@@ -619,13 +661,16 @@ function saveMpesaCredentials($credentials) {
 
     error_log("[MPESA SAVE] Saving credentials to database");
 
-    // Ensure mpesa_credentials table exists
+    // Ensure mpesa_credentials table exists with Buy Goods support
     $create_table_sql = "
         CREATE TABLE IF NOT EXISTS `mpesa_credentials` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `consumerKey` VARCHAR(255) NOT NULL,
             `consumerSecret` VARCHAR(255) NOT NULL,
             `shortcode` VARCHAR(20) NOT NULL,
+            `paymentType` VARCHAR(50) DEFAULT 'paybill' COMMENT 'Payment type: paybill or buygods',
+            `buyGoodsShortCode` VARCHAR(20) COMMENT 'Business short code for Buy Goods (CustomerBuyGoodsOnline)',
+            `buyGoodsMerchantCode` VARCHAR(20) COMMENT 'Merchant/Till code (PartyB) for Buy Goods transactions',
             `passkey` VARCHAR(255) NOT NULL,
             `environment` VARCHAR(50) DEFAULT 'production',
             `securityCredential` VARCHAR(500),
@@ -658,10 +703,11 @@ function saveMpesaCredentials($credentials) {
 
     $sql = "
         INSERT INTO mpesa_credentials (
-            consumerKey, consumerSecret, shortcode, passkey, environment,
-            securityCredential, resultUrl, initiatorName, commandId, transactionType,
-            c2bCallbackUrl, b2cCallbackUrl, queueTimeoutUrl, source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            consumerKey, consumerSecret, shortcode, paymentType, buyGoodsShortCode,
+            buyGoodsMerchantCode, passkey, environment, securityCredential, resultUrl,
+            initiatorName, commandId, transactionType, c2bCallbackUrl, b2cCallbackUrl,
+            queueTimeoutUrl, source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ";
 
     $stmt = $conn->prepare($sql);
@@ -674,6 +720,9 @@ function saveMpesaCredentials($credentials) {
     $consumerKey = $credentials['consumerKey'] ?? '';
     $consumerSecret = $credentials['consumerSecret'] ?? '';
     $shortcode = $credentials['shortcode'] ?? '';
+    $paymentType = $credentials['paymentType'] ?? 'paybill';
+    $buyGoodsShortCode = $credentials['buyGoodsShortCode'] ?? null;
+    $buyGoodsMerchantCode = $credentials['buyGoodsMerchantCode'] ?? null;
     $passkey = $credentials['passkey'] ?? '';
     $environment = $credentials['environment'] ?? 'production';
     $securityCredential = $credentials['securityCredential'] ?? null;
@@ -687,10 +736,13 @@ function saveMpesaCredentials($credentials) {
     $source = $credentials['source'] ?? 'admin_settings';
 
     $stmt->bind_param(
-        "ssssssssssssss",
+        "sssssssssssssssss",
         $consumerKey,
         $consumerSecret,
         $shortcode,
+        $paymentType,
+        $buyGoodsShortCode,
+        $buyGoodsMerchantCode,
         $passkey,
         $environment,
         $securityCredential,
@@ -740,6 +792,9 @@ function getMpesaCredentialsForAdmin() {
                 'consumerKey' => maskSecret($row['consumerKey']),
                 'consumerSecret' => maskSecret($row['consumerSecret']),
                 'shortcode' => $row['shortcode'] ?? '',
+                'paymentType' => $row['paymentType'] ?? 'paybill',
+                'buyGoodsShortCode' => $row['buyGoodsShortCode'] ?? '',
+                'buyGoodsMerchantCode' => $row['buyGoodsMerchantCode'] ?? '',
                 'passkey' => maskSecret($row['passkey']),
                 'resultUrl' => $row['resultUrl'] ?? '',
                 'initiatorName' => $row['initiatorName'] ?? '',
@@ -767,6 +822,9 @@ function getMpesaCredentialsForAdmin() {
         'consumerKey' => maskSecret($creds['consumer_key']),
         'consumerSecret' => maskSecret($creds['consumer_secret']),
         'shortcode' => $creds['shortcode'],
+        'paymentType' => $creds['payment_type'] ?? 'paybill',
+        'buyGoodsShortCode' => $creds['buy_goods_shortcode'] ?? '',
+        'buyGoodsMerchantCode' => $creds['buy_goods_merchant_code'] ?? '',
         'passkey' => maskSecret($creds['passkey']),
         'resultUrl' => $creds['result_url'],
         'initiatorName' => $creds['initiator_name'],

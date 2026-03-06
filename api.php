@@ -3903,10 +3903,14 @@ switch ($action) {
                     $mpesaChanged = true;
                     if (is_array($currentMpesa)) {
                         // Compare key fields to determine if there was a real change
+                        // Note: currentMpesa has masked secrets, so we can't compare those directly
+                        // Instead, compare non-sensitive fields and other indicators
                         $mpesaChanged = (
-                            ($currentMpesa['consumer_key'] ?? '') !== ($mpesaCreds['consumerKey'] ?? '') ||
-                            ($currentMpesa['consumer_secret'] ?? '') !== ($mpesaCreds['consumerSecret'] ?? '') ||
-                            ($currentMpesa['environment'] ?? '') !== ($mpesaCreds['environment'] ?? '')
+                            ($currentMpesa['environment'] ?? '') !== ($mpesaCreds['environment'] ?? '') ||
+                            ($currentMpesa['paymentType'] ?? 'paybill') !== ($mpesaCreds['paymentType'] ?? 'paybill') ||
+                            ($currentMpesa['shortcode'] ?? '') !== ($mpesaCreds['shortcode'] ?? '') ||
+                            ($currentMpesa['buyGoodsShortCode'] ?? '') !== ($mpesaCreds['buyGoodsShortCode'] ?? '') ||
+                            ($currentMpesa['buyGoodsMerchantCode'] ?? '') !== ($mpesaCreds['buyGoodsMerchantCode'] ?? '')
                         );
                     }
 
@@ -3919,7 +3923,9 @@ switch ($action) {
                     if ($mpesaChanged) {
                         logEvent('admin_settings_updated', [
                             'setting' => 'mpesa_credentials',
-                            'environment' => $mpesaCreds['environment'] ?? 'unknown'
+                            'environment' => $mpesaCreds['environment'] ?? 'unknown',
+                            'payment_type' => $mpesaCreds['paymentType'] ?? 'paybill',
+                            'shortcode' => $mpesaCreds['shortcode'] ?? 'unknown'
                         ]);
                     }
                 }
