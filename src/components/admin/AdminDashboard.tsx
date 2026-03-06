@@ -1867,9 +1867,31 @@ export const AdminDashboard: React.FC = () => {
             <Input type="password" value={mpesa.securityCredential || ''} onChange={(e)=>setMpesa({...mpesa, securityCredential:e.target.value})} className="bg-input border-border" />
           </div>
           <div>
-            <Label>Shortcode</Label>
+            <Label>Shortcode (Paybill)</Label>
             <Input value={mpesa.shortcode || ''} onChange={(e)=>setMpesa({...mpesa, shortcode:e.target.value})} className="bg-input border-border" />
           </div>
+          <div>
+            <Label>Payment Type</Label>
+            <Select value={mpesa.paymentType || 'paybill'} onValueChange={(v)=>setMpesa({...mpesa, paymentType:v})}>
+              <SelectTrigger className="bg-input border-border"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="paybill">Paybill</SelectItem>
+                <SelectItem value="buygods">Buy Goods</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {mpesa.paymentType === 'buygods' && (
+            <>
+              <div>
+                <Label>Buy Goods Short Code</Label>
+                <Input value={mpesa.buyGoodsShortCode || ''} onChange={(e)=>setMpesa({...mpesa, buyGoodsShortCode:e.target.value})} className="bg-input border-border" placeholder="e.g., 6677963" />
+              </div>
+              <div>
+                <Label>Buy Goods Merchant Code (PartyB)</Label>
+                <Input value={mpesa.buyGoodsMerchantCode || ''} onChange={(e)=>setMpesa({...mpesa, buyGoodsMerchantCode:e.target.value})} className="bg-input border-border" placeholder="e.g., 4073538" />
+              </div>
+            </>
+          )}
           <div>
             <Label>Result URL</Label>
             <Input value={mpesa.resultUrl || ''} onChange={(e)=>setMpesa({...mpesa, resultUrl:e.target.value})} className="bg-input border-border" />

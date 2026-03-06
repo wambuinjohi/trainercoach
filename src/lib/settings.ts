@@ -6,9 +6,12 @@ export type MpesaSettings = {
   consumerKey: string
   consumerSecret: string
   passkey: string
+  paymentType: 'paybill' | 'buygods'
+  shortcode: string
+  buyGoodsShortCode?: string
+  buyGoodsMerchantCode?: string
   initiatorName: string
   securityCredential: string
-  shortcode: string
   resultUrl: string
   queueTimeoutUrl: string
   commandId: string
@@ -89,9 +92,12 @@ export const defaultMpesaSettings: MpesaSettings = {
   consumerKey: '',
   consumerSecret: '',
   passkey: '',
+  paymentType: 'paybill',
+  shortcode: '',
+  buyGoodsShortCode: '',
+  buyGoodsMerchantCode: '',
   initiatorName: '',
   securityCredential: '',
-  shortcode: '',
   ...getDefaultMpesaCallbackUrls(),
   commandId: 'BusinessPayment',
   transactionType: 'BusinessPayment',
