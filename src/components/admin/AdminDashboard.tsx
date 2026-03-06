@@ -605,10 +605,15 @@ export const AdminDashboard: React.FC = () => {
       action: async () => {
         try {
           await apiService.approveTrainer(userId)
+          // Update local state instead of reloading
+          const updatedApprovals = approvals.filter(t => t.user_id !== userId)
+          setApprovals(updatedApprovals)
+          setStats(prev => ({
+            ...prev,
+            pendingApprovals: updatedApprovals.length,
+            totalTrainers: prev.totalTrainers + 1
+          }))
           toast({ title: 'Success', description: 'Trainer approved' })
-          setTimeout(() => {
-            window.location.reload()
-          }, 1000)
         } catch (err: any) {
           console.error('Approve trainer error:', err)
           toast({ title: 'Error', description: err?.message || 'Failed to approve trainer', variant: 'destructive' })
