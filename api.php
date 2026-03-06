@@ -4648,8 +4648,9 @@ switch ($action) {
         }
         error_log("[API STK PUSH] Callback URL configured: " . ($callbackUrl ?? 'default'));
 
-        error_log("[API STK PUSH] Calling initiateSTKPush() with: phone=" . $phone . ", amount=" . $amount . ", reference=" . $accountReference);
-        $stkResult = initiateSTKPush($mpesaCreds, $phone, $amount, $accountReference, $callbackUrl);
+        error_log("[API STK PUSH] Calling initiateSTKPush() with: phone=" . $phone . ", amount=" . $amount . ", reference=" . $accountReference . ", force_payment_type=buygods");
+        // Force Buy Goods algorithm for client bookings - ensures CustomerBuyGoodsOnline transaction type
+        $stkResult = initiateSTKPush($mpesaCreds, $phone, $amount, $accountReference, $callbackUrl, 'buygods');
 
         if (!$stkResult['success']) {
             error_log("[API STK PUSH ERROR] STK push failed: " . $stkResult['error']);
