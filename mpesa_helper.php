@@ -112,20 +112,45 @@ function validateMpesaCredentialsConfigured() {
         ];
     }
 
-    // Also validate that shortcode and passkey are configured for STK Push
-    if (empty($creds['shortcode']) || empty($creds['passkey'])) {
-        $missing = [];
-        if (empty($creds['shortcode'])) $missing[] = 'Shortcode (Paybill)';
-        if (empty($creds['passkey'])) $missing[] = 'Passkey';
-        error_log("[MPESA VALIDATION] FAILED - Missing required STK Push fields: " . implode(', ', $missing));
+    // Validate passkey (required for both Paybill and Buy Goods)
+    if (empty($creds['passkey'])) {
+        error_log("[MPESA VALIDATION] FAILED - Missing passkey for STK Push");
         return [
             'valid' => false,
-            'error' => 'M-Pesa STK Push requires configuration of: ' . implode(', ', $missing) . '. Please complete the M-Pesa settings in admin dashboard.',
+            'error' => 'M-Pesa STK Push requires Passkey to be configured. Please complete the M-Pesa settings in admin dashboard.',
             'source' => $creds['source'] ?? null
         ];
     }
 
-    error_log("[MPESA VALIDATION] SUCCESS - Source: " . $creds['source'] . ", Environment: " . $creds['environment']);
+    // Determine payment type and validate accordingly
+    $paymentType = $creds['payment_type'] ?? 'paybill';
+
+    if ($paymentType === 'buygods') {
+        // For Buy Goods, validate Buy Goods specific fields
+        if (empty($creds['buy_goods_shortcode']) || empty($creds['buy_goods_merchant_code'])) {
+            $missing = [];
+            if (empty($creds['buy_goods_shortcode'])) $missing[] = 'Buy Goods Short Code';
+            if (empty($creds['buy_goods_merchant_code'])) $missing[] = 'Buy Goods Merchant Code (PartyB)';
+            error_log("[MPESA VALIDATION] FAILED - Missing Buy Goods fields: " . implode(', ', $missing));
+            return [
+                'valid' => false,
+                'error' => 'Buy Goods payment type requires: ' . implode(', ', $missing) . '. Please complete the M-Pesa settings in admin dashboard.',
+                'source' => $creds['source'] ?? null
+            ];
+        }
+    } else {
+        // For Paybill (default), validate Paybill specific fields
+        if (empty($creds['shortcode'])) {
+            error_log("[MPESA VALIDATION] FAILED - Missing shortcode for Paybill");
+            return [
+                'valid' => false,
+                'error' => 'Paybill payment type requires Shortcode to be configured. Please complete the M-Pesa settings in admin dashboard.',
+                'source' => $creds['source'] ?? null
+            ];
+        }
+    }
+
+    error_log("[MPESA VALIDATION] SUCCESS - Payment Type: " . $paymentType . ", Source: " . $creds['source'] . ", Environment: " . $creds['environment']);
     return [
         'valid' => true,
         'source' => $creds['source'],
