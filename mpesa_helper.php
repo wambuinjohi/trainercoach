@@ -125,6 +125,11 @@ function validateMpesaCredentialsConfigured() {
     // Determine payment type and validate accordingly
     $paymentType = $creds['payment_type'] ?? 'paybill';
 
+    // Normalize payment type (handle both 'buygods' and 'CustomerBuyGoodsOnline')
+    if (strpos($paymentType, 'BuyGoods') !== false || strpos($paymentType, 'buygods') !== false) {
+        $paymentType = 'buygods';
+    }
+
     if ($paymentType === 'buygods') {
         // For Buy Goods, validate Buy Goods specific fields
         if (empty($creds['buy_goods_shortcode']) || empty($creds['buy_goods_merchant_code'])) {
@@ -259,11 +264,12 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
         ];
     }
 
-    if (empty($credentials['shortcode']) || empty($credentials['passkey'])) {
-        error_log("[STK PUSH ERROR] Missing required fields - Shortcode: " . ($credentials['shortcode'] ?? 'MISSING') . ", Passkey: " . ($credentials['passkey'] ?? 'MISSING'));
+    // Passkey is required for both Paybill and Buy Goods
+    if (empty($credentials['passkey'])) {
+        error_log("[STK PUSH ERROR] Missing passkey");
         return [
             'success' => false,
-            'error' => 'M-Pesa shortcode or passkey not configured'
+            'error' => 'M-Pesa passkey not configured'
         ];
     }
 
@@ -305,12 +311,30 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
     // Determine payment type and build appropriate payload
     // If a payment type is forced (e.g., for client bookings), use that; otherwise use credentials setting
     $payment_type = $force_payment_type ?? ($credentials['payment_type'] ?? 'paybill');
-    error_log("[STK PUSH INIT] Payment type determination: force_payment_type=" . ($force_payment_type ?? 'null') . ", credentials payment_type=" . ($credentials['payment_type'] ?? 'paybill') . ", final payment_type=" . $payment_type);
+
+    // Normalize payment type (handle both 'buygods' and 'CustomerBuyGoodsOnline')
+    if (strpos($payment_type, 'BuyGoods') !== false || strpos($payment_type, 'buygods') !== false) {
+        $payment_type = 'buygods';
+    } elseif (strpos($payment_type, 'PayBill') !== false || strpos($payment_type, 'paybill') !== false) {
+        $payment_type = 'paybill';
+    }
+
+    error_log("[STK PUSH INIT] Payment type determination: force_payment_type=" . ($force_payment_type ?? 'null') . ", credentials payment_type=" . ($credentials['payment_type'] ?? 'paybill') . ", normalized payment_type=" . $payment_type);
 
     if ($payment_type === 'buygods') {
         // Buy Goods format
         $buy_goods_shortcode = $credentials['buy_goods_shortcode'] ?? $shortcode;
         $buy_goods_merchant_code = $credentials['buy_goods_merchant_code'] ?? '';
+
+        // Validate Buy Goods specific credentials
+        if (empty($buy_goods_shortcode) || empty($buy_goods_merchant_code)) {
+            error_log("[STK PUSH ERROR] Missing Buy Goods credentials - ShortCode: " . ($buy_goods_shortcode ?? 'MISSING') . ", MerchantCode: " . ($buy_goods_merchant_code ?? 'MISSING'));
+            return [
+                'success' => false,
+                'error' => 'M-Pesa Buy Goods credentials not configured. Please configure Buy Goods Short Code and Merchant Code in admin settings.'
+            ];
+        }
+
         $password = base64_encode($buy_goods_shortcode . $passkey . $timestamp);
 
         error_log("[STK PUSH REQUEST] Payment Type: Buy Goods");
@@ -334,6 +358,14 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
         ];
     } else {
         // Default Paybill format (original behavior)
+        if (empty($shortcode)) {
+            error_log("[STK PUSH ERROR] Missing Paybill shortcode");
+            return [
+                'success' => false,
+                'error' => 'M-Pesa Paybill shortcode not configured. Please configure shortcode in admin settings.'
+            ];
+        }
+
         $password = base64_encode($shortcode . $passkey . $timestamp);
 
         error_log("[STK PUSH REQUEST] Payment Type: Paybill");
