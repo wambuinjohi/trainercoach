@@ -275,9 +275,9 @@ function logSmsEvent($user_id, $phone_number, $message, $template_id, $event_typ
         INSERT INTO sms_logs (id, user_id, phone_number, message, template_id, event_type, event_id, status, provider_response, sent_at, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
-    
+
     if ($stmt) {
-        $stmt->bind_param('sssssssss', $id, $user_id, $phone_number, $message, $template_id, $event_type, $event_id, $status, $providerJson);
+        $stmt->bind_param('ssssssssss', $id, $user_id, $phone_number, $message, $template_id, $event_type, $event_id, $status, $providerJson, $sentAt);
         $stmt->execute();
         $stmt->close();
         return $id;
