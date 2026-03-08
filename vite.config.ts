@@ -736,16 +736,19 @@ export default defineConfig(({ mode }) => ({
             const src = path.resolve(__dirname, f);
             const dest = path.resolve(distDir, f);
             fs.cpSync(src, dest);
-            console.log(`[copy-php-files] Copied ${f} to dist/`);
+            console.log(`[copy-php-files] Copied root file: ${f} to dist/`);
           });
 
-          // Copy scripts folder if it exists
-          const scriptsDir = path.resolve(__dirname, "scripts");
-          if (fs.existsSync(scriptsDir)) {
-            const destScripts = path.resolve(distDir, "scripts");
-            fs.cpSync(scriptsDir, destScripts, { recursive: true });
-            console.log(`[copy-php-files] Copied scripts/ folder to dist/`);
-          }
+          // Copy specific folders that are part of the backend
+          const backendFolders = ["scripts", "database"];
+          backendFolders.forEach(folder => {
+            const folderPath = path.resolve(__dirname, folder);
+            if (fs.existsSync(folderPath)) {
+              const destPath = path.resolve(distDir, folder);
+              fs.cpSync(folderPath, destPath, { recursive: true });
+              console.log(`[copy-php-files] Copied ${folder}/ folder to dist/`);
+            }
+          });
         }
       }
     }
