@@ -104,14 +104,58 @@ function getMpesaCredentials() {
 function validateMpesaCredentialsConfigured() {
     $creds = getMpesaCredentials();
     if (!$creds || empty($creds['consumer_key']) || empty($creds['consumer_secret'])) {
-        error_log("[MPESA VALIDATION] FAILED - Credentials not found or incomplete");
+        error_log("[MPESA VALIDATION] FAILED - Credentials not found or incomplete (missing consumer credentials)");
         return [
             'valid' => false,
-            'error' => 'M-Pesa credentials not configured. Please configure in admin settings.',
+            'error' => 'M-Pesa credentials not configured. Please configure Consumer Key and Consumer Secret in admin settings.',
             'source' => null
         ];
     }
-    error_log("[MPESA VALIDATION] SUCCESS - Source: " . $creds['source'] . ", Environment: " . $creds['environment']);
+
+    // Validate passkey (required for both Paybill and Buy Goods)
+    if (empty($creds['passkey'])) {
+        error_log("[MPESA VALIDATION] FAILED - Missing passkey for STK Push");
+        return [
+            'valid' => false,
+            'error' => 'M-Pesa STK Push requires Passkey to be configured. Please complete the M-Pesa settings in admin dashboard.',
+            'source' => $creds['source'] ?? null
+        ];
+    }
+
+    // Determine payment type and validate accordingly
+    $paymentType = $creds['payment_type'] ?? 'paybill';
+
+    // Normalize payment type (handle both 'buygods' and 'CustomerBuyGoodsOnline')
+    if (strpos($paymentType, 'BuyGoods') !== false || strpos($paymentType, 'buygods') !== false) {
+        $paymentType = 'buygods';
+    }
+
+    if ($paymentType === 'buygods') {
+        // For Buy Goods, validate Buy Goods specific fields
+        if (empty($creds['buy_goods_shortcode']) || empty($creds['buy_goods_merchant_code'])) {
+            $missing = [];
+            if (empty($creds['buy_goods_shortcode'])) $missing[] = 'Buy Goods Short Code';
+            if (empty($creds['buy_goods_merchant_code'])) $missing[] = 'Buy Goods Merchant Code (PartyB)';
+            error_log("[MPESA VALIDATION] FAILED - Missing Buy Goods fields: " . implode(', ', $missing));
+            return [
+                'valid' => false,
+                'error' => 'Buy Goods payment type requires: ' . implode(', ', $missing) . '. Please complete the M-Pesa settings in admin dashboard.',
+                'source' => $creds['source'] ?? null
+            ];
+        }
+    } else {
+        // For Paybill (default), validate Paybill specific fields
+        if (empty($creds['shortcode'])) {
+            error_log("[MPESA VALIDATION] FAILED - Missing shortcode for Paybill");
+            return [
+                'valid' => false,
+                'error' => 'Paybill payment type requires Shortcode to be configured. Please complete the M-Pesa settings in admin dashboard.',
+                'source' => $creds['source'] ?? null
+            ];
+        }
+    }
+
+    error_log("[MPESA VALIDATION] SUCCESS - Payment Type: " . $paymentType . ", Source: " . $creds['source'] . ", Environment: " . $creds['environment']);
     return [
         'valid' => true,
         'source' => $creds['source'],
@@ -220,11 +264,12 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
         ];
     }
 
-    if (empty($credentials['shortcode']) || empty($credentials['passkey'])) {
-        error_log("[STK PUSH ERROR] Missing required fields - Shortcode: " . ($credentials['shortcode'] ?? 'MISSING') . ", Passkey: " . ($credentials['passkey'] ?? 'MISSING'));
+    // Passkey is required for both Paybill and Buy Goods
+    if (empty($credentials['passkey'])) {
+        error_log("[STK PUSH ERROR] Missing passkey");
         return [
             'success' => false,
-            'error' => 'M-Pesa shortcode or passkey not configured'
+            'error' => 'M-Pesa passkey not configured'
         ];
     }
 
@@ -266,12 +311,30 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
     // Determine payment type and build appropriate payload
     // If a payment type is forced (e.g., for client bookings), use that; otherwise use credentials setting
     $payment_type = $force_payment_type ?? ($credentials['payment_type'] ?? 'paybill');
-    error_log("[STK PUSH INIT] Payment type determination: force_payment_type=" . ($force_payment_type ?? 'null') . ", credentials payment_type=" . ($credentials['payment_type'] ?? 'paybill') . ", final payment_type=" . $payment_type);
+
+    // Normalize payment type (handle both 'buygods' and 'CustomerBuyGoodsOnline')
+    if (strpos($payment_type, 'BuyGoods') !== false || strpos($payment_type, 'buygods') !== false) {
+        $payment_type = 'buygods';
+    } elseif (strpos($payment_type, 'PayBill') !== false || strpos($payment_type, 'paybill') !== false) {
+        $payment_type = 'paybill';
+    }
+
+    error_log("[STK PUSH INIT] Payment type determination: force_payment_type=" . ($force_payment_type ?? 'null') . ", credentials payment_type=" . ($credentials['payment_type'] ?? 'paybill') . ", normalized payment_type=" . $payment_type);
 
     if ($payment_type === 'buygods') {
         // Buy Goods format
         $buy_goods_shortcode = $credentials['buy_goods_shortcode'] ?? $shortcode;
         $buy_goods_merchant_code = $credentials['buy_goods_merchant_code'] ?? '';
+
+        // Validate Buy Goods specific credentials
+        if (empty($buy_goods_shortcode) || empty($buy_goods_merchant_code)) {
+            error_log("[STK PUSH ERROR] Missing Buy Goods credentials - ShortCode: " . ($buy_goods_shortcode ?? 'MISSING') . ", MerchantCode: " . ($buy_goods_merchant_code ?? 'MISSING'));
+            return [
+                'success' => false,
+                'error' => 'M-Pesa Buy Goods credentials not configured. Please configure Buy Goods Short Code and Merchant Code in admin settings.'
+            ];
+        }
+
         $password = base64_encode($buy_goods_shortcode . $passkey . $timestamp);
 
         error_log("[STK PUSH REQUEST] Payment Type: Buy Goods");
@@ -295,6 +358,14 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
         ];
     } else {
         // Default Paybill format (original behavior)
+        if (empty($shortcode)) {
+            error_log("[STK PUSH ERROR] Missing Paybill shortcode");
+            return [
+                'success' => false,
+                'error' => 'M-Pesa Paybill shortcode not configured. Please configure shortcode in admin settings.'
+            ];
+        }
+
         $password = base64_encode($shortcode . $passkey . $timestamp);
 
         error_log("[STK PUSH REQUEST] Payment Type: Paybill");

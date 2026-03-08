@@ -2506,15 +2506,31 @@ switch ($action) {
         $now = date('Y-m-d H:i:s');
 
         // Ensure payments table has all required columns
-        $ensureColumnsSQL = "
-            ALTER TABLE payments ADD COLUMN IF NOT EXISTS base_service_amount DECIMAL(15, 2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS transport_fee DECIMAL(15, 2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS platform_fee DECIMAL(15, 2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS vat_amount DECIMAL(15, 2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS trainer_net_amount DECIMAL(15, 2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(255)
-        ";
-        @$conn->query($ensureColumnsSQL);
+        $columnsToAdd = [
+            'base_service_amount' => 'DECIMAL(15, 2) DEFAULT 0',
+            'transport_fee' => 'DECIMAL(15, 2) DEFAULT 0',
+            'platform_fee' => 'DECIMAL(15, 2) DEFAULT 0',
+            'vat_amount' => 'DECIMAL(15, 2) DEFAULT 0',
+            'trainer_net_amount' => 'DECIMAL(15, 2) DEFAULT 0',
+            'transaction_reference' => 'VARCHAR(255)'
+        ];
+
+        // Check which columns exist
+        $existingColumns = [];
+        $columnsResult = @$conn->query("SHOW COLUMNS FROM payments");
+        if ($columnsResult) {
+            while ($colRow = $columnsResult->fetch_assoc()) {
+                $existingColumns[] = $colRow['Field'];
+            }
+        }
+
+        // Add missing columns one by one
+        foreach ($columnsToAdd as $colName => $colDefinition) {
+            if (!in_array($colName, $existingColumns)) {
+                $alterSQL = "ALTER TABLE payments ADD COLUMN $colName $colDefinition";
+                @$conn->query($alterSQL);
+            }
+        }
 
         $stmt = $conn->prepare("
             INSERT INTO payments (
