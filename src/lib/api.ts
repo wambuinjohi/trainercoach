@@ -82,18 +82,18 @@ export async function apiRequest<T = any>(action: string, payload: Record<string
   } catch (primaryError) {
     console.error(`[API] ${action} failed with primary URL:`, primaryError, { url: apiUrl })
 
+    // Try fallback URLs if primary fails
+    const fallbackUrls = getCurrentFallbackApiUrls(apiUrl)
+
     // Log detailed error info for debugging
     const errorMsg = primaryError instanceof Error ? primaryError.message : String(primaryError)
     if (errorMsg.includes('Failed to fetch')) {
       console.warn(`[API DEBUG] Network/CORS error detected. API URL: ${apiUrl}`, {
         isProduction: import.meta.env.PROD,
         apiUrl,
-        fallbackUrls: FALLBACK_API_URLS,
+        fallbackUrls: fallbackUrls,
       })
     }
-
-    // Try fallback URLs if primary fails
-    const fallbackUrls = getCurrentFallbackApiUrls(apiUrl)
     for (const fallbackUrl of fallbackUrls) {
       console.log(`[API] ${action} - trying fallback URL:`, fallbackUrl)
       try {
