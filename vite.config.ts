@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 
 // Load .env variables
@@ -723,6 +724,34 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
+    {
+      name: "copy-php-files",
+      closeBundle() {
+        // Ensure dist directory exists before copying
+        const distDir = path.resolve(__dirname, "dist");
+        if (fs.existsSync(distDir)) {
+          // Copy root PHP files
+          const rootFiles = fs.readdirSync(__dirname).filter(f => f.endsWith(".php"));
+          rootFiles.forEach(f => {
+            const src = path.resolve(__dirname, f);
+            const dest = path.resolve(distDir, f);
+            fs.cpSync(src, dest);
+            console.log(`[copy-php-files] Copied root file: ${f} to dist/`);
+          });
+
+          // Copy specific folders that are part of the backend
+          const backendFolders = ["scripts", "database"];
+          backendFolders.forEach(folder => {
+            const folderPath = path.resolve(__dirname, folder);
+            if (fs.existsSync(folderPath)) {
+              const destPath = path.resolve(distDir, folder);
+              fs.cpSync(folderPath, destPath, { recursive: true });
+              console.log(`[copy-php-files] Copied ${folder}/ folder to dist/`);
+            }
+          });
+        }
+      }
+    }
   ].filter(Boolean),
   resolve: {
     alias: {

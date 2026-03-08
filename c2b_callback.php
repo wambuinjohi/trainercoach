@@ -55,6 +55,12 @@ if (!headers_sent()) {
 // Include database connection
 require_once(__DIR__ . '/connection.php');
 
+// Include M-Pesa helper for recording payments
+include_once(__DIR__ . '/mpesa_helper.php');
+
+// Include SMS helper if available
+@include_once(__DIR__ . '/sms_helper.php');
+
 // Utility function for logging
 function logC2BEvent($type, $details = []) {
     $timestamp = date('Y-m-d H:i:s');

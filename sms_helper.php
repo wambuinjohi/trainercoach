@@ -272,8 +272,8 @@ function logSmsEvent($user_id, $phone_number, $message, $template_id, $event_typ
     $sentAt = ($status === 'sent') ? date('Y-m-d H:i:s') : null;
     
     $stmt = $conn->prepare("
-        INSERT INTO sms_logs (id, user_id, phone_number, message, template_id, event_type, event_id, status, provider_response, sent_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO sms_logs (id, user_id, phone_number, message, template_id, event_type, event_id, status, provider_response, sent_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     if ($stmt) {
