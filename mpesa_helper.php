@@ -104,13 +104,27 @@ function getMpesaCredentials() {
 function validateMpesaCredentialsConfigured() {
     $creds = getMpesaCredentials();
     if (!$creds || empty($creds['consumer_key']) || empty($creds['consumer_secret'])) {
-        error_log("[MPESA VALIDATION] FAILED - Credentials not found or incomplete");
+        error_log("[MPESA VALIDATION] FAILED - Credentials not found or incomplete (missing consumer credentials)");
         return [
             'valid' => false,
-            'error' => 'M-Pesa credentials not configured. Please configure in admin settings.',
+            'error' => 'M-Pesa credentials not configured. Please configure Consumer Key and Consumer Secret in admin settings.',
             'source' => null
         ];
     }
+
+    // Also validate that shortcode and passkey are configured for STK Push
+    if (empty($creds['shortcode']) || empty($creds['passkey'])) {
+        $missing = [];
+        if (empty($creds['shortcode'])) $missing[] = 'Shortcode (Paybill)';
+        if (empty($creds['passkey'])) $missing[] = 'Passkey';
+        error_log("[MPESA VALIDATION] FAILED - Missing required STK Push fields: " . implode(', ', $missing));
+        return [
+            'valid' => false,
+            'error' => 'M-Pesa STK Push requires configuration of: ' . implode(', ', $missing) . '. Please complete the M-Pesa settings in admin dashboard.',
+            'source' => $creds['source'] ?? null
+        ];
+    }
+
     error_log("[MPESA VALIDATION] SUCCESS - Source: " . $creds['source'] . ", Environment: " . $creds['environment']);
     return [
         'valid' => true,
