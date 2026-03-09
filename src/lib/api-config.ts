@@ -26,9 +26,36 @@ export function isAndroidApp(): boolean {
 /**
  * Get the uploads base URL
  * This is used for displaying images and files uploaded to the server
+ * Priority order:
+ * 1. Environment variable (for deployment configuration)
+ * 2. Relative path to the API (for local development)
+ * 3. Live endpoint fallback
  */
 export function getUploadsBaseUrl(): string {
-  return 'https://trainercoachconnect.com/uploads';
+  // Check environment variable
+  const envUrl = import.meta.env.VITE_UPLOADS_URL;
+  if (envUrl) {
+    if (typeof window !== 'undefined') {
+      console.log('[API Config] Using uploads URL from VITE_UPLOADS_URL:', envUrl);
+    }
+    return envUrl;
+  }
+
+  // Get the API base URL to determine the server location
+  const apiBaseUrl = getApiBaseUrl();
+
+  // If it's a relative path (local server), use relative uploads path
+  if (apiBaseUrl.startsWith('/')) {
+    return '/uploads';
+  }
+
+  // If it's the live API, use the corresponding uploads path
+  if (apiBaseUrl.includes('trainercoachconnect.com')) {
+    return 'https://trainercoachconnect.com/uploads';
+  }
+
+  // Fallback for other custom API URLs
+  return apiBaseUrl.replace(/\/(api\.php|)+$/, '') + '/uploads';
 }
 
 /**
