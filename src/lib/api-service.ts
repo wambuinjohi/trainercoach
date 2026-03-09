@@ -89,7 +89,9 @@ export async function rejectTrainer(userId: string) {
 // ============================================================================
 
 export async function getCategories() {
-  return apiRequest('get_categories')
+  const data = await apiRequest('get_categories')
+  // Wrap unwrapped response so callers can access .data property
+  return Array.isArray(data) ? { data } : data
 }
 
 export async function addCategory(name: string, icon?: string, description?: string) {
