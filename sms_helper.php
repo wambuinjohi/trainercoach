@@ -82,30 +82,50 @@ function decryptSmsValue($encrypted_value) {
  */
 function getSmsCredentials() {
     global $conn;
-    
+
     // Try to get from database first
     $result = @$conn->query("
-        SELECT setting_key, value FROM platform_settings 
-        WHERE setting_key IN ('sms_api_key', 'sms_client_id', 'sms_access_key', 'sms_sender_id', 'sms_enabled')
+        SELECT setting_key, value FROM platform_settings
+        WHERE setting_key IN ('sms_api_key', 'sms_client_id', 'sms_access_key', 'sms_sender_id', 'sms_enabled', 'sms_admin_phone')
     ");
-    
+
     if ($result && $result->num_rows > 0) {
         $creds = [];
         while ($row = $result->fetch_assoc()) {
             $creds[$row['setting_key']] = $row['value'];
         }
 
+        // Check if we have all required credentials in database
         if (!empty($creds['sms_api_key']) && !empty($creds['sms_client_id']) && !empty($creds['sms_access_key'])) {
-            return [
-                'api_key' => decryptSmsValue($creds['sms_api_key']),
-                'client_id' => decryptSmsValue($creds['sms_client_id']),
-                'access_key' => decryptSmsValue($creds['sms_access_key']),
-                'sender_id' => $creds['sms_sender_id'] ?? 'TRAINER LTD',
-                'admin_phone' => $creds['sms_admin_phone'] ?? '',
-                'enabled' => $creds['sms_enabled'] === 'true' || $creds['sms_enabled'] === true,
-                'source' => 'database'
-            ];
+            try {
+                $decrypted_api_key = decryptSmsValue($creds['sms_api_key']);
+                $decrypted_client_id = decryptSmsValue($creds['sms_client_id']);
+                $decrypted_access_key = decryptSmsValue($creds['sms_access_key']);
+
+                // Verify decryption was successful (not empty after decryption)
+                if (!empty($decrypted_api_key) && !empty($decrypted_client_id) && !empty($decrypted_access_key)) {
+                    return [
+                        'api_key' => $decrypted_api_key,
+                        'client_id' => $decrypted_client_id,
+                        'access_key' => $decrypted_access_key,
+                        'sender_id' => $creds['sms_sender_id'] ?? 'TRAINER LTD',
+                        'admin_phone' => $creds['sms_admin_phone'] ?? '',
+                        'enabled' => $creds['sms_enabled'] === 'true' || $creds['sms_enabled'] === true,
+                        'source' => 'database'
+                    ];
+                } else {
+                    error_log("SMS credentials decryption resulted in empty values");
+                }
+            } catch (Exception $e) {
+                error_log("SMS credentials decryption error: " . $e->getMessage());
+            }
+        } else {
+            error_log("SMS credentials missing in database: api_key=" . (!empty($creds['sms_api_key']) ? 'yes' : 'no') .
+                      ", client_id=" . (!empty($creds['sms_client_id']) ? 'yes' : 'no') .
+                      ", access_key=" . (!empty($creds['sms_access_key']) ? 'yes' : 'no'));
         }
+    } else {
+        error_log("SMS credentials not found in platform_settings table");
     }
     
     // Try environment variables as fallback
