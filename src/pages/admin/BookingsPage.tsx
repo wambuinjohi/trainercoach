@@ -26,6 +26,9 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean
     title: string
@@ -41,15 +44,25 @@ export default function BookingsPage() {
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   useEffect(() => {
-    loadBookings()
+    loadBookingsPage(1)
   }, [])
 
-  const loadBookings = async () => {
+  useEffect(() => {
+    if (page > 1) {
+      loadBookingsPage(page)
+    }
+  }, [page])
+
+  const loadBookingsPage = async (pageNum: number) => {
     try {
       setLoading(true)
-      const bookingsData = await apiService.getAllBookings()
-      const bookingsList = Array.isArray(bookingsData) ? bookingsData : bookingsData?.data || []
+      const result = await apiService.getBookingsWithPagination({ page: pageNum, pageSize })
+      const bookingsList = Array.isArray(result.data) ? result.data : result?.data || []
       setBookings(bookingsList)
+      if (result.count !== undefined) {
+        setTotalCount(result.count)
+      }
+      setPage(pageNum)
     } catch (error) {
       console.error('Failed to load bookings:', error)
       toast({ title: 'Error', description: 'Failed to load bookings', variant: 'destructive' })
@@ -146,7 +159,7 @@ export default function BookingsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Bookings Management</h1>
-        <Badge variant="secondary">{bookings.length}</Badge>
+        <Badge variant="secondary">{totalCount}</Badge>
       </div>
 
       <Card className="bg-card border-border">
@@ -223,6 +236,32 @@ export default function BookingsPage() {
               </tbody>
             </table>
           </div>
+
+          {totalCount > pageSize && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t">
+              <div className="text-sm text-muted-foreground">
+                Page {page} of {Math.ceil(totalCount / pageSize)} ({totalCount} total)
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page === 1 || loading}
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page === Math.ceil(totalCount / pageSize) || loading}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
