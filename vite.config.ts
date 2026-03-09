@@ -731,6 +731,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api.php': {
+        target: 'https://trainercoachconnect.com',
+        changeOrigin: true,
+        rewrite: (path) => path,
+        secure: true,
+      }
+    }
   },
   plugins: [
     react(),
