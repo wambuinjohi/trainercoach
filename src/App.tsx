@@ -11,7 +11,7 @@ import { AutoSetupWrapper } from "@/components/AutoSetupWrapper";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { ClientDashboard } from "@/components/client/ClientDashboard";
 import { TrainerDashboard } from "@/components/trainer/TrainerDashboard";
-import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { AdminLayout } from "@/layouts/AdminLayout";
 import NotFound from "./pages/NotFound";
 import ClearCache from "./pages/ClearCache";
 import AdminSetup from "./pages/AdminSetup";
@@ -27,6 +27,19 @@ import PasswordReset from "./pages/PasswordReset";
 import ResetPasswords from "./pages/ResetPasswords";
 import MpesaMigration from "./pages/MpesaMigration";
 import ApiDiagnostics from "./pages/ApiDiagnostics";
+import OverviewPage from "./pages/admin/OverviewPage";
+import UsersPage from "./pages/admin/UsersPage";
+import ApprovalsPage from "./pages/admin/ApprovalsPage";
+import DisputesPage from "./pages/admin/DisputesPage";
+import IssuesPage from "./pages/admin/IssuesPage";
+import ContactsPage from "./pages/admin/ContactsPage";
+import AnalyticsPage from "./pages/admin/AnalyticsPage";
+import PromotionsPage from "./pages/admin/PromotionsPage";
+import PayoutsPage from "./pages/admin/PayoutsPage";
+import SMSManagerPage from "./pages/admin/SMSManagerPage";
+import CategoriesPage from "./pages/admin/CategoriesPage";
+import WaitlistPage from "./pages/admin/WaitlistPage";
+import SettingsPage from "./pages/admin/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +68,7 @@ const AppContent = () => {
   // Route based on user type
   switch (userType) {
     case "admin":
-      return <Navigate to="/admin" replace />;
+      return <Navigate to="/admin/overview" replace />;
     case "trainer":
       return <Navigate to="/trainer" replace />;
     case "client":
@@ -78,7 +91,8 @@ const AppRoutes = () => (
   <Suspense fallback={<LoadingFallback />}>
     <Routes>
       <Route path="/" element={<AppContent />} />
-      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
+      <Route path="/admin/*" element={<AdminLayout><AdminRoutes /></AdminLayout>} />
       <Route path="/trainer" element={<TrainerDashboard />} />
       <Route path="/client" element={<ClientDashboard />} />
       <Route path="/signin" element={<AuthForm onSuccess={(type) => {
@@ -93,7 +107,6 @@ const AppRoutes = () => (
       }} />} />
       <Route path="/password-reset" element={<PasswordReset />} />
       <Route path="/reset-passwords" element={<ResetPasswords />} />
-      <Route path="/admin/reset-passwords" element={<ResetPasswords />} />
       <Route path="/setup" element={<AdminSetup />} />
       <Route path="/api-test" element={<ApiTest />} />
       <Route path="/explore" element={<Explore />} />
@@ -104,11 +117,31 @@ const AppRoutes = () => (
       <Route path="/home" element={<Home />} />
       <Route path="/clear-cache" element={<ClearCache />} />
       <Route path="/upload-demo" element={<UploadDemo />} />
-      <Route path="/admin/mpesamigration" element={<MpesaMigration />} />
       <Route path="/api-diagnostics" element={<ApiDiagnostics />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>
+);
+
+const AdminRoutes = () => (
+  <Routes>
+    <Route path="overview" element={<OverviewPage />} />
+    <Route path="users" element={<UsersPage />} />
+    <Route path="approvals" element={<ApprovalsPage />} />
+    <Route path="disputes" element={<DisputesPage />} />
+    <Route path="issues" element={<IssuesPage />} />
+    <Route path="contacts" element={<ContactsPage />} />
+    <Route path="analytics" element={<AnalyticsPage />} />
+    <Route path="promotions" element={<PromotionsPage />} />
+    <Route path="payouts" element={<PayoutsPage />} />
+    <Route path="sms-manager" element={<SMSManagerPage />} />
+    <Route path="categories" element={<CategoriesPage />} />
+    <Route path="waitlist" element={<WaitlistPage />} />
+    <Route path="settings" element={<SettingsPage />} />
+    <Route path="reset-passwords" element={<ResetPasswords />} />
+    <Route path="mpesamigration" element={<MpesaMigration />} />
+    <Route path="*" element={<Navigate to="/admin/overview" replace />} />
+  </Routes>
 );
 
 const App = () => (
