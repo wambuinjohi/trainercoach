@@ -219,6 +219,20 @@ export async function getAllBookings() {
   return Array.isArray(data) ? data : data?.data || []
 }
 
+export async function getBookingsWithPagination(options?: { page?: number; pageSize?: number }) {
+  const page = Math.max(1, options?.page || 1)
+  const pageSize = Math.max(1, Math.min(100, options?.pageSize || 10))
+  const offset = (page - 1) * pageSize
+
+  return apiRequest('select', {
+    table: 'bookings',
+    order: 'created_at DESC',
+    limit: pageSize,
+    offset,
+    count: 'exact',
+  })
+}
+
 // ============================================================================
 // TRAINER SERVICES
 // ============================================================================
@@ -588,6 +602,27 @@ export async function deleteData(table: string, where: string) {
   return apiRequest('delete', {
     table,
     where,
+  })
+}
+
+// ============================================================================
+// CONTACTS SERVICES
+// ============================================================================
+
+export async function getContactsWithPagination(options?: {
+  page?: number
+  pageSize?: number
+}) {
+  const page = Math.max(1, options?.page || 1)
+  const pageSize = Math.max(1, Math.min(100, options?.pageSize || 10))
+  const offset = (page - 1) * pageSize
+
+  return apiRequest('select', {
+    table: 'contacts',
+    order: 'created_at DESC',
+    limit: pageSize,
+    offset,
+    count: 'exact',
   })
 }
 
