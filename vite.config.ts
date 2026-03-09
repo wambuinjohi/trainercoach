@@ -202,6 +202,15 @@ function devApiPlugin() {
                 res.end(JSON.stringify({ status: "error", message: "Missing email or password." }));
                 return;
               }
+
+              // Determine user_type based on email pattern
+              let loginUserType = "client"; // default
+              if (email === "admin@skatryk.co.ke") {
+                loginUserType = "admin";
+              } else if (email.toLowerCase().includes("trainer")) {
+                loginUserType = "trainer";
+              }
+
               res.end(JSON.stringify({
                 status: "success",
                 message: "Login successful",
@@ -211,7 +220,7 @@ function devApiPlugin() {
                     email: email
                   },
                   profile: {
-                    user_type: "client"
+                    user_type: loginUserType
                   },
                   session: {
                     access_token: "dev-token-" + Math.random().toString(36).substring(7)
