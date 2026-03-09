@@ -439,16 +439,16 @@ function sendBookingSms($user_id, $phone_number, $booking_data) {
 
     // Notify admin
     if ($result['success']) {
-        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+        sendAdminNotification("New booking: " . ($booking_data['trainer_name'] ?? 'Trainer') . " with client (" . $phone_number . ")", $credentials);
     }
 
     // Log the attempt
     $status = $result['success'] ? 'sent' : 'failed';
     $template_id = $template ? $template['id'] : null;
     $booking_id = $booking_data['id'] ?? null;
-    
+
     logSmsEvent($user_id, $phone_number, $message, $template_id, 'booking', $booking_id, $status, $result['provider_response'] ?? null);
-    
+
     return $result['success'];
 }
 
@@ -457,12 +457,12 @@ function sendBookingSms($user_id, $phone_number, $booking_data) {
  */
 function sendPayoutSms($user_id, $phone_number, $payout_data) {
     global $conn;
-    
+
     $credentials = getSmsCredentials();
     if (!$credentials || !$credentials['enabled']) {
         return false;
     }
-    
+
     // Get payout template
     $template = getSmsTemplate('payout_confirmation');
     if (!$template) {
@@ -472,13 +472,13 @@ function sendPayoutSms($user_id, $phone_number, $payout_data) {
     } else {
         $message = replaceTemplatePlaceholders($template['template_text'], $payout_data);
     }
-    
+
     // Send SMS
     $result = sendSmsViaOnfonmedia($phone_number, $message, $credentials);
 
     // Notify admin
     if ($result['success']) {
-        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+        sendAdminNotification("Payout processed: KES " . ($payout_data['amount'] ?? '0') . " to trainer (" . $phone_number . ")", $credentials);
     }
 
     // Log the attempt
