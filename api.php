@@ -158,13 +158,13 @@ function normalizeImageUrl($imageUrl) {
     }
 
     // If relative, prepend the upload base URL
-    $uploadBaseUrl = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/public/uploads';
+    $uploadBaseUrl = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads';
     $uploadBaseUrl = rtrim($uploadBaseUrl, '/');
 
-    // Handle paths like /public/uploads/file.jpg, /uploads/file.jpg or uploads/file.jpg
-    if (preg_match('|(?:public/)?uploads/|', $imageUrl)) {
+    // Handle paths like /uploads/file.jpg or uploads/file.jpg
+    if (strpos($imageUrl, 'uploads/') !== false) {
         // Extract just the filename
-        $fileName = preg_replace('|^.*/uploads/|', '', $imageUrl);
+        $fileName = preg_replace('|^.*uploads/|', '', $imageUrl);
         return $uploadBaseUrl . '/' . $fileName;
     }
 
@@ -401,7 +401,7 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
 // HANDLE FILE UPLOADS (MULTIPART)
 // =============================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
-    $uploadDir = __DIR__ . '/public/uploads/';
+    $uploadDir = __DIR__ . '/uploads/';
     $maxFileSize = 50 * 1024 * 1024;
     $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'avi', 'mov', 'webm', 'zip', 'rar'];
     $allowedMimeTypes = [

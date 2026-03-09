@@ -13,7 +13,7 @@ Object.keys(env).forEach((key) => {
 
 // Set default UPLOAD_BASE_URL for local development if not specified
 if (!process.env.UPLOAD_BASE_URL) {
-  process.env.UPLOAD_BASE_URL = mode === "development" ? "/public/uploads" : "https://trainercoachconnect.com/public/uploads";
+  process.env.UPLOAD_BASE_URL = mode === "development" ? "/uploads" : "https://trainercoachconnect.com/uploads";
 }
 
 
@@ -755,16 +755,8 @@ export default defineConfig(({ mode }) => ({
             }
           });
 
-          // Copy public folder contents (includes uploads)
-          const publicDir = path.resolve(__dirname, "public");
-          if (fs.existsSync(publicDir)) {
-            const publicDestDir = path.resolve(distDir, "public");
-            fs.cpSync(publicDir, publicDestDir, { recursive: true });
-            console.log(`[copy-php-files] Copied public/ folder to dist/public/`);
-          }
-
           // Ensure uploads folder exists in dist
-          const uploadsDir = path.resolve(distDir, "public", "uploads");
+          const uploadsDir = path.resolve(distDir, "uploads");
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
             console.log(`[copy-php-files] Created uploads directory: ${uploadsDir}`);

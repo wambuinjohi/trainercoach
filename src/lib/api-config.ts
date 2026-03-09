@@ -46,16 +46,16 @@ export function getUploadsBaseUrl(): string {
 
   // If it's a relative path (local server), use relative uploads path
   if (apiBaseUrl.startsWith('/')) {
-    return '/public/uploads';
+    return '/uploads';
   }
 
   // If it's the live API, use the corresponding uploads path
   if (apiBaseUrl.includes('trainercoachconnect.com')) {
-    return 'https://trainercoachconnect.com/public/uploads';
+    return 'https://trainercoachconnect.com/uploads';
   }
 
   // Fallback for other custom API URLs
-  return apiBaseUrl.replace(/\/(api\.php|)+$/, '') + '/public/uploads';
+  return apiBaseUrl.replace(/\/(api\.php|)+$/, '') + '/uploads';
 }
 
 /**

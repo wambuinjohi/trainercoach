@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "setup-uploads": "node -e \"const fs=require('fs');const path=require('path');const dir=path.join(process.cwd(),'public','uploads');fs.mkdirSync(dir,{recursive:true});fs.chmodSync(dir,0o755);console.log('Uploads directory ready at',dir);\"",
+    "setup-uploads": "node -e \"const fs=require('fs');const path=require('path');const dir=path.join(process.cwd(),'uploads');fs.mkdirSync(dir,{recursive:true});fs.chmodSync(dir,0o755);console.log('Uploads directory ready at',dir);\"",
     "build": "npm run setup-uploads && vite build",
     "build:dev": "npm run setup-uploads && vite build --mode development",
     "lint": "eslint .",
