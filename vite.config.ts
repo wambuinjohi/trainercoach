@@ -720,7 +720,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' && devApiPlugin(),  // Enabled - provides mock API responses for development
+    // mode === 'development' && devApiPlugin(),  // Disabled - using live API in development
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
