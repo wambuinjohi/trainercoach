@@ -177,6 +177,7 @@ export const AdminDashboard: React.FC = () => {
   const [refundDispute, setRefundDispute] = useState<any | null>(null)
   const [showRefundModal, setShowRefundModal] = useState(false)
   const [activeDispute, setActiveDispute] = useState<any | null>(null)
+  const [activeIssue, setActiveIssue] = useState<any | null>(null)
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean
     title: string
