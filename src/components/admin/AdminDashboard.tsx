@@ -152,11 +152,6 @@ export const AdminDashboard: React.FC = () => {
     loadSettingsFromDb().then((db) => { if (db) { setSettings(db); if (db.mpesa) setMpesa(db.mpesa) } }).catch(() => {})
   }, [])
 
-  if (loading) return null
-  if (!user || userType !== 'admin') {
-    return <Navigate to="/" replace />
-  }
-
   const revenueSeries = useMemo(() => {
     if (!analyticsPoints.length) return []
 
@@ -2136,6 +2131,11 @@ export const AdminDashboard: React.FC = () => {
       </div>
     </div>
   )
+
+  if (loading) return null
+  if (!user || userType !== 'admin') {
+    return <Navigate to="/" replace />
+  }
 
   return (
     <div className="min-h-screen bg-background">
