@@ -19,7 +19,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: 'analytics', label: 'Analytics', icon: TrendingUp },
   { key: 'promotions', label: 'Promotions', icon: MessageSquare },
   { key: 'payouts', label: 'Payouts', icon: DollarSign },
-  { key: 'sms', label: 'SMS Manager', icon: MessageSquare },
+  { key: 'sms-manager', label: 'SMS Manager', icon: MessageSquare },
   { key: 'categories', label: 'Categories', icon: Plus },
   { key: 'bookings', label: 'Bookings', icon: Calendar },
   { key: 'waitlist', label: 'Waiting List', icon: Clock },
