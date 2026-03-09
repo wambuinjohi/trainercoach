@@ -37,8 +37,7 @@ export function getUploadsBaseUrl(): string {
  * 1. Stored preference in localStorage
  * 2. Environment variable (for deployment configuration)
  * 3. For native apps: https://trainercoachconnect.com
- * 4. For web apps: relative /api.php (local endpoint)
- * 5. Fallback: mock data (when no API is available)
+ * 4. For web apps: relative /api.php (local endpoint) - with fallback to mock data
  */
 export function getApiBaseUrl(): string {
   // Check if user has manually set an API URL
@@ -74,10 +73,15 @@ export function getApiBaseUrl(): string {
   }
 
   // For web apps, default to relative path (works with local/deployed servers)
+  // Note: If this endpoint doesn't exist, the API layer will automatically fall back to mock data
   const defaultUrl = '/api.php';
   if (typeof window !== 'undefined') {
     console.log('[API Config] Using default relative path:', defaultUrl);
-    console.warn('[API Config] In production, set VITE_API_URL environment variable to your backend server');
+    if (import.meta.env.DEV) {
+      console.info('[API Config] Running in development. If backend is not available, mock data will be used automatically.');
+    } else {
+      console.warn('[API Config] In production, ensure backend API is available or set VITE_API_URL');
+    }
   }
   return defaultUrl;
 }
