@@ -144,6 +144,51 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate()
 
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [analyticsPoints, setAnalyticsPoints] = useState<AnalyticsPoint[]>([])
+  const [range, setRange] = useState<'30d' | '90d' | '12m'>('12m')
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTrainers: 0,
+    totalClients: 0,
+    totalAdmins: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+    pendingApprovals: 0,
+    activeDisputes: 0,
+  })
+  const [settings, setSettings] = useState<PlatformSettings>(defaultSettings)
+  const [saving, setSaving] = useState(false)
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [issues, setIssues] = useState<any[]>([])
+  const [issuePage, setIssuePage] = useState(1)
+  const [issueTotalCount, setIssueTotalCount] = useState(0)
+  const [issuePageSize] = useState(10)
+  const [promotions, setPromotions] = useState<any[]>([])
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState('overview')
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [displayedDisputeCount, setDisplayedDisputeCount] = useState(10)
+  const [loadingIssues, setLoadingIssues] = useState(false)
+  const [catForm, setCatForm] = useState({ name: '', icon: '', description: '' })
+  const [catLoading, setCatLoading] = useState(false)
+  const [refundDispute, setRefundDispute] = useState<any | null>(null)
+  const [showRefundModal, setShowRefundModal] = useState(false)
+  const [activeDispute, setActiveDispute] = useState<any | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean
+    title: string
+    description: string
+    action: () => Promise<void>
+    isDestructive?: boolean
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    action: async () => {},
+  })
 
   useEffect(() => {
     const loaded = loadSettings()
@@ -876,8 +921,6 @@ export const AdminDashboard: React.FC = () => {
       toast({ title: 'Error', description: err?.message || 'Failed to update category', variant: 'destructive' })
     }
   }
-
-  const [activeIssue, setActiveIssue] = useState<any | null>(null)
 
   const viewIssue = (it: any) => setActiveIssue(it)
 
