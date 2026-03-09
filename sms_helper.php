@@ -149,7 +149,7 @@ function sendSmsViaOnfonmedia($phone_numbers, $message, $credentials = null) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accesskey: ' . $credentials['access_key'],
+        'AccessKey: ' . $credentials['access_key'],
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
