@@ -68,10 +68,12 @@ export function getUploadsBaseUrl(): string {
  * 5. Fallback to relative /api.php (local endpoint) only if explicitly disabled
  */
 export function getApiBaseUrl(): string {
-  // In development, prefer the local mock API
+  // In development, use local /api.php which is proxied to the real API via Vite
+  // This avoids CORS issues when making requests from the dev server
+  // The Vite proxy (configured in vite.config.ts) forwards requests to https://trainercoachconnect.com
   if (import.meta.env.DEV) {
     if (typeof window !== 'undefined') {
-      console.log('[API Config] Development mode - using local /api.php');
+      console.log('[API Config] Development mode - using local /api.php (proxied to real API)');
     }
     return '/api.php';
   }

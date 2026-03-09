@@ -731,10 +731,18 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api.php': {
+        target: 'https://trainercoachconnect.com',
+        changeOrigin: true,
+        rewrite: (path) => path,
+        secure: true,
+      }
+    }
   },
   plugins: [
     react(),
-    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
+    // mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development (commented to use real API)
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
