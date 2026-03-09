@@ -11,6 +11,11 @@ Object.keys(env).forEach((key) => {
   if (typeof process.env[key] === "undefined") process.env[key] = env[key];
 });
 
+// Set default UPLOAD_BASE_URL for local development if not specified
+if (!process.env.UPLOAD_BASE_URL) {
+  process.env.UPLOAD_BASE_URL = mode === "development" ? "/public/uploads" : "https://trainercoachconnect.com/public/uploads";
+}
+
 
 function adminApiPlugin() {
   return {
@@ -749,6 +754,28 @@ export default defineConfig(({ mode }) => ({
               console.log(`[copy-php-files] Copied ${folder}/ folder to dist/`);
             }
           });
+
+          // Copy public folder contents (includes uploads)
+          const publicDir = path.resolve(__dirname, "public");
+          if (fs.existsSync(publicDir)) {
+            const publicDestDir = path.resolve(distDir, "public");
+            fs.cpSync(publicDir, publicDestDir, { recursive: true });
+            console.log(`[copy-php-files] Copied public/ folder to dist/public/`);
+          }
+
+          // Ensure uploads folder exists in dist
+          const uploadsDir = path.resolve(distDir, "public", "uploads");
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+            console.log(`[copy-php-files] Created uploads directory: ${uploadsDir}`);
+          }
+          // Set permissions to make it writable
+          try {
+            fs.chmodSync(uploadsDir, 0o755);
+            console.log(`[copy-php-files] Set permissions for uploads directory`);
+          } catch (e) {
+            console.warn(`[copy-php-files] Could not set permissions for uploads directory`, e);
+          }
         }
       }
     }
