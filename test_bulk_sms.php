@@ -21,7 +21,7 @@ $test_credentials = [
 $test_phones = [
     '0722241745',    // User's primary test recipient
     '254722241745',  // Valid Kenyan number
-    '+254712345679', // With country code
+    '+254722241745', // With country code
 ];
 
 echo "=== BULK SMS TESTING SCRIPT ===\n\n";
@@ -102,7 +102,7 @@ echo ($result['success'] ? "✓" : "✗") . " Single number send: " . ($result['
 
 // Method 2: Multiple phone numbers as array
 echo "\n5b) Sending to multiple phones as array\n";
-$result = sendSmsViaOnfonmedia(['254722241745', '254712345679', '254712345680'], 'Test multiple numbers', $retrieved_creds);
+$result = sendSmsViaOnfonmedia(['254722241745', '254722241745', '254722241745'], 'Test multiple numbers', $retrieved_creds);
 echo ($result['success'] ? "✓" : "✗") . " Multiple numbers send: " . ($result['success'] ? "Success - sent to 3 recipients" : $result['error']) . "\n";
 
 // TEST 6: Test phone number normalization
