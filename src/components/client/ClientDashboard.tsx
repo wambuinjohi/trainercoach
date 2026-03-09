@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -172,15 +172,8 @@ export const ClientDashboard: React.FC = () => {
       .slice(0, 5)
   }, [searchQuery, trainers])
 
-  // Early returns must be after all hooks
-  if (loading) return null
-  if (!user || userType !== 'client') {
-    return <Navigate to="/" replace />
-  }
-
-  const modalOpen = Boolean(selectedTrainer || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
-
-  const loadBookings = async () => {
+  // Define helper functions (must be before hooks that use them)
+  const loadBookings = useCallback(async () => {
     if (!user?.id) return
     try {
       const bookingsData = await apiService.getBookings(user.id, 'client')
@@ -191,13 +184,9 @@ export const ClientDashboard: React.FC = () => {
       console.warn('Failed to load bookings', err)
       setBookings([])
     }
-  }
+  }, [user?.id])
 
-  const setReviewByBooking = (bookingId: string) => {
-    setReviewsByBooking(prev => ({ ...prev, [bookingId]: true }))
-  }
-
-  const checkPendingRatings = async () => {
+  const checkPendingRatings = useCallback(async () => {
     if (!user?.id) return
     try {
       const notifData = await apiRequest('notifications_get', { user_id: user.id }, { headers: withAuth() })
@@ -217,32 +206,31 @@ export const ClientDashboard: React.FC = () => {
     } catch (err) {
       console.warn('Failed to check pending ratings', err)
     }
-  }
+  }, [user?.id, bookings, reviewsByBooking])
 
   // Check for pending ratings when bookings load
   useEffect(() => {
     if (bookings.length > 0) {
       checkPendingRatings()
     }
-  }, [bookings])
-
-  const loadNotifications = async () => {
-    if (!user?.id) return
-    try {
-      const notifData = await apiRequest('notifications_get', { user_id: user.id }, { headers: withAuth() })
-      const notifs = Array.isArray(notifData) ? notifData : (notifData?.data || [])
-      const unreadCount = notifs.filter((n: any) => !n.read).length
-      setUnreadNotificationsClient(unreadCount)
-    } catch (err) {
-      console.warn('Failed to load notifications', err)
-    }
-  }
+  }, [bookings, checkPendingRatings])
 
   // Load notifications on mount and poll periodically
   useEffect(() => {
     if (!user?.id) return
-    loadNotifications()
 
+    const loadNotifications = async () => {
+      try {
+        const notifData = await apiRequest('notifications_get', { user_id: user.id }, { headers: withAuth() })
+        const notifs = Array.isArray(notifData) ? notifData : (notifData?.data || [])
+        const unreadCount = notifs.filter((n: any) => !n.read).length
+        setUnreadNotificationsClient(unreadCount)
+      } catch (err) {
+        console.warn('Failed to load notifications', err)
+      }
+    }
+
+    loadNotifications()
     const notificationInterval = setInterval(loadNotifications, 10000) // Poll every 10 seconds
     return () => clearInterval(notificationInterval)
   }, [user?.id])
@@ -312,33 +300,7 @@ export const ClientDashboard: React.FC = () => {
     loadCategories()
     loadTrainers()
     loadBookings()
-  }, [user?.id, filters])
-
-  const applyFilters = (list: any[]) => {
-    return list.filter(t => {
-      // Handle category filter from selectedCategory (sidebar) or from filters (modal)
-      if (selectedCategory) {
-        const selectedCategoryId = dbCategories.find(c => c.name === selectedCategory)?.id
-        const match = selectedCategoryId && t.categoryIds && t.categoryIds.includes(selectedCategoryId)
-        if (!match) return false
-      } else if (filters.categoryId !== null && filters.categoryId !== undefined) {
-        // Category filter from modal
-        const match = t.categoryIds && t.categoryIds.includes(filters.categoryId)
-        if (!match) return false
-      }
-      if (filters.minRating && (t.rating || 0) < filters.minRating) return false
-      if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
-      if (filters.onlyAvailable && !t.available) return false
-      if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const nameMatch = (t.name || '').toLowerCase().includes(query)
-        const disciplineMatch = (t.discipline || '').toLowerCase().includes(query)
-        if (!nameMatch && !disciplineMatch) return false
-      }
-      return true
-    })
-  }
+  }, [user?.id, filters, loadBookings])
 
   // Update distances when user location changes
   useEffect(() => {
@@ -346,7 +308,19 @@ export const ClientDashboard: React.FC = () => {
       const updatedTrainers = enrichTrainersWithDistance(trainers, userLocation)
       setTrainers(updatedTrainers)
     }
-  }, [userLocation])
+  }, [userLocation, trainers])
+
+  // Early returns must be after all hooks
+  if (loading) return null
+  if (!user || userType !== 'client') {
+    return <Navigate to="/" replace />
+  }
+
+  const modalOpen = Boolean(selectedTrainer || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
+
+  const setReviewByBooking = (bookingId: string) => {
+    setReviewsByBooking(prev => ({ ...prev, [bookingId]: true }))
+  }
 
   const requestLocation = async () => {
     await requestGeoLocation()
