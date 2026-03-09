@@ -55,10 +55,10 @@ export const AdminSMSManager: React.FC = () => {
 
   // Settings form
   const [settingsForm, setSettingsForm] = useState({
-    sms_api_key: '',
-    sms_client_id: '',
-    sms_access_key: '',
-    sms_sender_id: 'TRAINER LTD',
+    api_key: '',
+    client_id: '',
+    access_key: '',
+    sender_id: 'TRAINER LTD',
     enabled: true,
   })
 
@@ -132,7 +132,7 @@ export const AdminSMSManager: React.FC = () => {
         if (res.data.sms_configured) {
           setSettingsForm((prev) => ({
             ...prev,
-            sms_sender_id: res.data.sms_sender_id || 'TRAINER LTD',
+            sender_id: res.data.sms_sender_id || 'TRAINER LTD',
             enabled: res.data.sms_enabled !== false,
           }))
         }
@@ -150,7 +150,7 @@ export const AdminSMSManager: React.FC = () => {
   }
 
   const saveSettings = async () => {
-    if (!settingsForm.sms_api_key || !settingsForm.sms_client_id || !settingsForm.sms_access_key) {
+    if (!settingsForm.api_key || !settingsForm.client_id || !settingsForm.access_key) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields: API Key, Client ID, Access Key',
@@ -161,9 +161,7 @@ export const AdminSMSManager: React.FC = () => {
 
     setSavingSettings(true)
     try {
-      await apiRequest('settings_sms_save', {
-        sms_settings: settingsForm,
-      })
+      await apiRequest('settings_sms_save', settingsForm)
       toast({
         title: 'Success',
         description: 'SMS settings saved successfully',
@@ -434,11 +432,11 @@ export const AdminSMSManager: React.FC = () => {
                     id="api-key"
                     type="password"
                     placeholder="Enter your Onfonmedia API Key"
-                    value={settingsForm.sms_api_key}
+                    value={settingsForm.api_key}
                     onChange={(e) =>
                       setSettingsForm((prev) => ({
                         ...prev,
-                        sms_api_key: e.target.value,
+                        api_key: e.target.value,
                       }))
                     }
                     className="mt-1"
@@ -454,11 +452,11 @@ export const AdminSMSManager: React.FC = () => {
                     id="client-id"
                     type="password"
                     placeholder="Enter your Onfonmedia Client ID"
-                    value={settingsForm.sms_client_id}
+                    value={settingsForm.client_id}
                     onChange={(e) =>
                       setSettingsForm((prev) => ({
                         ...prev,
-                        sms_client_id: e.target.value,
+                        client_id: e.target.value,
                       }))
                     }
                     className="mt-1"
@@ -474,11 +472,11 @@ export const AdminSMSManager: React.FC = () => {
                     id="access-key"
                     type="password"
                     placeholder="Enter your Onfonmedia Access Key"
-                    value={settingsForm.sms_access_key}
+                    value={settingsForm.access_key}
                     onChange={(e) =>
                       setSettingsForm((prev) => ({
                         ...prev,
-                        sms_access_key: e.target.value,
+                        access_key: e.target.value,
                       }))
                     }
                     className="mt-1"
@@ -493,11 +491,11 @@ export const AdminSMSManager: React.FC = () => {
                   <Input
                     id="sender-id"
                     placeholder="TRAINER LTD"
-                    value={settingsForm.sms_sender_id}
+                    value={settingsForm.sender_id}
                     onChange={(e) =>
                       setSettingsForm((prev) => ({
                         ...prev,
-                        sms_sender_id: e.target.value,
+                        sender_id: e.target.value,
                       }))
                     }
                     className="mt-1"

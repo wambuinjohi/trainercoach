@@ -4016,14 +4016,11 @@ switch ($action) {
     // SMS: SAVE SMS SETTINGS
     case 'settings_sms_save':
         try {
-            if (!isset($input['sms_settings']) || !is_array($input['sms_settings'])) {
-                respond("error", "Invalid SMS settings format.", null, 400);
-            }
+            // Accept settings data directly (not wrapped in sms_settings)
+            $settings = $input;
 
-            $settings = $input['sms_settings'];
-
-            // Validate required fields
-            if (empty($settings['sms_api_key']) || empty($settings['sms_client_id']) || empty($settings['sms_access_key'])) {
+            // Validate required fields (without sms_ prefix)
+            if (empty($settings['api_key']) || empty($settings['client_id']) || empty($settings['access_key'])) {
                 respond("error", "Missing required SMS credentials: api_key, client_id, access_key.", null, 400);
             }
 
