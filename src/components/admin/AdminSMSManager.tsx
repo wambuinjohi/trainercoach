@@ -84,7 +84,7 @@ export const AdminSMSManager: React.FC = () => {
   })
   const [sendMode, setSendMode] = useState<'manual' | 'group'>('manual')
   const [sendType, setSendType] = useState<'template' | 'raw'>('raw')
-  const [selectedTemplate, setSelectedTemplate] = useState<SmsTemplate | null>(null)
+  const [selectedSendTemplate, setSelectedSendTemplate] = useState<SmsTemplate | null>(null)
   const [sending, setSending] = useState(false)
 
   // Logs
@@ -395,7 +395,7 @@ export const AdminSMSManager: React.FC = () => {
         template_id: '',
         template_data: {},
       })
-      setSelectedTemplate(null)
+      setSelectedSendTemplate(null)
 
       // Reload logs
       loadSmsLogs()
@@ -829,7 +829,7 @@ export const AdminSMSManager: React.FC = () => {
                     variant={sendType === 'raw' ? 'default' : 'outline'}
                     onClick={() => {
                       setSendType('raw')
-                      setSelectedTemplate(null)
+                      setSelectedSendTemplate(null)
                     }}
                     size="sm"
                   >
@@ -932,7 +932,7 @@ export const AdminSMSManager: React.FC = () => {
                       value={sendForm.template_id}
                       onValueChange={(value) => {
                         const template = templates.find((t) => t.id === value)
-                        setSelectedTemplate(template || null)
+                        setSelectedSendTemplate(template || null)
                         setSendForm((prev) => ({
                           ...prev,
                           template_id: value,
@@ -953,19 +953,19 @@ export const AdminSMSManager: React.FC = () => {
                     </Select>
                   </div>
 
-                  {selectedTemplate && (
+                  {selectedSendTemplate && (
                     <>
                       <div>
                         <Label className="text-xs text-gray-600 mb-2 block">Template Preview</Label>
                         <div className="bg-gray-100 p-3 rounded text-sm min-h-20 whitespace-pre-wrap max-h-40 overflow-auto">
-                          {selectedTemplate.template_text}
+                          {selectedSendTemplate.template_text}
                         </div>
                       </div>
 
                       {/* Extract placeholders from template and create input fields */}
                       {(() => {
                         const placeholderRegex = /\{\{(\w+)\}\}/g
-                        const matches = [...selectedTemplate.template_text.matchAll(placeholderRegex)]
+                        const matches = [...selectedSendTemplate.template_text.matchAll(placeholderRegex)]
                         const placeholders = [...new Set(matches.map((m) => m[1]))]
 
                         if (placeholders.length > 0) {
