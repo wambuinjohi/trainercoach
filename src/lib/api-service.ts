@@ -47,7 +47,9 @@ export async function getUserType(userId: string) {
 // ============================================================================
 
 export async function getUsers() {
-  return apiRequest('get_users')
+  const data = await apiRequest('get_users')
+  // Handle both array and object responses
+  return Array.isArray(data) ? data : data?.data || []
 }
 
 export async function getUserProfile(userId: string) {
@@ -209,10 +211,12 @@ export async function getBookingDetails(bookingId: string) {
 }
 
 export async function getAllBookings() {
-  return apiRequest('select', {
+  const data = await apiRequest('select', {
     table: 'bookings',
     order: 'created_at DESC',
   })
+  // Handle both array and object responses
+  return Array.isArray(data) ? data : data?.data || []
 }
 
 // ============================================================================
