@@ -68,12 +68,15 @@ export function getUploadsBaseUrl(): string {
  * 5. Fallback to relative /api.php (local endpoint) only if explicitly disabled
  */
 export function getApiBaseUrl(): string {
-  // In development, prefer the local mock API
+  // In development, use the real API (devApiPlugin is disabled)
+  // This allows testing against real backend data
+  // If you need a local mock API, re-enable devApiPlugin in vite.config.ts
   if (import.meta.env.DEV) {
+    const devApiUrl = 'https://trainercoachconnect.com/api.php';
     if (typeof window !== 'undefined') {
-      console.log('[API Config] Development mode - using local /api.php');
+      console.log('[API Config] Development mode - using real API:', devApiUrl);
     }
-    return '/api.php';
+    return devApiUrl;
   }
 
   // Check if user has manually set an API URL
