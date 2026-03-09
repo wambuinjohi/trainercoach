@@ -172,6 +172,7 @@ export const ClientDashboard: React.FC = () => {
       .slice(0, 5)
   }, [searchQuery, trainers])
 
+  // Early returns must be after all hooks
   if (loading) return null
   if (!user || userType !== 'client') {
     return <Navigate to="/" replace />
