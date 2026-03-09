@@ -61,12 +61,21 @@ export function getUploadsBaseUrl(): string {
 /**
  * Get the base API URL based on environment
  * Priority order:
- * 1. Stored preference in localStorage
- * 2. Environment variable (for deployment configuration)
- * 3. Live API endpoint: https://trainercoachconnect.com
- * 4. Fallback to relative /api.php (local endpoint) only if explicitly disabled
+ * 1. Development mode: local /api.php (for Vite mock API)
+ * 2. Stored preference in localStorage
+ * 3. Environment variable (for deployment configuration)
+ * 4. Live API endpoint: https://trainercoachconnect.com
+ * 5. Fallback to relative /api.php (local endpoint) only if explicitly disabled
  */
 export function getApiBaseUrl(): string {
+  // In development, prefer the local mock API
+  if (import.meta.env.DEV) {
+    if (typeof window !== 'undefined') {
+      console.log('[API Config] Development mode - using local /api.php');
+    }
+    return '/api.php';
+  }
+
   // Check if user has manually set an API URL
   const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('api_url') : null;
   // Basic validation: must be a valid URL string or relative path

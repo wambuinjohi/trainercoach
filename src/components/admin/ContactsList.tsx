@@ -31,17 +31,38 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [formData, setFormData] = useState({ name: '', phone: '', user_type: 'client' as const })
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
 
-  const fetchContacts = async () => {
+  const pageSize = 10
+
+  const fetchContacts = async (page = 0) => {
     setLoading(true)
     try {
       const response = await apiRequest('select', {
         table: 'contacts',
-        order: 'created_at DESC'
+        order: 'created_at DESC',
+        limit: pageSize,
+        offset: page * pageSize
       })
 
-      if (response && response.data) {
-        setContacts(response.data || [])
+      if (response && typeof response === 'object') {
+        // Handle both formats: direct array or object with data property
+        let data: Contact[] = []
+        if (Array.isArray(response)) {
+          data = response
+        } else if (response.data && Array.isArray(response.data)) {
+          data = response.data
+        }
+        setContacts(data)
+        // Extract total count if available from response
+        if (response.total !== undefined) {
+          setTotalCount(response.total)
+        } else {
+          setTotalCount(data.length)
+        }
+        setCurrentPage(page)
       }
     } catch (error) {
       console.error('Error fetching contacts:', error)
@@ -56,7 +77,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
   }
 
   useEffect(() => {
-    fetchContacts()
+    fetchContacts(0)
   }, [])
 
   const generateId = () => {
@@ -82,6 +103,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       return
     }
 
+    setSubmitting(true)
     try {
       await apiRequest('insert', {
         table: 'contacts',
@@ -99,7 +121,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       })
       setFormData({ name: '', phone: '', user_type: 'client' })
       setIsAddDialogOpen(false)
-      await fetchContacts()
+      await fetchContacts(0)
       onRefresh?.()
     } catch (error) {
       console.error('Error adding contact:', error)
@@ -109,6 +131,8 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
         description: errorMessage,
         variant: 'destructive'
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -133,6 +157,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       return
     }
 
+    setSubmitting(true)
     try {
       await apiRequest('update', {
         table: 'contacts',
@@ -151,7 +176,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       setFormData({ name: '', phone: '', user_type: 'client' })
       setIsEditDialogOpen(false)
       setSelectedContact(null)
-      await fetchContacts()
+      await fetchContacts(currentPage)
       onRefresh?.()
     } catch (error) {
       console.error('Error updating contact:', error)
@@ -161,12 +186,15 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
         description: errorMessage,
         variant: 'destructive'
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleDeleteContact = async () => {
     if (!selectedContact) return
 
+    setSubmitting(true)
     try {
       await apiRequest('delete', {
         table: 'contacts',
@@ -179,7 +207,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       })
       setIsDeleteDialogOpen(false)
       setSelectedContact(null)
-      await fetchContacts()
+      await fetchContacts(currentPage > 0 ? currentPage : 0)
       onRefresh?.()
     } catch (error) {
       console.error('Error deleting contact:', error)
@@ -189,6 +217,8 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
         description: errorMessage,
         variant: 'destructive'
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -217,6 +247,8 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
     contact.phone.includes(searchTerm)
   )
 
+  const totalPages = Math.ceil(totalCount / pageSize)
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -229,13 +261,13 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
             className="pl-10"
           />
         </div>
-        <Button onClick={openAddDialog} className="w-full sm:w-auto">
+        <Button onClick={openAddDialog} className="w-full sm:w-auto" disabled={submitting}>
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>
       </div>
 
-      {loading && (
+      {contacts.length === 0 && loading && (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-muted-foreground">Loading contacts...</div>
@@ -243,69 +275,106 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
         </Card>
       )}
 
-      {!loading && filteredContacts.length === 0 && (
+      {contacts.length === 0 && !loading && (
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground">
-              {contacts.length === 0 ? 'No contacts yet' : 'No contacts matching your search'}
-            </div>
+            <div className="text-center text-muted-foreground">No contacts yet</div>
           </CardContent>
         </Card>
       )}
 
-      {!loading && filteredContacts.length > 0 && (
-        <div className="space-y-2">
-          {filteredContacts.map(contact => (
-            <Card key={contact.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Name</p>
-                      <p className="font-medium">{contact.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{contact.phone}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Type</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          contact.user_type === 'trainer'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        }`}>
-                          {contact.user_type.charAt(0).toUpperCase() + contact.user_type.slice(1)}
-                        </span>
+      {filteredContacts.length === 0 && contacts.length > 0 && !loading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-muted-foreground">No contacts matching your search</div>
+          </CardContent>
+        </Card>
+      )}
+
+      {filteredContacts.length > 0 && (
+        <>
+          <div className="space-y-2">
+            {filteredContacts.map(contact => (
+              <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="font-medium">{contact.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{contact.phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Type</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            contact.user_type === 'trainer'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          }`}>
+                            {contact.user_type.charAt(0).toUpperCase() + contact.user_type.slice(1)}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex gap-2 sm:flex-col lg:flex-row">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(contact)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openDeleteDialog(contact)}
+                        className="flex-1 sm:flex-none text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 sm:flex-col lg:flex-row">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditDialog(contact)}
-                      className="flex-1 sm:flex-none"
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openDeleteDialog(contact)}
-                      className="flex-1 sm:flex-none text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Page {currentPage + 1} of {totalPages} ({totalCount} total contacts)
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetchContacts(currentPage - 1)}
+                  disabled={currentPage === 0 || loading}
+                  className="min-w-24"
+                >
+                  {loading ? '...' : 'Previous'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetchContacts(currentPage + 1)}
+                  disabled={currentPage >= totalPages - 1 || loading}
+                  className="min-w-24"
+                >
+                  {loading ? '...' : 'Next'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Add Contact Dialog */}
@@ -326,6 +395,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="mt-2"
+                disabled={submitting}
               />
             </div>
             <div>
@@ -336,6 +406,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="mt-2"
+                disabled={submitting}
               />
             </div>
             <div>
@@ -345,6 +416,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 onValueChange={(value) =>
                   setFormData({ ...formData, user_type: value as 'client' | 'trainer' })
                 }
+                disabled={submitting}
               >
                 <SelectTrigger id="add-type" className="mt-2">
                   <SelectValue />
@@ -357,9 +429,9 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAddContact}>
-              Add Contact
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAddContact} disabled={submitting}>
+              {submitting ? 'Adding...' : 'Add Contact'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -383,6 +455,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="mt-2"
+                disabled={submitting}
               />
             </div>
             <div>
@@ -393,6 +466,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="mt-2"
+                disabled={submitting}
               />
             </div>
             <div>
@@ -402,6 +476,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
                 onValueChange={(value) =>
                   setFormData({ ...formData, user_type: value as 'client' | 'trainer' })
                 }
+                disabled={submitting}
               >
                 <SelectTrigger id="edit-type" className="mt-2">
                   <SelectValue />
@@ -414,9 +489,9 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEditContact}>
-              Update Contact
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditContact} disabled={submitting}>
+              {submitting ? 'Updating...' : 'Update Contact'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -432,12 +507,13 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteContact}
+              disabled={submitting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {submitting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

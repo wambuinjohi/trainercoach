@@ -34,7 +34,7 @@ export const AdminPayoutManager: React.FC = () => {
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   // Pagination state
-  const pageSize = 20
+  const pageSize = 10
   const [pendingPage, setPendingPage] = useState(1)
   const [pendingTotal, setPendingTotal] = useState(0)
   const [pendingTotalPages, setPendingTotalPages] = useState(0)

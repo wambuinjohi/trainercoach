@@ -89,7 +89,7 @@ export const AdminSMSManager: React.FC = () => {
   const [logsFilters, setLogsFilters] = useState({
     event_type: 'all',
     status: 'all',
-    limit: 50,
+    limit: 10,
     offset: 0,
   })
   const [totalLogs, setTotalLogs] = useState(0)
@@ -878,9 +878,9 @@ export const AdminSMSManager: React.FC = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
                       <SelectItem value="25">25</SelectItem>
                       <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
