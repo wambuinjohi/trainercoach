@@ -81,6 +81,32 @@ export const ClientDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
 
+  // State declarations
+  const [trainers, setTrainers] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'schedule'>('home')
+  const [selectedTrainer, setSelectedTrainer] = useState<any>(null)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationName, setLocationName] = useState<string | null>(null)
+  const [reverseGeocodeLoading, setReverseGeocodeLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [bookings, setBookings] = useState<any[]>([])
+  const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, boolean>>({})
+  const [reviewBooking, setReviewBooking] = useState<any>(null)
+  const [unreadNotificationsClient, setUnreadNotificationsClient] = useState(0)
+  const [dbCategories, setDbCategories] = useState<any[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [filters, setFilters] = useState<any>({ minRating: null, maxPrice: null, onlyAvailable: false, radius: null, categoryId: null })
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showHelpSupport, setShowHelpSupport] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [nextSessionBooking, setNextSessionBooking] = useState<any>(null)
+  const [referralCode] = useState('TRAINER123')
+  const [referralSavings] = useState(1500)
+  const [referralCount] = useState(3)
+
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
   // Sync geolocation hook result to userLocation state
