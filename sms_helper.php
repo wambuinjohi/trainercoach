@@ -27,7 +27,8 @@ function getSmsCredentials() {
                 'api_key' => $creds['sms_api_key'],
                 'client_id' => $creds['sms_client_id'],
                 'access_key' => $creds['sms_access_key'],
-                'sender_id' => $creds['sms_sender_id'] ?? 'Skatryk',
+                'sender_id' => $creds['sms_sender_id'] ?? 'TRAINER LTD',
+                'admin_phone' => $creds['sms_admin_phone'] ?? '',
                 'enabled' => $creds['sms_enabled'] === 'true' || $creds['sms_enabled'] === true,
                 'source' => 'database'
             ];
@@ -39,7 +40,7 @@ function getSmsCredentials() {
         'api_key' => $_ENV['SMS_API_KEY'] ?? getenv('SMS_API_KEY'),
         'client_id' => $_ENV['SMS_CLIENT_ID'] ?? getenv('SMS_CLIENT_ID'),
         'access_key' => $_ENV['SMS_ACCESS_KEY'] ?? getenv('SMS_ACCESS_KEY'),
-        'sender_id' => $_ENV['SMS_SENDER_ID'] ?? getenv('SMS_SENDER_ID') ?? 'Skatryk',
+        'sender_id' => $_ENV['SMS_SENDER_ID'] ?? getenv('SMS_SENDER_ID') ?? 'TRAINER LTD',
     ];
     
     if (!empty($env_creds['api_key']) && !empty($env_creds['client_id']) && !empty($env_creds['access_key'])) {
@@ -72,7 +73,8 @@ function saveSmsCredentials($credentials) {
         'sms_api_key' => $credentials['api_key'],
         'sms_client_id' => $credentials['client_id'],
         'sms_access_key' => $credentials['access_key'],
-        'sms_sender_id' => $credentials['sender_id'] ?? 'Skatryk',
+        'sms_sender_id' => $credentials['sender_id'] ?? 'TRAINER LTD',
+        'sms_admin_phone' => $credentials['admin_phone'] ?? '',
         'sms_enabled' => isset($credentials['enabled']) ? ($credentials['enabled'] ? 'true' : 'false') : 'true'
     ];
     
@@ -149,7 +151,7 @@ function sendSmsViaOnfonmedia($phone_numbers, $message, $credentials = null) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accesskey: ' . $credentials['access_key'],
+        'AccessKey: ' . $credentials['access_key'],
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -317,6 +319,21 @@ function getSmsTemplate($name_or_event_type, $byEvent = false) {
 }
 
 /**
+ * Send Admin Notification SMS
+ */
+function sendAdminNotification($message, $credentials = null) {
+    if ($credentials === null) {
+        $credentials = getSmsCredentials();
+    }
+
+    if (!$credentials || empty($credentials['admin_phone']) || !$credentials['enabled']) {
+        return false;
+    }
+
+    return sendSmsViaOnfonmedia($credentials['admin_phone'], "[ADMIN] " . $message, $credentials);
+}
+
+/**
  * Auto-send registration SMS
  */
 function sendRegistrationSms($phone_number, $user_data) {
@@ -331,14 +348,19 @@ function sendRegistrationSms($phone_number, $user_data) {
     $template = getSmsTemplate('registration_welcome');
     if (!$template) {
         // Use default template if none exists
-        $message = "Welcome to Skatryk, " . ($user_data['first_name'] ?? 'User') . "! Your account has been created successfully.";
+        $message = "Welcome to Trainer Coach Connect, " . ($user_data['first_name'] ?? 'User') . "! Your account has been created successfully.";
     } else {
         $message = replaceTemplatePlaceholders($template['template_text'], $user_data);
     }
     
     // Send SMS
     $result = sendSmsViaOnfonmedia($phone_number, $message, $credentials);
-    
+
+    // Notify admin
+    if ($result['success']) {
+        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+    }
+
     // Log the attempt
     $status = $result['success'] ? 'sent' : 'failed';
     $template_id = $template ? $template['id'] : null;
@@ -373,7 +395,12 @@ function sendPaymentSms($user_id, $phone_number, $payment_data) {
     
     // Send SMS
     $result = sendSmsViaOnfonmedia($phone_number, $message, $credentials);
-    
+
+    // Notify admin
+    if ($result['success']) {
+        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+    }
+
     // Log the attempt
     $status = $result['success'] ? 'sent' : 'failed';
     $template_id = $template ? $template['id'] : null;
@@ -409,7 +436,12 @@ function sendBookingSms($user_id, $phone_number, $booking_data) {
     
     // Send SMS
     $result = sendSmsViaOnfonmedia($phone_number, $message, $credentials);
-    
+
+    // Notify admin
+    if ($result['success']) {
+        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+    }
+
     // Log the attempt
     $status = $result['success'] ? 'sent' : 'failed';
     $template_id = $template ? $template['id'] : null;
@@ -443,7 +475,12 @@ function sendPayoutSms($user_id, $phone_number, $payout_data) {
     
     // Send SMS
     $result = sendSmsViaOnfonmedia($phone_number, $message, $credentials);
-    
+
+    // Notify admin
+    if ($result['success']) {
+        sendAdminNotification("New registration: " . ($user_data['first_name'] ?? 'User') . " (" . $phone_number . ")", $credentials);
+    }
+
     // Log the attempt
     $status = $result['success'] ? 'sent' : 'failed';
     $template_id = $template ? $template['id'] : null;

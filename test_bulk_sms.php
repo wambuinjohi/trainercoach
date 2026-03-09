@@ -13,15 +13,15 @@ $test_credentials = [
     'api_key' => 'WeO21uB08jalUFdrzHDofvV3hnbR4t7qNX9LKCY5E6imJwIZ',
     'client_id' => 'trainerltd',
     'access_key' => 'trainerltd',
-    'sender_id' => 'Skatryk',
+    'sender_id' => 'TRAINER LTD',
     'enabled' => true
 ];
 
 // Test phone numbers
 $test_phones = [
-    '254712345678',  // Valid Kenyan number
-    '+254712345679', // With country code
-    '712345680',     // Without country code
+    '0722241745',    // User's primary test recipient
+    '254722241745',  // Valid Kenyan number
+    '+254722241745', // With country code
 ];
 
 echo "=== BULK SMS TESTING SCRIPT ===\n\n";
@@ -97,12 +97,12 @@ echo "==========================================\n";
 
 // Method 1: Single phone number as string
 echo "\n5a) Sending to single phone as string\n";
-$result = sendSmsViaOnfonmedia('254712345678', 'Test single number', $retrieved_creds);
+$result = sendSmsViaOnfonmedia('254722241745', 'Test single number', $retrieved_creds);
 echo ($result['success'] ? "✓" : "✗") . " Single number send: " . ($result['success'] ? "Success" : $result['error']) . "\n";
 
 // Method 2: Multiple phone numbers as array
 echo "\n5b) Sending to multiple phones as array\n";
-$result = sendSmsViaOnfonmedia(['254712345678', '254712345679', '254712345680'], 'Test multiple numbers', $retrieved_creds);
+$result = sendSmsViaOnfonmedia(['254722241745', '254722241745', '254722241745'], 'Test multiple numbers', $retrieved_creds);
 echo ($result['success'] ? "✓" : "✗") . " Multiple numbers send: " . ($result['success'] ? "Success - sent to 3 recipients" : $result['error']) . "\n";
 
 // TEST 6: Test phone number normalization
@@ -110,10 +110,10 @@ echo "\n\nTEST 6: Phone Number Normalization\n";
 echo "===================================\n";
 
 $test_formats = [
-    '254712345678' => 'Standard format',
-    '+254712345678' => 'With + prefix',
-    '0712345678' => 'With 0 prefix',
-    '712345678' => 'Without country code',
+    '254722241745' => 'Standard format',
+    '+254722241745' => 'With + prefix',
+    '0722241745' => 'With 0 prefix',
+    '722241745' => 'Without country code',
 ];
 
 foreach ($test_formats as $phone => $description) {

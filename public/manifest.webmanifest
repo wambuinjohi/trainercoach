@@ -1,6 +1,6 @@
 {
-  "name": "Skatryk Trainer",
-  "short_name": "Skatryk",
+  "name": "Trainer Coach Connect",
+  "short_name": "TrainerCoach",
   "description": "Trainer marketplace and admin portal",
   "start_url": "/",
   "scope": "/",
@@ -10,25 +10,25 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/icons/icon-192x192.svg",
+      "src": "https://images.pexels.com/photos/8831809/pexels-photo-8831809.jpeg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.svg",
+      "src": "https://images.pexels.com/photos/8831809/pexels-photo-8831809.jpeg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-192x192.svg",
+      "src": "https://images.pexels.com/photos/8831809/pexels-photo-8831809.jpeg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-maskable-512x512.svg",
+      "src": "https://images.pexels.com/photos/8831809/pexels-photo-8831809.jpeg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
