@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Trash2, Pencil, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { apiRequest } from '@/lib/api'
+import * as apiService from '@/lib/api-service'
 
 interface Contact {
   id: string
@@ -40,14 +41,12 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
   const fetchContacts = async (page = 0) => {
     setLoading(true)
     try {
-      const response = await apiRequest('select', {
-        table: 'contacts',
-        order: 'created_at DESC',
-        limit: pageSize,
-        offset: page * pageSize
+      const response = await apiService.getContactsWithPagination({
+        page: page + 1, // Convert 0-based page to 1-based
+        pageSize
       })
 
-      if (response && typeof response === 'object') {
+      if (response) {
         // Handle both formats: direct array or object with data property
         let data: Contact[] = []
         if (Array.isArray(response)) {
@@ -56,10 +55,13 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
           data = response.data
         }
         setContacts(data)
-        // Extract total count if available from response
-        if (response.total !== undefined) {
+        // Extract total count from response - with count:'exact' it should be available
+        if (response.count !== undefined) {
+          setTotalCount(response.count)
+        } else if (response.total !== undefined) {
           setTotalCount(response.total)
         } else {
+          // Fallback: use data length (shouldn't happen with proper API response)
           setTotalCount(data.length)
         }
         setCurrentPage(page)
