@@ -45,16 +45,16 @@ import { NotificationsCenter } from '@/components/client/NotificationsCenter'
 export const TrainerDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
   const [activeTab, setActiveTab] = useState('home')
-
-  if (loading) return null
-  if (!user || userType !== 'trainer') {
-    return <Navigate to="/" replace />
-  }
   const [isAvailable, setIsAvailable] = useState(true)
   const [showServicesManager, setShowServicesManager] = useState(false)
   const [referralCount, setReferralCount] = useState(0)
   const [monthRevenue, setMonthRevenue] = useState<number>(0)
   const [monthSessions, setMonthSessions] = useState<number>(0)
+
+  if (loading) return null
+  if (!user || userType !== 'trainer') {
+    return <Navigate to="/" replace />
+  }
 
   const referNow = async () => {
     if (!user) return
