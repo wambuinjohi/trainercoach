@@ -5,6 +5,79 @@
  */
 
 /**
+ * Get or generate the encryption key for SMS credentials
+ * Uses SMS_ENCRYPTION_KEY environment variable or generates a default one
+ */
+function getEncryptionKey() {
+    $key = getenv('SMS_ENCRYPTION_KEY');
+
+    // If no key in environment, use a derived key from a base secret or configuration
+    if (!$key) {
+        // Use the first 32 characters of a hash-based derivation
+        // In production, SMS_ENCRYPTION_KEY should always be set
+        $key = substr(hash('sha256', 'sms_creds_encryption_v1'), 0, 32);
+    }
+
+    // Ensure key is exactly 32 bytes for AES-256-CBC
+    return substr($key, 0, 32);
+}
+
+/**
+ * Encrypt sensitive SMS credential value
+ */
+function encryptSmsValue($value) {
+    if (empty($value)) {
+        return $value;
+    }
+
+    $key = getEncryptionKey();
+    $iv = openssl_random_pseudo_bytes(16);
+    $encrypted = openssl_encrypt($value, 'AES-256-CBC', $key, 0, $iv);
+
+    if ($encrypted === false) {
+        error_log("SMS encryption failed: " . openssl_error_string());
+        return $value; // Return plaintext as fallback
+    }
+
+    // Return base64-encoded: iv:encrypted_data
+    return base64_encode($iv . $encrypted);
+}
+
+/**
+ * Decrypt SMS credential value
+ */
+function decryptSmsValue($encrypted_value) {
+    if (empty($encrypted_value)) {
+        return $encrypted_value;
+    }
+
+    try {
+        $key = getEncryptionKey();
+        $decoded = base64_decode($encrypted_value, true);
+
+        if ($decoded === false || strlen($decoded) < 16) {
+            // Not properly encrypted or already plaintext
+            return $encrypted_value;
+        }
+
+        $iv = substr($decoded, 0, 16);
+        $encrypted = substr($decoded, 16);
+
+        $decrypted = openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
+
+        if ($decrypted === false) {
+            error_log("SMS decryption failed: " . openssl_error_string());
+            return $encrypted_value; // Return as-is if decryption fails
+        }
+
+        return $decrypted;
+    } catch (Exception $e) {
+        error_log("SMS decryption exception: " . $e->getMessage());
+        return $encrypted_value; // Return as-is if exception occurs
+    }
+}
+
+/**
  * Get SMS credentials from platform settings
  */
 function getSmsCredentials() {
@@ -21,12 +94,12 @@ function getSmsCredentials() {
         while ($row = $result->fetch_assoc()) {
             $creds[$row['setting_key']] = $row['value'];
         }
-        
+
         if (!empty($creds['sms_api_key']) && !empty($creds['sms_client_id']) && !empty($creds['sms_access_key'])) {
             return [
-                'api_key' => $creds['sms_api_key'],
-                'client_id' => $creds['sms_client_id'],
-                'access_key' => $creds['sms_access_key'],
+                'api_key' => decryptSmsValue($creds['sms_api_key']),
+                'client_id' => decryptSmsValue($creds['sms_client_id']),
+                'access_key' => decryptSmsValue($creds['sms_access_key']),
                 'sender_id' => $creds['sms_sender_id'] ?? 'TRAINER LTD',
                 'admin_phone' => $creds['sms_admin_phone'] ?? '',
                 'enabled' => $creds['sms_enabled'] === 'true' || $creds['sms_enabled'] === true,
@@ -70,9 +143,9 @@ function saveSmsCredentials($credentials) {
     )");
     
     $fields = [
-        'sms_api_key' => $credentials['api_key'],
-        'sms_client_id' => $credentials['client_id'],
-        'sms_access_key' => $credentials['access_key'],
+        'sms_api_key' => encryptSmsValue($credentials['api_key']),
+        'sms_client_id' => encryptSmsValue($credentials['client_id']),
+        'sms_access_key' => encryptSmsValue($credentials['access_key']),
         'sms_sender_id' => $credentials['sender_id'] ?? 'TRAINER LTD',
         'sms_admin_phone' => $credentials['admin_phone'] ?? '',
         'sms_enabled' => isset($credentials['enabled']) ? ($credentials['enabled'] ? 'true' : 'false') : 'true'
@@ -156,8 +229,9 @@ function sendSmsViaOnfonmedia($phone_numbers, $message, $credentials = null) {
     ]);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);

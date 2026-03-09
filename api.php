@@ -182,6 +182,117 @@ function buildWhereClause($conditions) {
     return "WHERE " . implode(" AND ", $parts);
 }
 
+// Validate admin authorization from Bearer token
+function validateAdminAuthorization($conn) {
+    global $corsOrigin;
+
+    // Get Authorization header
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    if (empty($authHeader)) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Missing Authorization header",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    // Extract Bearer token
+    if (strpos($authHeader, 'Bearer ') !== 0) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid Authorization header format",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    $token = substr($authHeader, 7);
+
+    // Decode token (base64-encoded JSON)
+    $decodedToken = base64_decode($token, true);
+    if (!$decodedToken) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid token format",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    $tokenData = json_decode($decodedToken, true);
+    if (!$tokenData || !isset($tokenData['id']) || !isset($tokenData['exp'])) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid token data",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    // Check token expiration
+    if ($tokenData['exp'] < time()) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Token has expired",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    // Extract user ID from token
+    $userId = $tokenData['id'];
+
+    // Verify user is an admin
+    $stmt = $conn->prepare("SELECT user_type FROM user_profiles WHERE user_id = ? LIMIT 1");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Database error",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    $stmt->bind_param("s", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+
+    if ($result->num_rows === 0) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "User not found",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    $profile = $result->fetch_assoc();
+
+    // Check if user is an admin
+    if ($profile['user_type'] !== 'admin') {
+        http_response_code(403);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Insufficient permissions. Admin access required.",
+            "data" => null
+        ]);
+        exit;
+    }
+
+    // Return user ID for use in the API endpoint
+    return $userId;
+}
+
 // Get trainer group pricing for a specific category
 function getTrainerGroupPricing($conn, $trainerId, $categoryId) {
     $trainerId = $conn->real_escape_string($trainerId);
@@ -4016,6 +4127,9 @@ switch ($action) {
     // SMS: SAVE SMS SETTINGS
     case 'settings_sms_save':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             // Accept settings data directly (not wrapped in sms_settings)
             $settings = $input;
 
@@ -4045,6 +4159,9 @@ switch ($action) {
     // SMS: GET SMS SETTINGS
     case 'settings_sms_get':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             $smsCreds = getSmsCredentials();
 
             if (!$smsCreds) {
@@ -4075,6 +4192,9 @@ switch ($action) {
     // SMS TEMPLATES: GET ALL TEMPLATES
     case 'sms_templates_get':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             // Ensure table exists
             $tableCheck = @$conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME='sms_templates' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
@@ -4107,6 +4227,9 @@ switch ($action) {
     // SMS TEMPLATES: CREATE OR UPDATE TEMPLATE
     case 'sms_templates_save':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             if (!isset($input['template']) || !is_array($input['template'])) {
                 respond("error", "Invalid template format.", null, 400);
             }
@@ -4178,6 +4301,9 @@ switch ($action) {
     // SMS TEMPLATES: DELETE TEMPLATE
     case 'sms_templates_delete':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             if (!isset($input['template_id'])) {
                 respond("error", "Missing template_id.", null, 400);
             }
@@ -4204,6 +4330,9 @@ switch ($action) {
     // SMS: SEND MANUAL SMS
     case 'sms_send_manual':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             if (empty($input['message'])) {
                 respond("error", "Missing message content.", null, 400);
             }
@@ -4305,6 +4434,9 @@ switch ($action) {
     // SMS LOGS: GET SMS HISTORY
     case 'sms_logs_get':
         try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
             $tableCheck = @$conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME='sms_logs' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
             if (!$tableCheck || $tableCheck->num_rows == 0) {
