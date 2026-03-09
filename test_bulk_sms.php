@@ -13,7 +13,7 @@ $test_credentials = [
     'api_key' => 'WeO21uB08jalUFdrzHDofvV3hnbR4t7qNX9LKCY5E6imJwIZ',
     'client_id' => 'trainerltd',
     'access_key' => 'trainerltd',
-    'sender_id' => 'trainerltd',
+    'sender_id' => 'TRAINER LTD',
     'enabled' => true
 ];
 

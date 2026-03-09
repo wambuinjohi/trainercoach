@@ -27,7 +27,7 @@ function getSmsCredentials() {
                 'api_key' => $creds['sms_api_key'],
                 'client_id' => $creds['sms_client_id'],
                 'access_key' => $creds['sms_access_key'],
-                'sender_id' => $creds['sms_sender_id'] ?? 'trainerltd',
+                'sender_id' => $creds['sms_sender_id'] ?? 'TRAINER LTD',
                 'enabled' => $creds['sms_enabled'] === 'true' || $creds['sms_enabled'] === true,
                 'source' => 'database'
             ];
@@ -39,7 +39,7 @@ function getSmsCredentials() {
         'api_key' => $_ENV['SMS_API_KEY'] ?? getenv('SMS_API_KEY'),
         'client_id' => $_ENV['SMS_CLIENT_ID'] ?? getenv('SMS_CLIENT_ID'),
         'access_key' => $_ENV['SMS_ACCESS_KEY'] ?? getenv('SMS_ACCESS_KEY'),
-        'sender_id' => $_ENV['SMS_SENDER_ID'] ?? getenv('SMS_SENDER_ID') ?? 'trainerltd',
+        'sender_id' => $_ENV['SMS_SENDER_ID'] ?? getenv('SMS_SENDER_ID') ?? 'TRAINER LTD',
     ];
     
     if (!empty($env_creds['api_key']) && !empty($env_creds['client_id']) && !empty($env_creds['access_key'])) {
@@ -72,7 +72,7 @@ function saveSmsCredentials($credentials) {
         'sms_api_key' => $credentials['api_key'],
         'sms_client_id' => $credentials['client_id'],
         'sms_access_key' => $credentials['access_key'],
-        'sms_sender_id' => $credentials['sender_id'] ?? 'trainerltd',
+        'sms_sender_id' => $credentials['sender_id'] ?? 'TRAINER LTD',
         'sms_enabled' => isset($credentials['enabled']) ? ($credentials['enabled'] ? 'true' : 'false') : 'true'
     ];
     

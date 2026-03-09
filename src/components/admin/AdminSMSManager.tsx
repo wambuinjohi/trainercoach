@@ -58,7 +58,7 @@ export const AdminSMSManager: React.FC = () => {
     sms_api_key: '',
     sms_client_id: '',
     sms_access_key: '',
-    sms_sender_id: 'trainerltd',
+    sms_sender_id: 'TRAINER LTD',
     enabled: true,
   })
 
@@ -132,7 +132,7 @@ export const AdminSMSManager: React.FC = () => {
         if (res.data.sms_configured) {
           setSettingsForm((prev) => ({
             ...prev,
-            sms_sender_id: res.data.sms_sender_id || 'trainerltd',
+            sms_sender_id: res.data.sms_sender_id || 'TRAINER LTD',
             enabled: res.data.sms_enabled !== false,
           }))
         }
@@ -492,7 +492,7 @@ export const AdminSMSManager: React.FC = () => {
                   <Label htmlFor="sender-id">Sender ID</Label>
                   <Input
                     id="sender-id"
-                    placeholder="trainerltd"
+                    placeholder="TRAINER LTD"
                     value={settingsForm.sms_sender_id}
                     onChange={(e) =>
                       setSettingsForm((prev) => ({
