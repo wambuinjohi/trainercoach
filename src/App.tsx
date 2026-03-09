@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -65,6 +65,41 @@ const AppContent = () => {
   }
 };
 
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-full bg-gradient-primary mx-auto mb-4 animate-pulse"></div>
+      <p className="text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
+
+const AppRoutes = () => (
+  <Suspense fallback={<LoadingFallback />}>
+    <Routes>
+      <Route path="/" element={<AppContent />} />
+      <Route path="/signin" element={<AuthForm onSuccess={() => (window.location.href = "/")} />} />
+      <Route path="/signup" element={<AuthForm initialTab="signup" onSuccess={() => (window.location.href = "/")} />} />
+      <Route path="/password-reset" element={<PasswordReset />} />
+      <Route path="/reset-passwords" element={<ResetPasswords />} />
+      <Route path="/admin/reset-passwords" element={<ResetPasswords />} />
+      <Route path="/setup" element={<AdminSetup />} />
+      <Route path="/api-test" element={<ApiTest />} />
+      <Route path="/explore" element={<Explore />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/home" element={<Home />} />
+      <Route path="/clear-cache" element={<ClearCache />} />
+      <Route path="/upload-demo" element={<UploadDemo />} />
+      <Route path="/admin/mpesamigration" element={<MpesaMigration />} />
+      <Route path="/api-diagnostics" element={<ApiDiagnostics />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </Suspense>
+);
+
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="system">
@@ -75,40 +110,7 @@ const App = () => (
             <ApiConfigProvider>
               <AuthProvider>
                 <AutoSetupWrapper>
-                  <Routes>
-                    <Route path="/" element={<AppContent />} />
-                    <Route
-                      path="/signin"
-                      element={
-                        <AuthForm onSuccess={() => (window.location.href = "/")} />
-                      }
-                    />
-                    <Route
-                      path="/signup"
-                      element={
-                        <AuthForm
-                          initialTab="signup"
-                          onSuccess={() => (window.location.href = "/")}
-                        />
-                      }
-                    />
-                    <Route path="/password-reset" element={<PasswordReset />} />
-                    <Route path="/reset-passwords" element={<ResetPasswords />} />
-                    <Route path="/admin/reset-passwords" element={<ResetPasswords />} />
-                    <Route path="/setup" element={<AdminSetup />} />
-                    <Route path="/api-test" element={<ApiTest />} />
-                    <Route path="/explore" element={<Explore />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/home" element={<Home />} />
-                    <Route path="/clear-cache" element={<ClearCache />} />
-                    <Route path="/upload-demo" element={<UploadDemo />} />
-                    <Route path="/admin/mpesamigration" element={<MpesaMigration />} />
-                    <Route path="/api-diagnostics" element={<ApiDiagnostics />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                  <AppRoutes />
                 </AutoSetupWrapper>
               </AuthProvider>
             </ApiConfigProvider>

@@ -18,7 +18,7 @@ interface AuthFormProps {
   initialTab?: 'signin' | 'signup'
 }
 
-export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'signin' }) => {
+const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'signin' }) => {
   const { signIn, signUp } = useAuth()
   const { location: geoLocation, requestLocation: requestGeoLocation } = useGeolocation()
   const [isLoading, setIsLoading] = useState(false)
@@ -243,3 +243,5 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     </div>
   )
 }
+
+export const AuthForm = AuthFormContent;
