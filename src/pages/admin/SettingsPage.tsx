@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast'
 import ThemeToggleAdmin from '@/components/admin/ThemeToggleAdmin'
 import { loadSettings, saveSettings, defaultSettings, defaultMpesaSettings, type PlatformSettings, type MpesaSettings, loadSettingsFromDb, saveSettingsToDb } from '@/lib/settings'
 import { apiRequest } from '@/lib/api'
+import { CURRENCY_OPTIONS, TIMEZONE_OPTIONS, PAYOUT_SCHEDULE_OPTIONS, ANNOUNCEMENT_TARGETS } from '@/lib/admin-config'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -23,8 +24,8 @@ export default function SettingsPage() {
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementBody, setAnnouncementBody] = useState('')
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false)
-  const [testStkPhone, setTestStkPhone] = useState('254722241745')
-  const [testStkAmount, setTestStkAmount] = useState('5')
+  const [testStkPhone, setTestStkPhone] = useState('')
+  const [testStkAmount, setTestStkAmount] = useState('')
   const [testStkLoading, setTestStkLoading] = useState(false)
   const [testStkResult, setTestStkResult] = useState<any>(null)
 
@@ -177,10 +178,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="KES">KES</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
+                  {CURRENCY_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -191,10 +191,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Africa/Nairobi">Africa/Nairobi</SelectItem>
-                  <SelectItem value="UTC">UTC</SelectItem>
-                  <SelectItem value="America/New_York">America/New_York</SelectItem>
-                  <SelectItem value="Europe/London">Europe/London</SelectItem>
+                  {TIMEZONE_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -216,9 +215,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="biweekly">Biweekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
+                  {PAYOUT_SCHEDULE_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -252,10 +251,9 @@ export default function SettingsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All users</SelectItem>
-                <SelectItem value="clients">Clients</SelectItem>
-                <SelectItem value="trainers">Trainers</SelectItem>
-                <SelectItem value="admins">Admins</SelectItem>
+                {ANNOUNCEMENT_TARGETS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

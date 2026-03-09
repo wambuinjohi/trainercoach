@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { MessageSquare, Send, RotateCw, Trash2, Edit2, Eye, Plus } from 'lucide-react'
 import { apiRequest } from '@/lib/api'
 import { toast } from '@/hooks/use-toast'
+import { SMS_SMS_EVENT_TYPES } from '@/lib/admin-config'
 
 interface SmsSettings {
   sms_configured: boolean
@@ -44,8 +45,6 @@ interface SmsLog {
   sent_at?: string
   created_at: string
 }
-
-const EVENT_TYPES = ['registration', 'payment', 'booking', 'payout', 'custom']
 
 export const AdminSMSManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState('settings')
@@ -647,7 +646,7 @@ export const AdminSMSManager: React.FC = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {EVENT_TYPES.map((type) => (
+                        {SMS_EVENT_TYPES.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>

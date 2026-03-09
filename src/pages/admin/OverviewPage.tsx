@@ -71,18 +71,22 @@ export default function OverviewPage() {
           apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
         ])
 
+        // Ensure arrays - handle various response formats
+        const users = Array.isArray(usersData) ? usersData : (usersData?.data && Array.isArray(usersData.data) ? usersData.data : [])
+        const bookings = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.data && Array.isArray(bookingsData.data) ? bookingsData.data : [])
+
         // Calculate stats
-        const approvedTrainers = usersData?.filter((u: any) => u.user_type === 'trainer')?.length || 0
-        const totalUsers = usersData?.length || 0
-        const totalClients = usersData?.filter((u: any) => u.user_type === 'client')?.length || 0
-        const totalAdmins = usersData?.filter((u: any) => u.user_type === 'admin')?.length || 0
-        const totalBookings = bookingsData?.length || 0
+        const approvedTrainers = users.filter((u: any) => u.user_type === 'trainer').length
+        const totalUsers = users.length
+        const totalClients = users.filter((u: any) => u.user_type === 'client').length
+        const totalAdmins = users.filter((u: any) => u.user_type === 'admin').length
+        const totalBookings = bookings.length
 
         // Calculate revenue
-        const totalRevenue = bookingsData?.reduce((sum: number, b: any) => sum + (b.amount || 0), 0) || 0
+        const totalRevenue = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
 
         // Count pending approvals
-        const pendingApprovals = usersData?.filter((u: any) => u.approval_status === 'pending')?.length || 0
+        const pendingApprovals = users.filter((u: any) => u.approval_status === 'pending').length
 
         // Count disputes
         const activeDisputes = issuesData?.data?.filter((i: any) => i.status !== 'resolved')?.length || 0
@@ -100,7 +104,7 @@ export default function OverviewPage() {
 
         // Build analytics points from bookings
         const buckets = new Map<string, { revenue: number; bookings: number }>()
-        bookingsData?.forEach((booking: any) => {
+        bookings.forEach((booking: any) => {
           const date = booking.created_at ? new Date(booking.created_at) : null
           if (!date || Number.isNaN(date.getTime())) return
           const key = date.toISOString().split('T')[0]
