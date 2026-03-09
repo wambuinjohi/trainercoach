@@ -127,8 +127,8 @@ export const defaultSettings: PlatformSettings = {
   compensationFeePercent: 10,
   maintenanceFeePercent: 15,
   // Platform
-  platformName: 'Skatryk Trainer',
-  supportEmail: 'support@skatryk.com',
+  platformName: 'Trainer Coach Connect',
+  supportEmail: 'support@wayrus.co.ke',
   timezone: 'Africa/Nairobi',
   emailNotifications: true,
   maintenanceMode: false,

@@ -4061,6 +4061,7 @@ switch ($action) {
                 "sms_configured" => true,
                 "sms_enabled" => $smsCreds['enabled'],
                 "sms_sender_id" => $smsCreds['sender_id'],
+                "sms_admin_phone" => $smsCreds['admin_phone'] ?? '',
                 "sms_source" => $smsCreds['source'],
                 "api_key_exists" => !empty($smsCreds['api_key']),
                 "client_id_exists" => !empty($smsCreds['client_id']),
