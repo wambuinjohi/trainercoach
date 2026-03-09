@@ -24,6 +24,7 @@ import {
   Bell
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { Navigate } from 'react-router-dom'
 import { apiRequest, withAuth } from '@/lib/api'
 import { TrainerProfileEditor } from './TrainerProfileEditor'
 import { AvailabilityEditor } from './AvailabilityEditor'
@@ -42,8 +43,13 @@ import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { NotificationsCenter } from '@/components/client/NotificationsCenter'
 
 export const TrainerDashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, userType, signOut, loading } = useAuth()
   const [activeTab, setActiveTab] = useState('home')
+
+  if (loading) return null
+  if (!user || userType !== 'trainer') {
+    return <Navigate to="/" replace />
+  }
   const [isAvailable, setIsAvailable] = useState(true)
   const [showServicesManager, setShowServicesManager] = useState(false)
   const [referralCount, setReferralCount] = useState(0)

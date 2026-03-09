@@ -14,7 +14,7 @@ import { CategoryList } from './CategoryList'
 import { ContactsList } from './ContactsList'
 import { WaitingListManager } from './WaitingListManager'
 import { AdminSMSManager } from './AdminSMSManager'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   Users,
   DollarSign,
@@ -140,8 +140,13 @@ const initialStats = {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, userType, signOut, loading } = useAuth()
   const navigate = useNavigate()
+
+  if (loading) return null
+  if (!user || userType !== 'admin') {
+    return <Navigate to="/" replace />
+  }
   const [activeTab, setActiveTab] = useState('overview')
   const [settings, setSettings] = useState<PlatformSettings>(defaultSettings)
   const [saving, setSaving] = useState(false)

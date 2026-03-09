@@ -23,8 +23,7 @@ import {
   LogOut,
   DollarSign,
   Bell,
-  RefreshCw,
-  LayoutDashboard
+  RefreshCw
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { ClientProfileEditor } from './ClientProfileEditor'
@@ -70,6 +69,7 @@ function formatHourlyRate(rate: number | null | undefined): string {
 import { SearchBar } from './SearchBar'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { Navigate } from 'react-router-dom'
 import { useSearchHistory } from '@/hooks/use-search-history'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import * as apiService from '@/lib/api-service'
@@ -78,8 +78,13 @@ import { apiRequest, withAuth } from '@/lib/api'
 import { reverseGeocode } from '@/lib/location'
 
 export const ClientDashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, userType, signOut, loading } = useAuth()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
+
+  if (loading) return null
+  if (!user || userType !== 'client') {
+    return <Navigate to="/" replace />
+  }
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('home')
@@ -372,46 +377,14 @@ export const ClientDashboard: React.FC = () => {
     window.location.href = '/'
   }
 
-  const handlePromoteAdmin = async () => {
-    if (!user) return
-    try {
-      await apiService.updateUserType(user.id, 'admin')
-      toast({ title: 'Success', description: 'Account status set to Admin. Please sign out and sign in again.' })
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to update account status', variant: 'destructive' })
-    }
-  }
-
   // -------------------- Render Functions --------------------
   const renderHomeContent = () => {
     if (!userLocation) {
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            {user?.email === 'admin@skatryk.co.ke' && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/admin'}
-                  className="text-xs font-semibold flex items-center gap-2 border-primary/30 hover:bg-primary/5"
-                >
-                  <LayoutDashboard className="h-4 w-4 text-primary" />
-                  <span>Admin Portal</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePromoteAdmin}
-                  className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground"
-                >
-                  (Repair Account)
-                </Button>
-              </div>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+            <div className="flex-1"></div>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
               <LogOut className="h-5 w-5 text-red-500" />
             </Button>
           </div>
@@ -453,29 +426,7 @@ export const ClientDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            {user?.email === 'admin@skatryk.co.ke' && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/admin'}
-                  className="text-xs font-semibold flex items-center gap-2 border-primary/30 hover:bg-primary/5"
-                >
-                  <LayoutDashboard className="h-4 w-4 text-primary" />
-                  <span>Admin Portal</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePromoteAdmin}
-                  className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground"
-                >
-                  (Repair Account)
-                </Button>
-              </div>
-            )}
-          </div>
+          <div className="flex-1"></div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
             <LogOut className="h-5 w-5 text-red-500" />
           </Button>

@@ -2,7 +2,7 @@ import React, { useEffect, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ApiConfigProvider } from "@/contexts/ApiConfigContext";
@@ -54,14 +54,14 @@ const AppContent = () => {
 
   // Route based on user type
   switch (userType) {
-    case "client":
-      return <ClientDashboard />;
-    case "trainer":
-      return <TrainerDashboard />;
     case "admin":
-      return <AdminDashboard />;
+      return <Navigate to="/admin" replace />;
+    case "trainer":
+      return <Navigate to="/trainer" replace />;
+    case "client":
+      return <Navigate to="/client" replace />;
     default:
-      return <ClientDashboard />;
+      return <Navigate to="/client" replace />;
   }
 };
 
@@ -81,8 +81,16 @@ const AppRoutes = () => (
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/trainer" element={<TrainerDashboard />} />
       <Route path="/client" element={<ClientDashboard />} />
-      <Route path="/signin" element={<AuthForm onSuccess={() => (window.location.href = "/")} />} />
-      <Route path="/signup" element={<AuthForm initialTab="signup" onSuccess={() => (window.location.href = "/")} />} />
+      <Route path="/signin" element={<AuthForm onSuccess={(type) => {
+        if (type === 'admin') window.location.href = "/admin";
+        else if (type === 'trainer') window.location.href = "/trainer";
+        else window.location.href = "/client";
+      }} />} />
+      <Route path="/signup" element={<AuthForm initialTab="signup" onSuccess={(type) => {
+        if (type === 'admin') window.location.href = "/admin";
+        else if (type === 'trainer') window.location.href = "/trainer";
+        else window.location.href = "/client";
+      }} />} />
       <Route path="/password-reset" element={<PasswordReset />} />
       <Route path="/reset-passwords" element={<ResetPasswords />} />
       <Route path="/admin/reset-passwords" element={<ResetPasswords />} />
