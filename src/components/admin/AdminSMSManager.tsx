@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { MessageSquare, Send, RotateCw, Trash2, Edit2, Eye, Plus } from 'lucide-react'
 import { apiRequest } from '@/lib/api'
 import { toast } from '@/hooks/use-toast'
-import { SMS_SMS_EVENT_TYPES } from '@/lib/admin-config'
+import { SMS_EVENT_TYPES } from '@/lib/admin-config'
 
 interface SmsSettings {
   sms_configured: boolean
@@ -51,6 +51,7 @@ export const AdminSMSManager: React.FC = () => {
   const [smsSettings, setSmsSettings] = useState<SmsSettings | null>(null)
   const [loading, setLoading] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
+  const [testingConnection, setTestingConnection] = useState(false)
 
   // Settings form
   const [settingsForm, setSettingsForm] = useState({
@@ -78,8 +79,12 @@ export const AdminSMSManager: React.FC = () => {
     phone_numbers: '',
     message: '',
     user_group: 'all',
+    template_id: '',
+    template_data: {} as Record<string, string>,
   })
   const [sendMode, setSendMode] = useState<'manual' | 'group'>('manual')
+  const [sendType, setSendType] = useState<'template' | 'raw'>('raw')
+  const [selectedTemplate, setSelectedTemplate] = useState<SmsTemplate | null>(null)
   const [sending, setSending] = useState(false)
 
   // Logs
@@ -178,6 +183,50 @@ export const AdminSMSManager: React.FC = () => {
     }
   }
 
+  const testConnection = async () => {
+    if (!settingsForm.api_key || !settingsForm.client_id || !settingsForm.access_key) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields first',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setTestingConnection(true)
+    try {
+      // Make a test API call with the provided credentials
+      const response = await apiRequest('settings_sms_test', {
+        api_key: settingsForm.api_key,
+        client_id: settingsForm.client_id,
+        access_key: settingsForm.access_key,
+        sender_id: settingsForm.sender_id,
+      })
+
+      if (response?.data?.success) {
+        toast({
+          title: 'Success',
+          description: 'SMS service connection is working correctly',
+        })
+      } else {
+        toast({
+          title: 'Connection Failed',
+          description: response?.data?.error || 'Failed to connect to SMS service',
+          variant: 'destructive',
+        })
+      }
+    } catch (error: any) {
+      console.error('Failed to test SMS connection:', error)
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to test SMS connection',
+        variant: 'destructive',
+      })
+    } finally {
+      setTestingConnection(false)
+    }
+  }
+
   const loadTemplates = async () => {
     setLoading(true)
     try {
@@ -272,13 +321,25 @@ export const AdminSMSManager: React.FC = () => {
   }
 
   const sendSMS = async () => {
-    if (!sendForm.message.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a message',
-        variant: 'destructive',
-      })
-      return
+    // Validate input
+    if (sendType === 'template') {
+      if (!sendForm.template_id) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please select a template',
+          variant: 'destructive',
+        })
+        return
+      }
+    } else {
+      if (!sendForm.message.trim()) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please enter a message',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     if (sendMode === 'manual' && !sendForm.phone_numbers.trim()) {
@@ -301,8 +362,13 @@ export const AdminSMSManager: React.FC = () => {
 
     setSending(true)
     try {
-      const payload: any = {
-        message: sendForm.message,
+      const payload: any = {}
+
+      if (sendType === 'template') {
+        payload.template_id = sendForm.template_id
+        payload.template_data = sendForm.template_data
+      } else {
+        payload.message = sendForm.message
       }
 
       if (sendMode === 'manual') {
@@ -326,7 +392,10 @@ export const AdminSMSManager: React.FC = () => {
         phone_numbers: '',
         message: '',
         user_group: 'all',
+        template_id: '',
+        template_data: {},
       })
+      setSelectedTemplate(null)
 
       // Reload logs
       loadSmsLogs()
@@ -412,15 +481,38 @@ export const AdminSMSManager: React.FC = () => {
               <CardTitle>SMS Service Configuration</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Configuration Status */}
               {smsSettings?.sms_configured ? (
                 <div className="bg-green-50 p-4 rounded border border-green-200">
-                  <p className="text-green-800 font-semibold">SMS service is configured</p>
-                  <p className="text-sm text-green-700">Provider: Onfonmedia</p>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-green-800 font-semibold flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 bg-green-600 rounded-full"></span>
+                        SMS service is configured
+                      </p>
+                      <p className="text-sm text-green-700 mt-1">Provider: Onfonmedia</p>
+                      {smsSettings.sms_source && (
+                        <p className="text-xs text-green-600 mt-1">
+                          Credentials source: {smsSettings.sms_source === 'database' ? 'Database' : 'Environment'}
+                        </p>
+                      )}
+                      {!smsSettings.sms_enabled && (
+                        <p className="text-sm text-yellow-700 mt-2 font-semibold">
+                          ⚠️ SMS sending is currently disabled
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
-                  <p className="text-yellow-800 font-semibold">SMS service not yet configured</p>
-                  <p className="text-sm text-yellow-700">Please add your Onfonmedia API credentials below</p>
+                  <div>
+                    <p className="text-yellow-800 font-semibold flex items-center gap-2">
+                      <span className="inline-block w-2 h-2 bg-yellow-600 rounded-full"></span>
+                      SMS service not yet configured
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-1">Add your Onfonmedia API credentials below to enable SMS functionality</p>
+                  </div>
                 </div>
               )}
 
@@ -519,13 +611,23 @@ export const AdminSMSManager: React.FC = () => {
                 </div>
               </div>
 
-              <Button
-                onClick={saveSettings}
-                disabled={savingSettings}
-                className="w-full"
-              >
-                {savingSettings ? 'Saving...' : 'Save Settings'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={testConnection}
+                  disabled={testingConnection || !settingsForm.api_key || !settingsForm.client_id || !settingsForm.access_key}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {testingConnection ? 'Testing...' : 'Test Connection'}
+                </Button>
+                <Button
+                  onClick={saveSettings}
+                  disabled={savingSettings}
+                  className="flex-1"
+                >
+                  {savingSettings ? 'Saving...' : 'Save Settings'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -719,21 +821,52 @@ export const AdminSMSManager: React.FC = () => {
               <CardTitle>Send Bulk SMS</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex gap-2">
-                <Button
-                  variant={sendMode === 'manual' ? 'default' : 'outline'}
-                  onClick={() => setSendMode('manual')}
-                >
-                  Send to Specific Numbers
-                </Button>
-                <Button
-                  variant={sendMode === 'group' ? 'default' : 'outline'}
-                  onClick={() => setSendMode('group')}
-                >
-                  Send to User Group
-                </Button>
+              {/* Send Type Selection */}
+              <div className="space-y-2">
+                <Label>Send Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={sendType === 'raw' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setSendType('raw')
+                      setSelectedTemplate(null)
+                    }}
+                    size="sm"
+                  >
+                    Raw Message
+                  </Button>
+                  <Button
+                    variant={sendType === 'template' ? 'default' : 'outline'}
+                    onClick={() => setSendType('template')}
+                    size="sm"
+                  >
+                    Use Template
+                  </Button>
+                </div>
               </div>
 
+              {/* Recipient Type Selection */}
+              <div className="space-y-2">
+                <Label>Send To</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={sendMode === 'manual' ? 'default' : 'outline'}
+                    onClick={() => setSendMode('manual')}
+                    size="sm"
+                  >
+                    Specific Numbers
+                  </Button>
+                  <Button
+                    variant={sendMode === 'group' ? 'default' : 'outline'}
+                    onClick={() => setSendMode('group')}
+                    size="sm"
+                  >
+                    User Group
+                  </Button>
+                </div>
+              </div>
+
+              {/* Recipient Input */}
               {sendMode === 'manual' ? (
                 <div>
                   <Label htmlFor="phone-numbers">Phone Numbers (one per line)</Label>
@@ -771,24 +904,110 @@ export const AdminSMSManager: React.FC = () => {
                 </div>
               )}
 
-              <div>
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  placeholder="Enter your SMS message"
-                  value={sendForm.message}
-                  onChange={(e) =>
-                    setSendForm((prev) => ({
-                      ...prev,
-                      message: e.target.value,
-                    }))
-                  }
-                  className="mt-1 min-h-24"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Characters: {sendForm.message.length}
-                </p>
-              </div>
+              {/* Message Content */}
+              {sendType === 'raw' ? (
+                <div>
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Enter your SMS message"
+                    value={sendForm.message}
+                    onChange={(e) =>
+                      setSendForm((prev) => ({
+                        ...prev,
+                        message: e.target.value,
+                      }))
+                    }
+                    className="mt-1 min-h-24"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Characters: {sendForm.message.length}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="template-select">Select Template</Label>
+                    <Select
+                      value={sendForm.template_id}
+                      onValueChange={(value) => {
+                        const template = templates.find((t) => t.id === value)
+                        setSelectedTemplate(template || null)
+                        setSendForm((prev) => ({
+                          ...prev,
+                          template_id: value,
+                          template_data: {}, // Reset template data
+                        }))
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Choose a template..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.filter((t) => t.active).map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name} ({template.event_type})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedTemplate && (
+                    <>
+                      <div>
+                        <Label className="text-xs text-gray-600 mb-2 block">Template Preview</Label>
+                        <div className="bg-gray-100 p-3 rounded text-sm min-h-20 whitespace-pre-wrap max-h-40 overflow-auto">
+                          {selectedTemplate.template_text}
+                        </div>
+                      </div>
+
+                      {/* Extract placeholders from template and create input fields */}
+                      {(() => {
+                        const placeholderRegex = /\{\{(\w+)\}\}/g
+                        const matches = [...selectedTemplate.template_text.matchAll(placeholderRegex)]
+                        const placeholders = [...new Set(matches.map((m) => m[1]))]
+
+                        if (placeholders.length > 0) {
+                          return (
+                            <div className="border-t pt-4 space-y-3">
+                              <Label className="text-sm font-semibold">Template Variables</Label>
+                              <p className="text-xs text-gray-500">
+                                Provide values for the placeholders in your template. These will be used for all recipients.
+                              </p>
+                              {placeholders.map((placeholder) => (
+                                <div key={placeholder}>
+                                  <Label htmlFor={`data-${placeholder}`} className="text-sm">
+                                    {'{'}
+                                    {placeholder}
+                                    {'}'}
+                                  </Label>
+                                  <Input
+                                    id={`data-${placeholder}`}
+                                    placeholder={`Enter ${placeholder}`}
+                                    value={sendForm.template_data[placeholder] || ''}
+                                    onChange={(e) =>
+                                      setSendForm((prev) => ({
+                                        ...prev,
+                                        template_data: {
+                                          ...prev.template_data,
+                                          [placeholder]: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    className="mt-1"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                    </>
+                  )}
+                </div>
+              )}
 
               <Button
                 onClick={sendSMS}

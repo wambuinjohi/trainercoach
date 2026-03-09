@@ -363,23 +363,27 @@ function logSmsEvent($user_id, $phone_number, $message, $template_id, $event_typ
 }
 
 /**
- * Get SMS template by name or event type
+ * Get SMS template by name, event type, or ID
+ * If second param is TRUE, search by event type
+ * If third param is TRUE, search by ID
  */
-function getSmsTemplate($name_or_event_type, $byEvent = false) {
+function getSmsTemplate($name_or_event_type, $byEvent = false, $byId = false) {
     global $conn;
-    
+
     $tableCheck = @$conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_NAME='sms_templates' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$tableCheck || $tableCheck->num_rows == 0) {
         return null;
     }
-    
-    if ($byEvent) {
-        $stmt = $conn->prepare("SELECT id, name, template_text FROM sms_templates WHERE event_type = ? AND active = TRUE LIMIT 1");
+
+    if ($byId) {
+        $stmt = $conn->prepare("SELECT id, name, template_text, event_type, active FROM sms_templates WHERE id = ? LIMIT 1");
+    } elseif ($byEvent) {
+        $stmt = $conn->prepare("SELECT id, name, template_text, event_type, active FROM sms_templates WHERE event_type = ? AND active = TRUE LIMIT 1");
     } else {
-        $stmt = $conn->prepare("SELECT id, name, template_text FROM sms_templates WHERE name = ? AND active = TRUE LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, name, template_text, event_type, active FROM sms_templates WHERE name = ? AND active = TRUE LIMIT 1");
     }
-    
+
     if ($stmt) {
         $stmt->bind_param('s', $name_or_event_type);
         $stmt->execute();
@@ -388,7 +392,7 @@ function getSmsTemplate($name_or_event_type, $byEvent = false) {
         $stmt->close();
         return $template;
     }
-    
+
     return null;
 }
 
