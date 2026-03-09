@@ -35,10 +35,21 @@ const Home: React.FC = () => {
     const loadCategories = async () => {
       try {
         console.log('[Home] Loading categories...')
-        const data = await apiService.getCategories()
-        console.log('[Home] Categories loaded:', data)
-        if (data?.data) {
-          setCategories(data.data)
+        const response = await apiService.getCategories()
+        console.log('[Home] Categories response:', response)
+
+        // Handle different response formats from API or mock data
+        let categories: Category[] = []
+        if (Array.isArray(response)) {
+          // Response is directly an array
+          categories = response
+        } else if (response?.data && Array.isArray(response.data)) {
+          // Response is an object with data property containing array
+          categories = response.data
+        }
+
+        if (categories.length > 0) {
+          setCategories(categories)
         }
       } catch (err) {
         console.error('[Home] Failed to load categories:', err)

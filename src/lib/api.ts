@@ -108,11 +108,16 @@ export async function apiRequest<T = any>(action: string, payload: Record<string
     }
 
     // All API endpoints failed, try mock data as last resort
+    console.log(`[API] ${action} - all real endpoints failed, attempting mock data fallback`)
     const mockResponse = getMockResponse(action, payload)
     if (mockResponse) {
       console.log(`[API] ${action} - using mock data (all real endpoints failed)`)
-      return (mockResponse.data as T) ?? (mockResponse as unknown as T)
+      const result = mockResponse.data ? mockResponse.data as T : mockResponse as unknown as T
+      return result
     }
+
+    // No mock data available either
+    console.error(`[API] ${action} - no mock data available, throwing error`)
     throw primaryError
   }
 }
@@ -124,38 +129,43 @@ async function apiRequest_Internal<T = any>(
   headers: Record<string, string>,
   init: RequestInit
 ): Promise<T> {
-  const res = await fetch(apiUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ action, ...payload }),
-    ...init,
-  })
-
-  let json: ApiResponse<T> | null = null
   try {
-    // Clone the response to safely read the body without consuming the original
-    const clonedRes = res.clone()
-    const text = await clonedRes.text()
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action, ...payload }),
+      ...init,
+    })
 
-    if (!text) {
-      throw new Error('Empty response body')
+    let json: ApiResponse<T> | null = null
+    try {
+      // Clone the response to safely read the body without consuming the original
+      const clonedRes = res.clone()
+      const text = await clonedRes.text()
+
+      if (!text) {
+        throw new Error('Empty response body')
+      }
+
+      // Check if response is HTML instead of JSON (common error response)
+      if (text.trim().startsWith('<')) {
+        throw new Error(`Server returned HTML instead of JSON. Status: ${res.status}. The API endpoint may be down or misconfigured.`)
+      }
+
+      json = JSON.parse(text)
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : 'Unknown error'
+      throw new Error(`Invalid API response from ${apiUrl}: ${errorMsg}`)
     }
 
-    // Check if response is HTML instead of JSON (common error response)
-    if (text.trim().startsWith('<')) {
-      throw new Error(`Server returned HTML instead of JSON. Status: ${res.status}. The API endpoint may be down or misconfigured.`)
-    }
-
-    json = JSON.parse(text)
-  } catch (e) {
-    const errorMsg = e instanceof Error ? e.message : 'Unknown error'
-    throw new Error(`Invalid API response from ${apiUrl}: ${errorMsg}`)
+    if (!json) throw new Error('Empty API response')
+    if (json.status === 'error') throw new Error(json.message || `API error: ${res.status}`)
+    if (!res.ok && json.status !== 'success') throw new Error(json.message || `API error: ${res.status}`)
+    return (json.data as T) ?? (json as unknown as T)
+  } catch (error) {
+    // Re-throw with more context
+    throw error
   }
-
-  if (!json) throw new Error('Empty API response')
-  if (json.status === 'error') throw new Error(json.message || `API error: ${res.status}`)
-  if (!res.ok && json.status !== 'success') throw new Error(json.message || `API error: ${res.status}`)
-  return (json.data as T) ?? (json as unknown as T)
 }
 
 export function withAuth(token?: string): Record<string, string> {
