@@ -4156,6 +4156,44 @@ switch ($action) {
         }
         break;
 
+    // SMS: TEST SMS CONNECTION
+    case 'settings_sms_test':
+        try {
+            // Validate admin authorization
+            $adminUserId = validateAdminAuthorization($conn);
+
+            // Get credentials from request (for testing before saving)
+            $testCreds = [
+                'api_key' => $input['api_key'] ?? null,
+                'client_id' => $input['client_id'] ?? null,
+                'access_key' => $input['access_key'] ?? null,
+                'sender_id' => $input['sender_id'] ?? 'TRAINER LTD',
+                'enabled' => true
+            ];
+
+            // Validate required fields
+            if (empty($testCreds['api_key']) || empty($testCreds['client_id']) || empty($testCreds['access_key'])) {
+                respond("error", "Missing required credentials for testing.", null, 400);
+            }
+
+            // Send a test SMS with minimal payload to validate credentials
+            $testResult = sendSmsViaOnfonmedia(['254712345678'], "Test message from Trainer Coach Connect", $testCreds);
+
+            if ($testResult['success']) {
+                respond("success", "SMS service connection is working correctly.", [
+                    "success" => true,
+                    "message" => "Connection test successful",
+                    "provider_response" => $testResult['provider_response'] ?? null
+                ]);
+            } else {
+                respond("error", "Connection test failed: " . ($testResult['error'] ?? 'Unknown error'), null, 500);
+            }
+        } catch (Exception $e) {
+            logEvent('settings_sms_test_error', ['error' => $e->getMessage()]);
+            respond("error", "Failed to test SMS connection: " . $e->getMessage(), null, 500);
+        }
+        break;
+
     // SMS: GET SMS SETTINGS
     case 'settings_sms_get':
         try {
@@ -4333,28 +4371,54 @@ switch ($action) {
             // Validate admin authorization
             $adminUserId = validateAdminAuthorization($conn);
 
-            if (empty($input['message'])) {
-                respond("error", "Missing message content.", null, 400);
+            $message = '';
+            $templateId = null;
+            $templateData = [];
+
+            // Support both template-based and raw message sending
+            if (!empty($input['template_id'])) {
+                // Template-based sending
+                $templateId = $conn->real_escape_string($input['template_id']);
+                $template = getSmsTemplate($templateId, false, true); // Search by ID
+
+                if (!$template) {
+                    respond("error", "SMS template not found.", null, 400);
+                }
+
+                // Get template data from request
+                if (isset($input['template_data']) && is_array($input['template_data'])) {
+                    $templateData = $input['template_data'];
+                }
+
+                // Replace placeholders in template
+                $message = replaceTemplatePlaceholders($template['template_text'], $templateData);
+                $templateId = $template['id'];
+            } elseif (!empty($input['message'])) {
+                // Raw message sending
+                $message = $conn->real_escape_string($input['message']);
+            } else {
+                respond("error", "Missing message content or template_id.", null, 400);
             }
 
-            $message = $conn->real_escape_string($input['message']);
             $phoneNumbers = [];
             $userIds = [];
+            $userPhoneMap = []; // Map user IDs to their phone numbers for personalized templates
 
             // Get phone numbers from direct list or from users
             if (isset($input['phone_numbers']) && is_array($input['phone_numbers'])) {
                 $phoneNumbers = array_filter($input['phone_numbers']);
             } elseif (isset($input['user_ids']) && is_array($input['user_ids'])) {
                 $userIds = array_filter($input['user_ids']);
-                // Fetch phone numbers for users
+                // Fetch phone numbers and user data for users
                 foreach ($userIds as $userId) {
-                    $stmt = $conn->prepare("SELECT phone FROM users WHERE id=? LIMIT 1");
+                    $stmt = $conn->prepare("SELECT id, phone, CONCAT(first_name, ' ', last_name) as user_name, first_name, email FROM users WHERE id=? LIMIT 1");
                     $stmt->bind_param("s", $userId);
                     $stmt->execute();
                     $result = $stmt->get_result();
                     if ($result && $row = $result->fetch_assoc()) {
                         if (!empty($row['phone'])) {
                             $phoneNumbers[] = $row['phone'];
+                            $userPhoneMap[$row['phone']] = $row;
                         }
                     }
                     $stmt->close();
@@ -4364,16 +4428,18 @@ switch ($action) {
                 $group = $conn->real_escape_string($input['user_group']);
 
                 if ($group === 'all') {
-                    $result = $conn->query("SELECT id, phone FROM users WHERE phone IS NOT NULL AND phone != '' LIMIT 10000");
+                    $result = $conn->query("SELECT id, phone, CONCAT(first_name, ' ', last_name) as user_name, first_name, email FROM users WHERE phone IS NOT NULL AND phone != '' LIMIT 10000");
                 } elseif ($group === 'trainers') {
                     $result = $conn->query("
-                        SELECT u.id, u.phone FROM users u
+                        SELECT u.id, u.phone, CONCAT(u.first_name, ' ', u.last_name) as user_name, u.first_name, u.email
+                        FROM users u
                         INNER JOIN user_profiles up ON u.id = up.user_id
                         WHERE up.user_type='trainer' AND u.phone IS NOT NULL AND u.phone != '' LIMIT 10000
                     ");
                 } elseif ($group === 'clients') {
                     $result = $conn->query("
-                        SELECT u.id, u.phone FROM users u
+                        SELECT u.id, u.phone, CONCAT(u.first_name, ' ', u.last_name) as user_name, u.first_name, u.email
+                        FROM users u
                         INNER JOIN user_profiles up ON u.id = up.user_id
                         WHERE up.user_type='client' AND u.phone IS NOT NULL AND u.phone != '' LIMIT 10000
                     ");
@@ -4385,6 +4451,7 @@ switch ($action) {
                     while ($row = $result->fetch_assoc()) {
                         $phoneNumbers[] = $row['phone'];
                         $userIds[] = $row['id'];
+                        $userPhoneMap[$row['phone']] = $row;
                     }
                 }
             } else {
@@ -4407,10 +4474,21 @@ switch ($action) {
                 respond("error", "Failed to send SMS: " . $result['error'], null, 500);
             }
 
-            // Log SMS sends
+            // Log SMS sends with personalization if using template
             $smsLogIds = [];
             foreach ($phoneNumbers as $phone) {
-                $logId = logSmsEvent(null, $phone, $message, null, 'admin_manual', null, 'sent', $result['provider_response'] ?? null);
+                $finalMessage = $message;
+                $userId = null;
+
+                // If template-based and we have user data, personalize the message
+                if (!empty($templateId) && isset($userPhoneMap[$phone])) {
+                    $userData = $userPhoneMap[$phone];
+                    $userData = array_merge($userData, $templateData); // Merge with any additional template data
+                    $finalMessage = replaceTemplatePlaceholders($message, $userData);
+                    $userId = $userData['id'];
+                }
+
+                $logId = logSmsEvent($userId, $phone, $finalMessage, $templateId, 'admin_manual', null, 'sent', $result['provider_response'] ?? null);
                 if ($logId) {
                     $smsLogIds[] = $logId;
                 }
@@ -4418,12 +4496,15 @@ switch ($action) {
 
             logEvent('sms_bulk_sent', [
                 'count' => count($phoneNumbers),
-                'group' => $input['user_group'] ?? 'manual'
+                'group' => $input['user_group'] ?? 'manual',
+                'template_id' => $templateId,
+                'admin_id' => $adminUserId
             ]);
 
             respond("success", "SMS sent to " . count($phoneNumbers) . " recipient(s).", [
                 "sent_count" => count($phoneNumbers),
-                "sms_log_ids" => $smsLogIds
+                "sms_log_ids" => $smsLogIds,
+                "template_id" => $templateId
             ]);
         } catch (Exception $e) {
             logEvent('sms_send_manual_error', ['error' => $e->getMessage()]);
