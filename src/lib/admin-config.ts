@@ -3,7 +3,7 @@
  * Contains all hardcoded constants, mappings, and defaults
  */
 
-import { Users, UserCheck, AlertCircle, TrendingUp, MessageSquare, DollarSign, Plus, Clock, Settings } from 'lucide-react'
+import { Users, UserCheck, AlertCircle, TrendingUp, MessageSquare, DollarSign, Plus, Clock, Calendar, Settings } from 'lucide-react'
 
 // ============================================================================
 // SIDEBAR NAVIGATION ITEMS
@@ -21,6 +21,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: 'payouts', label: 'Payouts', icon: DollarSign },
   { key: 'sms', label: 'SMS Manager', icon: MessageSquare },
   { key: 'categories', label: 'Categories', icon: Plus },
+  { key: 'bookings', label: 'Bookings', icon: Calendar },
   { key: 'waitlist', label: 'Waiting List', icon: Clock },
   { key: 'settings', label: 'Settings', icon: Settings },
 ]

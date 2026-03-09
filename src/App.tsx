@@ -39,6 +39,7 @@ import PayoutsPage from "./pages/admin/PayoutsPage";
 import SMSManagerPage from "./pages/admin/SMSManagerPage";
 import CategoriesPage from "./pages/admin/CategoriesPage";
 import WaitlistPage from "./pages/admin/WaitlistPage";
+import BookingsPage from "./pages/admin/BookingsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 
 const queryClient = new QueryClient();
@@ -137,6 +138,7 @@ const AdminRoutes = () => (
     <Route path="sms-manager" element={<SMSManagerPage />} />
     <Route path="categories" element={<CategoriesPage />} />
     <Route path="waitlist" element={<WaitlistPage />} />
+    <Route path="bookings" element={<BookingsPage />} />
     <Route path="settings" element={<SettingsPage />} />
     <Route path="reset-passwords" element={<ResetPasswords />} />
     <Route path="mpesamigration" element={<MpesaMigration />} />
