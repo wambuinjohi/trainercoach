@@ -80,9 +80,6 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
     fetchContacts(0)
   }, [])
 
-  const generateId = () => {
-    return 'contact_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-  }
 
   const handleAddContact = async () => {
     if (!formData.name.trim()) {
@@ -108,7 +105,6 @@ export const ContactsList: React.FC<ContactsListProps> = ({ onRefresh }) => {
       await apiRequest('insert', {
         table: 'contacts',
         data: {
-          id: generateId(),
           name: formData.name.trim(),
           phone: formData.phone.trim(),
           user_type: formData.user_type

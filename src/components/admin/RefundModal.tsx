@@ -82,14 +82,13 @@ export const RefundModal: React.FC<RefundModalProps> = ({
       const client = userResult.data[0]
 
       // Step 2: Create B2C payment record for refund
-      const b2cPaymentId = 'b2c_refund_' + Date.now()
+      let b2cPaymentId: string
       const referenceId = 'refund_' + Date.now()
 
       try {
-        await apiRequest('insert', {
+        const insertResult = await apiRequest('insert', {
           table: 'b2c_payments',
           data: {
-            id: b2cPaymentId,
             user_id: dispute.client,
             user_type: 'client',
             phone_number: normalizedPhone,
@@ -100,6 +99,12 @@ export const RefundModal: React.FC<RefundModalProps> = ({
             updated_at: new Date().toISOString(),
           },
         })
+
+        // Get the ID from the backend response
+        b2cPaymentId = insertResult?.id || insertResult?.data?.id
+        if (!b2cPaymentId) {
+          throw new Error('Backend did not return payment ID')
+        }
       } catch (err: any) {
         console.error('Failed to create B2C payment record:', err)
         throw new Error('Failed to create payment record: ' + (err?.message || 'Unknown error'))
@@ -135,6 +140,9 @@ export const RefundModal: React.FC<RefundModalProps> = ({
           status: 'pending',
           created_at: new Date().toISOString(),
         },
+      }).catch(err => {
+        // Log error but don't fail the refund if transaction logging fails
+        console.error('Failed to log transaction:', err)
       })
 
       toast({

@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { MessageSquare, Send, RotateCw, Trash2, Edit2, Eye, Plus } from 'lucide-react'
 import { apiRequest } from '@/lib/api'
 import { toast } from '@/hooks/use-toast'
+import { SMS_SMS_EVENT_TYPES } from '@/lib/admin-config'
 
 interface SmsSettings {
   sms_configured: boolean
@@ -44,8 +45,6 @@ interface SmsLog {
   sent_at?: string
   created_at: string
 }
-
-const EVENT_TYPES = ['registration', 'payment', 'booking', 'payout', 'custom']
 
 export const AdminSMSManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState('settings')
@@ -316,10 +315,10 @@ export const AdminSMSManager: React.FC = () => {
       }
 
       const res = await apiRequest('sms_send_manual', payload)
-      
+
       toast({
         title: 'Success',
-        description: `SMS sent to ${res.data?.sent_count || 0} recipient(s)`,
+        description: `SMS sent to ${res?.sent_count || 0} recipient(s)`,
       })
 
       // Reset form
@@ -360,9 +359,9 @@ export const AdminSMSManager: React.FC = () => {
       }
 
       const res = await apiRequest('sms_logs_get', payload)
-      if (res.data) {
-        setSmsLogs(res.data.data || [])
-        setTotalLogs(res.data.total || 0)
+      if (res) {
+        setSmsLogs(res.data || [])
+        setTotalLogs(res.total || 0)
       }
     } catch (error) {
       console.error('Failed to load SMS logs:', error)
@@ -647,7 +646,7 @@ export const AdminSMSManager: React.FC = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {EVENT_TYPES.map((type) => (
+                        {SMS_EVENT_TYPES.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>

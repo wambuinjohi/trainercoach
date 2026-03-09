@@ -681,8 +681,8 @@ export const AdminDashboard: React.FC = () => {
   const [smtp, setSmtp] = useState<{ host: string; port: string | number; user?: string; pass?: string; from?: string }>({ host:'', port:'', user:'', pass:'', from:'' })
   const [mpesa, setMpesa] = useState<MpesaSettings>(defaultMpesaSettings)
 
-  const [testStkPhone, setTestStkPhone] = useState('254722241745')
-  const [testStkAmount, setTestStkAmount] = useState('5')
+  const [testStkPhone, setTestStkPhone] = useState('')
+  const [testStkAmount, setTestStkAmount] = useState('')
   const [testStkLoading, setTestStkLoading] = useState(false)
   const [testStkResult, setTestStkResult] = useState<any>(null)
 
@@ -834,7 +834,31 @@ export const AdminDashboard: React.FC = () => {
           console.warn('Failed to load promotions', err)
         }
 
-        setActivityFeed([])
+        // Populate activity feed with live data
+        const totalBookings = stats.totalBookings || 0
+        const pendingApprovals = stats.pendingApprovals || 0
+        const activeDisputes = stats.activeDisputes || 0
+
+        setActivityFeed([
+          {
+            id: '1',
+            timestamp: new Date().toISOString(),
+            message: `${totalBookings} total bookings recorded`,
+            tone: 'positive' as const,
+          },
+          {
+            id: '2',
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            message: `${pendingApprovals} trainer applications pending approval`,
+            tone: 'alert' as const,
+          },
+          {
+            id: '3',
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
+            message: `${activeDisputes} active disputes`,
+            tone: 'alert' as const,
+          },
+        ])
       } catch (err) {
         console.warn('Failed to load admin data', err)
       }
@@ -1968,7 +1992,7 @@ export const AdminDashboard: React.FC = () => {
               <Label htmlFor="testPhone">Phone Number</Label>
               <Input
                 id="testPhone"
-                placeholder="254722241745"
+                placeholder="254712345678"
                 value={testStkPhone}
                 onChange={(e) => setTestStkPhone(e.target.value)}
                 className="bg-input border-border"
@@ -1979,7 +2003,7 @@ export const AdminDashboard: React.FC = () => {
               <Input
                 id="testAmount"
                 type="number"
-                placeholder="5"
+                placeholder="100"
                 value={testStkAmount}
                 onChange={(e) => setTestStkAmount(e.target.value)}
                 className="bg-input border-border"

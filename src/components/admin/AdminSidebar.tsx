@@ -1,34 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Users, Calendar, BarChart3, UserCheck, AlertCircle, Settings, TrendingUp, CheckCircle, MessageSquare, DollarSign, Plus, Trash2, Database, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { APP_LOGO_URL, APP_LOGO_DARK_URL, APP_LOGO_ALT } from '@/lib/branding'
+import { ADMIN_SIDEBAR_ITEMS } from '@/lib/admin-config'
 import { useTheme } from 'next-themes'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-type MenuItem = { key: string; label: string; icon?: React.ReactNode }
+type MenuItem = { key: string; label: string; icon: React.ComponentType<{ className?: string }> }
 
 interface AdminSidebarProps {
   value?: string
   onChange?: (v: string) => void
   onSignOut?: () => void
 }
-
-const ITEMS: MenuItem[] = [
-  { key: 'overview', label: 'Overview', icon: <Users className="h-4 w-4" /> },
-  { key: 'users', label: 'Users', icon: <Users className="h-4 w-4" /> },
-  { key: 'approvals', label: 'Approvals', icon: <UserCheck className="h-4 w-4" /> },
-  { key: 'disputes', label: 'Disputes', icon: <AlertCircle className="h-4 w-4" /> },
-  { key: 'issues', label: 'Issues', icon: <MessageSquare className="h-4 w-4" /> },
-  { key: 'contacts', label: 'Contacts', icon: <MessageSquare className="h-4 w-4" /> },
-  { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="h-4 w-4" /> },
-  { key: 'promotions', label: 'Promotions', icon: <MessageSquare className="h-4 w-4" /> },
-  { key: 'payouts', label: 'Payouts', icon: <DollarSign className="h-4 w-4" /> },
-  { key: 'sms', label: 'SMS Manager', icon: <MessageSquare className="h-4 w-4" /> },
-  { key: 'categories', label: 'Categories', icon: <Plus className="h-4 w-4" /> },
-  { key: 'waitlist', label: 'Waiting List', icon: <Clock className="h-4 w-4" /> },
-  { key: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
-]
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onSignOut }) => {
   const [open, setOpen] = useState(false)
@@ -68,8 +52,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
       {/* Mobile collapsible menu */}
       <div id="admin-mobile-menu" className={cn('md:hidden overflow-hidden transition-all', open ? 'max-h-screen' : 'max-h-0')}>
         <div className="flex flex-col gap-1 p-3 border-b border-border bg-card">
-          {ITEMS.map(item => {
+          {ADMIN_SIDEBAR_ITEMS.map(item => {
             const active = currentPage === item.key
+            const Icon = item.icon
             return (
               <button
                 key={item.key}
@@ -79,7 +64,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
                   active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
-                <span className="opacity-80">{item.icon}</span>
+                <span className="opacity-80"><Icon className="h-4 w-4" /></span>
                 <span>{item.label}</span>
               </button>
             )
@@ -105,8 +90,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
           </div>
         </div>
         <nav className="flex-1 flex flex-col gap-1">
-          {ITEMS.map(item => {
+          {ADMIN_SIDEBAR_ITEMS.map(item => {
             const active = currentPage === item.key
+            const Icon = item.icon
             return (
               <button
                 key={item.key}
@@ -116,7 +102,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
                   active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
-                <span className="opacity-90">{item.icon}</span>
+                <span className="opacity-90"><Icon className="h-4 w-4" /></span>
                 <span>{item.label}</span>
               </button>
             )
