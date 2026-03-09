@@ -4,12 +4,13 @@ import { Users, Calendar, BarChart3, UserCheck, AlertCircle, Settings, TrendingU
 import { cn } from '@/lib/utils'
 import { APP_LOGO_URL, APP_LOGO_DARK_URL, APP_LOGO_ALT } from '@/lib/branding'
 import { useTheme } from 'next-themes'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 type MenuItem = { key: string; label: string; icon?: React.ReactNode }
 
 interface AdminSidebarProps {
-  value: string
-  onChange: (v: string) => void
+  value?: string
+  onChange?: (v: string) => void
   onSignOut?: () => void
 }
 
@@ -32,7 +33,17 @@ const ITEMS: MenuItem[] = [
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onSignOut }) => {
   const [open, setOpen] = useState(false)
   const { resolvedTheme } = useTheme()
+  const navigate = useNavigate()
+  const location = useLocation()
   const logoSrc = resolvedTheme === 'dark' ? APP_LOGO_DARK_URL : APP_LOGO_URL
+
+  // Extract current page from URL if value not provided
+  const currentPage = value || location.pathname.split('/admin/')[1] || 'overview'
+
+  const handleNavigate = (key: string) => {
+    navigate(`/admin/${key}`)
+    if (onChange) onChange(key)
+  }
 
   return (
     <>
@@ -58,11 +69,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
       <div id="admin-mobile-menu" className={cn('md:hidden overflow-hidden transition-all', open ? 'max-h-screen' : 'max-h-0')}>
         <div className="flex flex-col gap-1 p-3 border-b border-border bg-card">
           {ITEMS.map(item => {
-            const active = value === item.key
+            const active = currentPage === item.key
             return (
               <button
                 key={item.key}
-                onClick={() => { onChange(item.key); setOpen(false) }}
+                onClick={() => { handleNavigate(item.key); setOpen(false) }}
                 className={cn(
                   'w-full text-left px-3 py-2 rounded-md flex items-center gap-3 text-sm',
                   active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
@@ -95,11 +106,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
         </div>
         <nav className="flex-1 flex flex-col gap-1">
           {ITEMS.map(item => {
-            const active = value === item.key
+            const active = currentPage === item.key
             return (
               <button
                 key={item.key}
-                onClick={() => onChange(item.key)}
+                onClick={() => handleNavigate(item.key)}
                 className={cn(
                   'w-full text-left px-3 py-2 rounded-md flex items-center gap-3 text-sm',
                   active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
