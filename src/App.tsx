@@ -78,6 +78,9 @@ const AppRoutes = () => (
   <Suspense fallback={<LoadingFallback />}>
     <Routes>
       <Route path="/" element={<AppContent />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/trainer" element={<TrainerDashboard />} />
+      <Route path="/client" element={<ClientDashboard />} />
       <Route path="/signin" element={<AuthForm onSuccess={() => (window.location.href = "/")} />} />
       <Route path="/signup" element={<AuthForm initialTab="signup" onSuccess={() => (window.location.href = "/")} />} />
       <Route path="/password-reset" element={<PasswordReset />} />
