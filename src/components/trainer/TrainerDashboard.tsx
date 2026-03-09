@@ -51,11 +51,6 @@ export const TrainerDashboard: React.FC = () => {
   const [monthRevenue, setMonthRevenue] = useState<number>(0)
   const [monthSessions, setMonthSessions] = useState<number>(0)
 
-  if (loading) return null
-  if (!user || userType !== 'trainer') {
-    return <Navigate to="/" replace />
-  }
-
   const referNow = async () => {
     if (!user) return
     const settings = loadSettings()
@@ -538,6 +533,11 @@ export const TrainerDashboard: React.FC = () => {
       case 'disputes': return renderDisputesContent()
       default: return renderHomeContent()
     }
+  }
+
+  if (loading) return null
+  if (!user || userType !== 'trainer') {
+    return <Navigate to="/" replace />
   }
 
   return (
