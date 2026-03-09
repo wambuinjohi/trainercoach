@@ -14,7 +14,7 @@ import { CategoryList } from './CategoryList'
 import { ContactsList } from './ContactsList'
 import { WaitingListManager } from './WaitingListManager'
 import { AdminSMSManager } from './AdminSMSManager'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   Users,
   DollarSign,
@@ -140,51 +140,9 @@ const initialStats = {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, userType, signOut, loading } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('overview')
-  const [settings, setSettings] = useState<PlatformSettings>(defaultSettings)
-  const [saving, setSaving] = useState(false)
-  const [range, setRange] = useState<'30d' | '90d' | '12m'>('12m')
-  const [disputes, setDisputes] = useState<Dispute[]>([])
-  const [issues, setIssues] = useState<any[]>([])
-  const [approvals, setApprovals] = useState<any[]>([])
-  const [stats, setStats] = useState(initialStats)
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | DisputeStatus>('all')
-  const [activeDispute, setActiveDispute] = useState<Dispute | null>(null)
-  const [displayedDisputeCount, setDisplayedDisputeCount] = useState(10)
-  const [analyticsPoints, setAnalyticsPoints] = useState<AnalyticsPoint[]>([])
-  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
-  const [adminApiAvailable, setAdminApiAvailable] = useState(false)
-  const [categories, setCategories] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [catForm, setCatForm] = useState({ name: '', icon: '', description: '' })
-  const [catLoading, setCatLoading] = useState(false)
-  const [openEmojiPicker, setOpenEmojiPicker] = useState<string | null>(null)
-  const [promotions, setPromotions] = useState<any[]>([])
-  const [showRefundModal, setShowRefundModal] = useState(false)
-  const [refundDispute, setRefundDispute] = useState<Dispute | null>(null)
-  const [issuePage, setIssuePage] = useState(1)
-  const [issuePageSize, setIssuePageSize] = useState(20)
-  const [issueTotalCount, setIssueTotalCount] = useState(0)
-  const [disputePage, setDisputePage] = useState(1)
-  const [disputePageSize, setDisputePageSize] = useState(20)
-  const [disputeTotalCount, setDisputeTotalCount] = useState(0)
-  const [loadingIssues, setLoadingIssues] = useState(false)
-  const [confirmModal, setConfirmModal] = useState<{
-    open: boolean
-    title: string
-    description: string
-    action: () => Promise<void>
-    isDestructive?: boolean
-  }>({
-    open: false,
-    title: '',
-    description: '',
-    action: async () => {},
-    isDestructive: false,
-  })
+
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   useEffect(() => {
@@ -2173,6 +2131,11 @@ export const AdminDashboard: React.FC = () => {
       </div>
     </div>
   )
+
+  if (loading) return null
+  if (!user || userType !== 'admin') {
+    return <Navigate to="/" replace />
+  }
 
   return (
     <div className="min-h-screen bg-background">

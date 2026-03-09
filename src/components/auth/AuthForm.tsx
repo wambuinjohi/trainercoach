@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
 
 interface AuthFormProps {
-  onSuccess?: () => void
+  onSuccess?: (userType?: string) => void
   initialTab?: 'signin' | 'signup'
 }
 
@@ -58,8 +58,8 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     setIsLoading(true)
     setError(null)
     try {
-      await signIn(formData.email.trim().toLowerCase(), formData.password)
-      onSuccess?.()
+      const userType = await signIn(formData.email.trim().toLowerCase(), formData.password)
+      onSuccess?.(userType || undefined)
     } catch (err) {
       console.error('Sign in error:', err)
       setError('Sign in failed. Please check your credentials.')
@@ -93,7 +93,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_lat: formData.locationLat ?? undefined,
         location_lng: formData.locationLng ?? undefined,
       })
-      onSuccess?.()
+      onSuccess?.(formData.userType)
     } catch (error) {
       console.error('Sign up error:', error)
     } finally {

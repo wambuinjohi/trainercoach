@@ -69,6 +69,7 @@ function formatHourlyRate(rate: number | null | undefined): string {
 import { SearchBar } from './SearchBar'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { Navigate } from 'react-router-dom'
 import { useSearchHistory } from '@/hooks/use-search-history'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import * as apiService from '@/lib/api-service'
@@ -77,33 +78,8 @@ import { apiRequest, withAuth } from '@/lib/api'
 import { reverseGeocode } from '@/lib/location'
 
 export const ClientDashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, userType, signOut, loading } = useAuth()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('home')
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState<any>({})
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [locationName, setLocationName] = useState<string | null>(null)
-  const [reverseGeocodeLoading, setReverseGeocodeLoading] = useState(false)
-  const [selectedTrainer, setSelectedTrainer] = useState<any | null>(null)
-  const [showEditProfile, setShowEditProfile] = useState(false)
-  const [showPaymentMethods, setShowPaymentMethods] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
-  const [showHelpSupport, setShowHelpSupport] = useState(false)
-  const [unreadMessagesClient, setUnreadMessagesClient] = useState(0)
-  const [unreadNotificationsClient, setUnreadNotificationsClient] = useState(0)
-  const [dbCategories, setDbCategories] = useState<any[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [referralSavings, setReferralSavings] = useState(0)
-  const [referralCode, setReferralCode] = useState('REF-' + Math.random().toString(36).slice(2, 8).toUpperCase())
-  const [referralCount, setReferralCount] = useState(0)
-  const [trainers, setTrainers] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([])
-  const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, any>>({})
-  const [reviewBooking, setReviewBooking] = useState<any | null>(null)
-  const [nextSessionBooking, setNextSessionBooking] = useState<any | null>(null)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -169,6 +145,11 @@ export const ClientDashboard: React.FC = () => {
       .map(t => t.name)
       .slice(0, 5)
   }, [searchQuery, trainers])
+
+  if (loading) return null
+  if (!user || userType !== 'client') {
+    return <Navigate to="/" replace />
+  }
 
   const modalOpen = Boolean(selectedTrainer || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
 
@@ -377,7 +358,7 @@ export const ClientDashboard: React.FC = () => {
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div></div>
+            <div className="flex-1"></div>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
               <LogOut className="h-5 w-5 text-red-500" />
             </Button>
@@ -420,7 +401,7 @@ export const ClientDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div></div>
+          <div className="flex-1"></div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
             <LogOut className="h-5 w-5 text-red-500" />
           </Button>

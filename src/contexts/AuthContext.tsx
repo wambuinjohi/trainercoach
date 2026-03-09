@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   userType: 'client' | 'trainer' | 'admin' | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, userType: string, profile?: Record<string, any>) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -171,13 +171,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      let resultType: string | null = null;
       await performLogin(email, password, (user, userProfileType, token) => {
         setUser(user);
         setUserType(userProfileType as 'client' | 'trainer' | 'admin');
+        resultType = userProfileType;
         localStorage.setItem('app-user', JSON.stringify(user));
         localStorage.setItem('app-user-type', userProfileType);
         localStorage.setItem('auth_token', token);
       });
+      return resultType;
     } catch (error) {
       localStorage.removeItem('app-user');
       localStorage.removeItem('app-user-type');
