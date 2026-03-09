@@ -13,15 +13,15 @@ $test_credentials = [
     'api_key' => 'WeO21uB08jalUFdrzHDofvV3hnbR4t7qNX9LKCY5E6imJwIZ',
     'client_id' => 'trainerltd',
     'access_key' => 'trainerltd',
-    'sender_id' => 'Skatryk',
+    'sender_id' => 'trainerltd',
     'enabled' => true
 ];
 
 // Test phone numbers
 $test_phones = [
+    '0722241745',    // User's primary test recipient
     '254712345678',  // Valid Kenyan number
     '+254712345679', // With country code
-    '712345680',     // Without country code
 ];
 
 echo "=== BULK SMS TESTING SCRIPT ===\n\n";

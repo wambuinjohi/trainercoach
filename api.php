@@ -4053,7 +4053,7 @@ switch ($action) {
             if (!$smsCreds) {
                 respond("success", "SMS settings retrieved (not configured).", [
                     "sms_configured" => false,
-                    "sender_id" => "Skatryk"
+                    "sender_id" => "trainerltd"
                 ]);
             }
 
