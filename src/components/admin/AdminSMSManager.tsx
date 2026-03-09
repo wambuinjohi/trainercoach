@@ -892,29 +892,29 @@ export const AdminSMSManager: React.FC = () => {
                 <div className="text-center py-8 text-gray-500">No SMS logs found</div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 px-2">Phone</th>
-                          <th className="text-left py-2 px-2">Event Type</th>
-                          <th className="text-left py-2 px-2">Status</th>
-                          <th className="text-left py-2 px-2">Sent At</th>
-                          <th className="text-left py-2 px-2">Message Preview</th>
+                        <tr className="border-b bg-gray-50">
+                          <th className="text-left py-3 px-3 font-semibold">Phone</th>
+                          <th className="text-left py-3 px-3 font-semibold">Event Type</th>
+                          <th className="text-left py-3 px-3 font-semibold">Status</th>
+                          <th className="text-left py-3 px-3 font-semibold">Sent At</th>
+                          <th className="text-left py-3 px-3 font-semibold hidden sm:table-cell">Message Preview</th>
                         </tr>
                       </thead>
                       <tbody>
                         {smsLogs.map((log) => (
-                          <tr key={log.id} className="border-b hover:bg-gray-50">
-                            <td className="py-2 px-2 font-mono text-xs">{log.phone_number}</td>
-                            <td className="py-2 px-2">{getEventTypeBadge(log.event_type)}</td>
-                            <td className="py-2 px-2">{getStatusBadge(log.status)}</td>
-                            <td className="py-2 px-2 text-xs">
+                          <tr key={log.id} className="border-b hover:bg-gray-50 transition-colors">
+                            <td className="py-3 px-3 font-mono text-xs">{log.phone_number}</td>
+                            <td className="py-3 px-3">{getEventTypeBadge(log.event_type)}</td>
+                            <td className="py-3 px-3">{getStatusBadge(log.status)}</td>
+                            <td className="py-3 px-3 text-xs">
                               {log.sent_at
                                 ? new Date(log.sent_at).toLocaleDateString()
                                 : new Date(log.created_at).toLocaleDateString()}
                             </td>
-                            <td className="py-2 px-2 text-xs text-gray-600 max-w-xs truncate">
+                            <td className="py-3 px-3 text-xs text-gray-600 max-w-xs truncate hidden sm:table-cell">
                               {log.message}
                             </td>
                           </tr>
@@ -923,15 +923,15 @@ export const AdminSMSManager: React.FC = () => {
                     </table>
                   </div>
 
-                  <div className="flex justify-between items-center pt-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-4">
                     <p className="text-sm text-gray-600">
                       Showing {smsLogs.length} of {totalLogs} logs
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-end">
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={logsFilters.offset === 0}
+                        disabled={logsFilters.offset === 0 || logsLoading}
                         onClick={() =>
                           setLogsFilters((prev) => ({
                             ...prev,
@@ -944,7 +944,7 @@ export const AdminSMSManager: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={logsFilters.offset + logsFilters.limit >= totalLogs}
+                        disabled={logsFilters.offset + logsFilters.limit >= totalLogs || logsLoading}
                         onClick={() =>
                           setLogsFilters((prev) => ({
                             ...prev,
