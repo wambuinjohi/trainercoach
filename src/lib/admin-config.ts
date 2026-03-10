@@ -3,7 +3,7 @@
  * Contains all hardcoded constants, mappings, and defaults
  */
 
-import { Users, UserCheck, AlertCircle, TrendingUp, MessageSquare, DollarSign, Plus, Clock, Calendar, Settings } from 'lucide-react'
+import { Users, UserCheck, AlertCircle, TrendingUp, MessageSquare, DollarSign, Plus, Clock, Calendar, Settings, FileCheck } from 'lucide-react'
 
 // ============================================================================
 // SIDEBAR NAVIGATION ITEMS
@@ -13,6 +13,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: 'overview', label: 'Overview', icon: Users },
   { key: 'users', label: 'Users', icon: Users },
   { key: 'approvals', label: 'Approvals', icon: UserCheck },
+  { key: 'document-review', label: 'Document Review', icon: FileCheck },
   { key: 'disputes', label: 'Disputes', icon: AlertCircle },
   { key: 'issues', label: 'Issues', icon: MessageSquare },
   { key: 'contacts', label: 'Contacts', icon: MessageSquare },

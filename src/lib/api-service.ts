@@ -664,6 +664,37 @@ export async function verifyDocument(documentId: string, status: 'approved' | 'r
   }, { headers })
 }
 
+export async function updateTrainerSponsor(trainerId: string, sponsorId: string | null) {
+  return apiRequest('profile_update', {
+    user_id: trainerId,
+    sponsor_id: sponsorId,
+  })
+}
+
+export async function validateSponsor(sponsorId: string) {
+  return apiRequest('validate_sponsor', { sponsor_id: sponsorId })
+}
+
+export async function completeBooking(bookingId: string) {
+  return apiRequest('booking_complete', { booking_id: bookingId })
+}
+
+export async function getSponsorCommissions(sponsorId: string) {
+  return apiRequest('select', {
+    table: 'sponsor_commissions',
+    where: `sponsor_trainer_id = '${sponsorId}'`,
+    orderBy: 'created_at DESC',
+  })
+}
+
+export async function getTrainerCommissions(trainerId: string) {
+  return apiRequest('select', {
+    table: 'sponsor_commissions',
+    where: `sponsored_trainer_id = '${trainerId}'`,
+    orderBy: 'created_at DESC',
+  })
+}
+
 // ============================================================================
 // GENERIC DATABASE OPERATIONS (for flexibility)
 // ============================================================================

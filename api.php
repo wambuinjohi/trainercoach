@@ -2354,6 +2354,36 @@ switch ($action) {
         }
         break;
 
+    // VALIDATE SPONSOR (check if sponsor is approved trainer)
+    case 'validate_sponsor':
+        if (!isset($input['sponsor_id'])) {
+            respond("error", "Missing sponsor_id.", null, 400);
+        }
+
+        $sponsorId = $conn->real_escape_string($input['sponsor_id']);
+        $stmt = $conn->prepare("
+            SELECT up.user_id, up.full_name, up.user_type, up.is_approved
+            FROM user_profiles up
+            WHERE up.user_id = ? AND up.user_type = 'trainer' AND up.is_approved = 1
+        ");
+        $stmt->bind_param("s", $sponsorId);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            if ($result->num_rows > 0) {
+                $sponsor = $result->fetch_assoc();
+                $stmt->close();
+                respond("success", "Sponsor is valid.", $sponsor);
+            } else {
+                $stmt->close();
+                respond("error", "Sponsor not found or not approved.", null, 404);
+            }
+        } else {
+            $stmt->close();
+            respond("error", "Validation query failed: " . $conn->error, null, 500);
+        }
+        break;
+
     // GET CATEGORIES
     case 'get_categories':
         $stmt = $conn->prepare("SELECT id, name, icon, description, created_at FROM categories ORDER BY created_at DESC");
@@ -4005,6 +4035,119 @@ switch ($action) {
         } else {
             $stmt->close();
             respond("error", "Failed to update booking: " . $conn->error, null, 500);
+        }
+        break;
+
+    // COMPLETE BOOKING AND TRACK SPONSOR COMMISSION
+    case 'booking_complete':
+        if (!isset($input['booking_id'])) {
+            respond("error", "Missing booking_id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+
+        // Get booking details
+        $bookingStmt = $conn->prepare("
+            SELECT id, trainer_id, trainer_net_amount, status
+            FROM bookings
+            WHERE id = ?
+        ");
+        $bookingStmt->bind_param("s", $bookingId);
+        $bookingStmt->execute();
+        $bookingResult = $bookingStmt->get_result();
+
+        if ($bookingResult->num_rows === 0) {
+            $bookingStmt->close();
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $booking = $bookingResult->fetch_assoc();
+        $bookingStmt->close();
+
+        // Skip if already completed
+        if ($booking['status'] === 'completed') {
+            respond("success", "Booking already completed.", ["id" => $bookingId]);
+        }
+
+        $trainerId = $booking['trainer_id'];
+        $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? 0);
+
+        // Update booking status to completed
+        $updateStmt = $conn->prepare("
+            UPDATE bookings
+            SET status = 'completed', updated_at = NOW()
+            WHERE id = ?
+        ");
+        $updateStmt->bind_param("s", $bookingId);
+        $updateStmt->execute();
+        $updateStmt->close();
+
+        // Get sponsor for this trainer
+        $sponsorStmt = $conn->prepare("
+            SELECT sponsor_id
+            FROM user_profiles
+            WHERE user_id = ?
+        ");
+        $sponsorStmt->bind_param("s", $trainerId);
+        $sponsorStmt->execute();
+        $sponsorResult = $sponsorStmt->get_result();
+        $sponsorStmt->close();
+
+        if ($sponsorResult->num_rows > 0) {
+            $trainerProfile = $sponsorResult->fetch_assoc();
+            $sponsorId = $trainerProfile['sponsor_id'];
+
+            // If trainer has a sponsor, calculate and record commission
+            if (!empty($sponsorId)) {
+                // Get commission rate from settings (default 5%)
+                $settingsStmt = $conn->prepare("
+                    SELECT value FROM settings WHERE key = 'sponsor_commission_rate'
+                ");
+                $settingsStmt->execute();
+                $settingsResult = $settingsStmt->get_result();
+                $commissionRate = 5; // Default 5%
+
+                if ($settingsResult->num_rows > 0) {
+                    $settings = $settingsResult->fetch_assoc();
+                    $commissionRate = floatval($settings['value'] ?? 5);
+                }
+                $settingsStmt->close();
+
+                $commissionAmount = ($trainerNetAmount * $commissionRate) / 100;
+
+                // Insert into sponsor_commissions table
+                $commissionId = 'sc_' . uniqid();
+                $insertStmt = $conn->prepare("
+                    INSERT INTO sponsor_commissions (id, sponsor_trainer_id, sponsored_trainer_id, booking_id, commission_amount, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'completed', NOW())
+                ");
+                $insertStmt->bind_param("ssssd", $commissionId, $sponsorId, $trainerId, $bookingId, $commissionAmount);
+                $insertStmt->execute();
+                $insertStmt->close();
+
+                logEvent('sponsor_commission_recorded', [
+                    'booking_id' => $bookingId,
+                    'sponsor_id' => $sponsorId,
+                    'trainer_id' => $trainerId,
+                    'commission_amount' => $commissionAmount
+                ]);
+
+                respond("success", "Booking completed with commission tracked.", [
+                    "booking_id" => $bookingId,
+                    "commission_recorded" => true,
+                    "commission_amount" => $commissionAmount,
+                    "sponsor_id" => $sponsorId
+                ]);
+            } else {
+                // No sponsor, just update booking
+                logEvent('booking_completed_no_sponsor', ['booking_id' => $bookingId, 'trainer_id' => $trainerId]);
+                respond("success", "Booking completed (no sponsor commission).", [
+                    "booking_id" => $bookingId,
+                    "commission_recorded" => false
+                ]);
+            }
+        } else {
+            respond("error", "Failed to verify trainer profile.", null, 500);
         }
         break;
 

@@ -41,6 +41,7 @@ import CategoriesPage from "./pages/admin/CategoriesPage";
 import WaitlistPage from "./pages/admin/WaitlistPage";
 import BookingsPage from "./pages/admin/BookingsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import DocumentReviewPage from "./pages/admin/DocumentReviewPage";
 
 const queryClient = new QueryClient();
 
@@ -130,6 +131,7 @@ const AdminRoutes = () => (
     <Route path="overview" element={<OverviewPage />} />
     <Route path="users" element={<UsersPage />} />
     <Route path="approvals" element={<ApprovalsPage />} />
+    <Route path="document-review" element={<DocumentReviewPage />} />
     <Route path="disputes" element={<DisputesPage />} />
     <Route path="issues" element={<IssuesPage />} />
     <Route path="contacts" element={<ContactsPage />} />
