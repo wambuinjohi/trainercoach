@@ -3,7 +3,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Star, MapPin, Search, Sliders, X } from 'lucide-react'
+import {
+  Star, MapPin, Search, Sliders, X,
+  Dumbbell, Zap, Activity, Heart, Brain, Flame,
+  Wind, Bike, Music, Trophy, Compass, Mountain
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Header from '@/components/Header'
 import { FiltersModal } from '@/components/client/FiltersModal'
@@ -18,6 +22,64 @@ import {
   type FilterCriteria,
   type TrainerWithCategories,
 } from '@/lib/distance-utils'
+
+// Icon mapping for categories (fallback)
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className: string }>> = {
+  'fitness': Dumbbell,
+  'yoga': Wind,
+  'pilates': Activity,
+  'strength': Zap,
+  'cardio': Heart,
+  'boxing': Trophy,
+  'martial arts': Flame,
+  'dance': Music,
+  'running': Activity,
+  'cycling': Bike,
+  'swimming': Activity,
+  'hiit': Flame,
+  'crossfit': Dumbbell,
+  'stretching': Wind,
+  'meditation': Brain,
+  'badminton': Trophy,
+  'tennis': Trophy,
+  'table tennis': Trophy,
+  'basketball': Trophy,
+  'soccer': Trophy,
+  'volleyball': Trophy,
+  'lawn tennis': Trophy,
+  'baking': Flame,
+  'cooking': Flame,
+  'tour guide': Compass,
+  'climbing': Mountain,
+  'hiking': Mountain,
+}
+
+// Helper to render category icon from database or fallback
+const renderCategoryIcon = (icon: string | null | undefined, fallbackCategoryName?: string, sizeClass: string = 'h-4 w-4'): React.ReactNode => {
+  // If icon exists and looks like emoji/unicode character
+  if (icon && icon.length <= 2) {
+    return <span className="text-base leading-none flex-shrink-0">{icon}</span>
+  }
+
+  // If icon is a lucide icon name, try to map it
+  if (icon) {
+    const normalized = (icon || '').toLowerCase().trim()
+    const IconComponent = CATEGORY_ICONS[normalized]
+    if (IconComponent) {
+      return <IconComponent className={`${sizeClass} flex-shrink-0`} />
+    }
+  }
+
+  // Fallback to category name based mapping
+  if (fallbackCategoryName) {
+    const normalized = (fallbackCategoryName || '').toLowerCase().trim()
+    const IconComponent = CATEGORY_ICONS[normalized] || Trophy
+    return <IconComponent className={`${sizeClass} flex-shrink-0`} />
+  }
+
+  // Default to Trophy icon
+  return <Trophy className={`${sizeClass} flex-shrink-0`} />
+}
 
 interface Trainer {
   user_id: string
@@ -279,72 +341,78 @@ const Explore: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Sticky Header with Search */}
-      <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+      <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <Header />
-        <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-800">
-          <div className="container max-w-4xl mx-auto">
-            {/* Search Bar */}
-            <SearchBar
-              placeholder="Search trainers or disciplines..."
-              value={searchQuery}
-              onChange={setSearchQuery}
-              onSubmit={(query) => {
-                if (query) {
-                  addSearch(query)
-                }
-              }}
-              suggestions={suggestions}
-              recentSearches={recentSearches}
-              popularSearches={popularSearches}
-            />
+        <div className="px-4 py-5 border-t border-slate-200 dark:border-slate-800 bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-900 dark:to-slate-900">
+          <div className="container max-w-4xl mx-auto space-y-3">
+            {/* Search Bar with Enhanced Styling */}
+            <div className="relative">
+              <SearchBar
+                placeholder="Search trainers or disciplines..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                onSubmit={(query) => {
+                  if (query) {
+                    addSearch(query)
+                  }
+                }}
+                suggestions={suggestions}
+                recentSearches={recentSearches}
+                popularSearches={popularSearches}
+              />
+            </div>
 
-            {/* Quick Action Buttons */}
-            <div className="flex gap-2 mt-3">
+            {/* Quick Action Buttons with Better Layout */}
+            <div className="flex gap-2">
               <Button
                 variant={userLocation ? 'default' : 'outline'}
                 size="sm"
                 onClick={requestLocation}
                 disabled={geoLoading}
-                className="flex-1"
+                className="flex-1 h-10"
               >
                 <MapPin className="h-4 w-4 mr-2" />
-                {geoLoading ? 'Getting location...' : userLocation ? '📍 Location set' : 'Use my location'}
+                {geoLoading ? 'Getting location...' : userLocation ? 'Location set' : 'Use my location'}
               </Button>
               <Button
                 variant={hasActiveFilters ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowFilters(true)}
+                className="h-10 px-4"
               >
-                <Sliders className="h-4 w-4 mr-2" />
+                <Sliders className="h-4 w-4 mr-1.5" />
                 Filters
               </Button>
             </div>
 
-            {/* Horizontal Scrollable Categories */}
+            {/* Horizontal Scrollable Categories with Icons */}
             {categories.length > 0 && (
-              <div className="mt-4 -mx-4 px-4 overflow-x-auto">
+              <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-2 pb-2">
                   <button
                     onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
                       !filters.categoryId
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
+                    <Compass className="h-4 w-4" />
                     All
                   </button>
                   {categories.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
-                      className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                      className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
                         filters.categoryId === cat.id
-                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
                       }`}
+                      title={cat.name}
                     >
-                      {cat.name}
+                      {renderCategoryIcon(cat.icon, cat.name)}
+                      <span>{cat.name}</span>
                     </button>
                   ))}
                 </div>
@@ -353,60 +421,80 @@ const Explore: React.FC = () => {
 
             {/* Active Filters Display */}
             {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 items-center">
                 {filters.categoryId && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">{categories.find(c => c.id === filters.categoryId)?.name || `Category ${filters.categoryId}`}</span>
-                    <button onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/15 cursor-pointer group"
+                    onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
+                  >
+                    {(() => {
+                      const cat = categories.find(c => c.id === filters.categoryId)
+                      return <div className="flex items-center">{renderCategoryIcon(cat?.icon, cat?.name, 'h-3.5 w-3.5')}</div>
+                    })()}
+                    <span className="text-xs font-medium">{categories.find(c => c.id === filters.categoryId)?.name || `Category`}</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 {filters.minRating > 0 && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">Rating ≥ {filters.minRating}</span>
-                    <button onClick={() => setFilters(prev => ({ ...prev, minRating: null }))} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-950/50 cursor-pointer group"
+                    onClick={() => setFilters(prev => ({ ...prev, minRating: null }))}
+                  >
+                    <Star className="h-3.5 w-3.5 fill-current" />
+                    <span className="text-xs font-medium">≥ {filters.minRating}</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 {filters.maxPrice && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">Price ≤ Ksh {filters.maxPrice}</span>
-                    <button onClick={() => setFilters(prev => ({ ...prev, maxPrice: null }))} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-950/50 cursor-pointer group"
+                    onClick={() => setFilters(prev => ({ ...prev, maxPrice: null }))}
+                  >
+                    <span className="text-xs font-medium">≤ Ksh {filters.maxPrice}</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 {filters.radius && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">Within {filters.radius}km</span>
-                    <button onClick={() => setFilters(prev => ({ ...prev, radius: null }))} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 cursor-pointer group"
+                    onClick={() => setFilters(prev => ({ ...prev, radius: null }))}
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">{filters.radius}km</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 {filters.onlyAvailable && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">Available only</span>
-                    <button onClick={() => setFilters(prev => ({ ...prev, onlyAvailable: false }))} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 cursor-pointer group"
+                    onClick={() => setFilters(prev => ({ ...prev, onlyAvailable: false }))}
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Available</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 {searchQuery && (
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
-                    <span className="text-sm">"{searchQuery}"</span>
-                    <button onClick={() => setSearchQuery('')} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer group"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium truncate max-w-[100px]">"{searchQuery}"</span>
+                    <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                  </Badge>
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="text-xs"
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
                 >
                   Clear all
                 </Button>
