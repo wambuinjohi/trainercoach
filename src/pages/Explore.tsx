@@ -23,7 +23,7 @@ import {
   type TrainerWithCategories,
 } from '@/lib/distance-utils'
 
-// Icon mapping for categories
+// Icon mapping for categories (fallback)
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className: string }>> = {
   'fitness': Dumbbell,
   'yoga': Wind,
@@ -54,10 +54,31 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className: string }>>
   'hiking': Mountain,
 }
 
-// Helper to get icon for a category
-const getCategoryIcon = (categoryName: string): React.ComponentType<{ className: string }> => {
-  const normalized = (categoryName || '').toLowerCase().trim()
-  return CATEGORY_ICONS[normalized] || Trophy
+// Helper to render category icon from database or fallback
+const renderCategoryIcon = (icon: string | null | undefined, fallbackCategoryName?: string, sizeClass: string = 'h-4 w-4'): React.ReactNode => {
+  // If icon exists and looks like emoji/unicode character
+  if (icon && icon.length <= 2) {
+    return <span className="text-base leading-none flex-shrink-0">{icon}</span>
+  }
+
+  // If icon is a lucide icon name, try to map it
+  if (icon) {
+    const normalized = (icon || '').toLowerCase().trim()
+    const IconComponent = CATEGORY_ICONS[normalized]
+    if (IconComponent) {
+      return <IconComponent className={`${sizeClass} flex-shrink-0`} />
+    }
+  }
+
+  // Fallback to category name based mapping
+  if (fallbackCategoryName) {
+    const normalized = (fallbackCategoryName || '').toLowerCase().trim()
+    const IconComponent = CATEGORY_ICONS[normalized] || Trophy
+    return <IconComponent className={`${sizeClass} flex-shrink-0`} />
+  }
+
+  // Default to Trophy icon
+  return <Trophy className={`${sizeClass} flex-shrink-0`} />
 }
 
 interface Trainer {
@@ -379,24 +400,21 @@ const Explore: React.FC = () => {
                     <Compass className="h-4 w-4" />
                     All
                   </button>
-                  {categories.map((cat) => {
-                    const IconComponent = getCategoryIcon(cat.name)
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
-                        className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
-                          filters.categoryId === cat.id
-                            ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
-                        }`}
-                        title={cat.name}
-                      >
-                        <IconComponent className="h-4 w-4 flex-shrink-0" />
-                        <span>{cat.name}</span>
-                      </button>
-                    )
-                  })}
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
+                      className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
+                        filters.categoryId === cat.id
+                          ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
+                      }`}
+                      title={cat.name}
+                    >
+                      {renderCategoryIcon(cat.icon, cat.name)}
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -411,8 +429,8 @@ const Explore: React.FC = () => {
                     onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
                   >
                     {(() => {
-                      const IconComponent = getCategoryIcon(categories.find(c => c.id === filters.categoryId)?.name || '')
-                      return <IconComponent className="h-3.5 w-3.5" />
+                      const cat = categories.find(c => c.id === filters.categoryId)
+                      return <div className="flex items-center">{renderCategoryIcon(cat?.icon, cat?.name, 'h-3.5 w-3.5')}</div>
                     })()}
                     <span className="text-xs font-medium">{categories.find(c => c.id === filters.categoryId)?.name || `Category`}</span>
                     <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
