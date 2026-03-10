@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { BookingForm } from './BookingForm'
 import { Chat } from './Chat'
+import { PINSignup } from './PINSignup'
 import * as apiService from '@/lib/api-service'
 import { formatGroupPricingDisplay, type GroupPricingConfig } from '@/lib/group-pricing-utils'
 
@@ -29,6 +30,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = (
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig[]>([])
   const [showBooking, setShowBooking] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [showPINSignup, setShowPINSignup] = useState(false)
 
   useEffect(() => {
     // try to fetch real profile by trainer id
@@ -73,8 +75,21 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = (
     fetchGroupTrainingData()
   }, [trainer.id])
 
-  const openBooking = () => setShowBooking(true)
-  const openChat = () => setShowChat(true)
+  const openBooking = () => {
+    if (!user) {
+      setShowPINSignup(true)
+    } else {
+      setShowBooking(true)
+    }
+  }
+  const openChat = () => {
+    if (!user) {
+      setShowPINSignup(true)
+      toast({ title: 'Sign up first', description: 'Please sign up to chat with trainers.' })
+    } else {
+      setShowChat(true)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
@@ -231,13 +246,26 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = (
                 </div>
               )}
 
-              {showBooking && (
+              {showPINSignup && (
+                <div className="mt-2 max-h-[60vh] overflow-auto">
+                  <PINSignup
+                    onSuccess={() => {
+                      setShowPINSignup(false)
+                      setShowBooking(true)
+                      toast({ title: 'Account created', description: 'You can now proceed with booking.' })
+                    }}
+                    onCancel={() => setShowPINSignup(false)}
+                  />
+                </div>
+              )}
+
+              {showBooking && !showPINSignup && (
                 <div className="mt-2 max-h-[60vh] overflow-auto">
                   <BookingForm trainer={trainer} trainerProfile={profile} onDone={() => { setShowBooking(false); toast({ title: 'Booked', description: 'Booking request sent.' }); onClose(); }} />
                 </div>
               )}
 
-              {showChat && (
+              {showChat && !showPINSignup && (
                 <div className="mt-2">
                   <Chat trainer={trainer} onClose={() => setShowChat(false)} />
                 </div>

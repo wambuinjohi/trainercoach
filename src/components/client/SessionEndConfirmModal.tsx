@@ -1,0 +1,234 @@
+import React, { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AlertCircle, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import { apiRequest, withAuth } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+
+interface SessionEndConfirmModalProps {
+  booking: any
+  onConfirm?: () => void
+  onDismiss?: () => void
+}
+
+export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
+  booking,
+  onConfirm,
+  onDismiss,
+}) => {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [reminderCount, setReminderCount] = useState(0)
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null)
+  const [autoCompleteTimeout, setAutoCompleteTimeout] = useState<NodeJS.Timeout | null>(null)
+
+  // Start reminder timer and auto-complete after 3 reminders (9 minutes total)
+  useEffect(() => {
+    // Set reminder every 3 minutes if user hasn't confirmed
+    const startReminder = () => {
+      const timeout = setTimeout(() => {
+        setReminderCount((prev) => {
+          const newCount = prev + 1
+          
+          if (newCount >= 3) {
+            // Auto-complete after 3 reminders
+            handleAutoComplete()
+            return newCount
+          }
+          
+          toast({
+            title: 'Session Reminder',
+            description: `Please confirm session end (reminder ${newCount} of 3)`,
+            variant: 'destructive',
+          })
+          
+          startReminder()
+          return newCount
+        })
+      }, 3 * 60 * 1000) // 3 minutes
+      
+      setTimeoutId(timeout)
+    }
+
+    startReminder()
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout)
+    }
+  }, [])
+
+  const handleAutoComplete = async () => {
+    if (!user || !booking?.id) return
+    
+    try {
+      await apiRequest(
+        'booking_update',
+        {
+          booking_id: booking.id,
+          status: 'completed',
+          auto_completed: true,
+          completed_at: new Date().toISOString(),
+        },
+        { headers: withAuth() }
+      )
+      
+      toast({
+        title: 'Session Auto-Completed',
+        description: 'Session has been automatically marked as completed after no response.',
+      })
+      
+      onDismiss?.()
+    } catch (err) {
+      console.error('Auto-complete error:', err)
+      toast({
+        title: 'Error',
+        description: 'Failed to auto-complete session',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (!user || !booking?.id) return
+    
+    setLoading(true)
+    try {
+      await apiRequest(
+        'booking_update',
+        {
+          booking_id: booking.id,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        },
+        { headers: withAuth() }
+      )
+      
+      if (timeoutId) clearTimeout(timeoutId)
+      if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout)
+      
+      toast({
+        title: 'Session Confirmed',
+        description: 'Your session has been marked as complete.',
+      })
+      
+      onConfirm?.()
+      onDismiss?.()
+    } catch (err: any) {
+      console.error('Confirm error:', err)
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to confirm session end',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {reminderCount >= 3 ? (
+              <>
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Session Auto-Completing
+              </>
+            ) : reminderCount > 0 ? (
+              <>
+                <Clock className="h-5 w-5 text-yellow-500" />
+                Session End Reminder {reminderCount}
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-5 w-5 text-blue-500" />
+                Confirm Session End
+              </>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm text-blue-900 dark:text-blue-200">
+              {reminderCount >= 3 ? (
+                <>
+                  Your session will be automatically completed due to lack of response. If this is not correct, please contact support.
+                </>
+              ) : reminderCount > 0 ? (
+                <>
+                  This is reminder {reminderCount} of 3. Please confirm that your session has ended. If you don't respond in the next {3 - reminderCount} reminder{3 - reminderCount !== 1 ? 's' : ''}, the system will automatically complete your session.
+                </>
+              ) : (
+                <>
+                  Your trainer has ended the session. Please confirm that the session is complete so we can process your payment.
+                </>
+              )}
+            </p>
+          </div>
+
+          {booking?.trainer_name && (
+            <div className="text-sm">
+              <p className="text-muted-foreground">Trainer:</p>
+              <p className="font-semibold">{booking.trainer_name}</p>
+            </div>
+          )}
+
+          {booking?.session_date && booking?.session_time && (
+            <div className="text-sm">
+              <p className="text-muted-foreground">Session:</p>
+              <p className="font-semibold">{booking.session_date} at {booking.session_time}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            {reminderCount < 3 && (
+              <>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={onDismiss}
+                  disabled={loading}
+                >
+                  Dismiss
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={handleConfirm}
+                  disabled={loading}
+                >
+                  {loading ? 'Confirming...' : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Confirm Session End
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+            {reminderCount >= 3 && (
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (timeoutId) clearTimeout(timeoutId)
+                  if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout)
+                  onDismiss?.()
+                }}
+              >
+                OK
+              </Button>
+            )}
+          </div>
+
+          {reminderCount > 0 && reminderCount < 3 && (
+            <p className="text-xs text-center text-muted-foreground">
+              Reminder {reminderCount} of 3 - Auto-complete in {3 - reminderCount} reminder{3 - reminderCount !== 1 ? 's' : ''}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
