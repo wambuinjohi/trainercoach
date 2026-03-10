@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
 import { useFileUpload } from '@/hooks/use-file-upload'
 import { Upload, X } from 'lucide-react'
+import { detectDeviceTimezone } from '@/lib/timezone'
 import * as apiService from '@/lib/api-service'
 import { apiRequest, withAuth } from '@/lib/api'
 
@@ -368,7 +369,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       }
 
       // Save to API
-      try {
+          try {
+        const detectedTimezone = detectDeviceTimezone()
         const updatePayload = {
           full_name: name,
           disciplines: JSON.stringify(disciplines),
@@ -376,7 +378,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           hourly_rate: hourlyRateNum,
           service_radius: serviceRadiusNum,
           availability: JSON.stringify(availabilityVal),
-          timezone: profile.timezone || 'UTC',
+          timezone: detectedTimezone,
           profile_image: profile.profile_image || null,
           bio: profile.bio || null,
           payout_details: payoutDetails ? JSON.stringify(payoutDetails) : null,
@@ -624,35 +626,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="timezone">Timezone</Label>
-            <select
-              id="timezone"
-              value={profile.timezone || 'UTC'}
-              onChange={(e) => handleChange('timezone', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-md bg-input"
-            >
-              <option value="UTC">UTC (Universal Time)</option>
-              <option value="Africa/Johannesburg">Africa/Johannesburg (South Africa)</option>
-              <option value="Africa/Nairobi">Africa/Nairobi (Kenya)</option>
-              <option value="Africa/Lagos">Africa/Lagos (Nigeria)</option>
-              <option value="Africa/Cairo">Africa/Cairo (Egypt)</option>
-              <option value="Africa/Kampala">Africa/Kampala (Uganda)</option>
-              <option value="Africa/Dar_es_Salaam">Africa/Dar es Salaam (Tanzania)</option>
-              <option value="Africa/Accra">Africa/Accra (Ghana)</option>
-              <option value="Europe/London">Europe/London (UK)</option>
-              <option value="Europe/Paris">Europe/Paris (France)</option>
-              <option value="Europe/Berlin">Europe/Berlin (Germany)</option>
-              <option value="Asia/Dubai">Asia/Dubai (UAE)</option>
-              <option value="Asia/Bangkok">Asia/Bangkok (Thailand)</option>
-              <option value="Asia/Singapore">Asia/Singapore (Singapore)</option>
-              <option value="Asia/Tokyo">Asia/Tokyo (Japan)</option>
-              <option value="America/New_York">America/New_York (US Eastern)</option>
-              <option value="America/Los_Angeles">America/Los_Angeles (US Pacific)</option>
-              <option value="Australia/Sydney">Australia/Sydney (Australia)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">Your booking times and availability will be displayed in this timezone to clients.</p>
-          </div>
 
           <div className="space-y-2">
             <Label>Pricing by Service Radius</Label>
@@ -697,7 +670,22 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           </div>
 
           <div>
-            <Label htmlFor="payout_details">Payout Details (JSON)</Label>
+            <Label htmlFor="mpesa_number">M-Pesa Payout Number</Label>
+            <Input
+              id="mpesa_number"
+              value={profile.payout_details?.mpesa_number || ''}
+              onChange={(e) => {
+                const val = e.target.value
+                const currentPayoutDetails = typeof profile.payout_details === 'object' ? profile.payout_details : {}
+                handleChange('payout_details', { ...currentPayoutDetails, mpesa_number: val })
+              }}
+              placeholder="e.g., 254712345678"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Payments will be sent directly to this number after each completed session.</p>
+          </div>
+
+          <div>
+            <Label htmlFor="payout_details">Additional Payout Details (JSON)</Label>
             <textarea id="payout_details" value={profile.payout_details ? JSON.stringify(profile.payout_details) : ''} onChange={(e) => {
               try {
                 const parsed = e.target.value ? JSON.parse(e.target.value) : null
@@ -707,7 +695,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 handleChange('payout_details', e.target.value)
               }
             }} className="w-full p-2 border border-border rounded-md bg-input" rows={3} />
-            <p className="text-xs text-muted-foreground">You can provide bank_account/mobile_money and payout preferences. Example: <code>{"{\"payout_type\":\"weekly\",\"bank_account\":\"000111222\"}"}</code></p>
+            <p className="text-xs text-muted-foreground">Example: <code>{"{\"payout_type\":\"instant\",\"bank_account\":\"\"}"}</code></p>
           </div>
 
           <div>

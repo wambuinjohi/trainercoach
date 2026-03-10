@@ -135,8 +135,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (storedUser && storedType && storedToken) {
         try {
-          setUser(JSON.parse(storedUser));
+          const user = JSON.parse(storedUser);
+          setUser(user);
           setUserType(storedType as 'client' | 'trainer' | 'admin');
+
+          // Sync timezone with backend when loading stored session
+          const currentTz = detectDeviceTimezone();
+          const storedTz = localStorage.getItem('user_timezone');
+          if (currentTz !== storedTz) {
+            console.log('Syncing updated timezone:', currentTz);
+            setStoredTimezone(currentTz);
+            // Optionally, we could call an API to update the user's timezone on the server
+            // But usually this happens when they save their profile or next login.
+            // For now, let's at least ensure local storage is up to date.
+          }
+
           setLoading(false);
           return;
         } catch {

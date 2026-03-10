@@ -100,11 +100,6 @@ async function main() {
     const payoutRes = await admin.from('payouts').insert(payouts)
     console.log('payouts insert:', payoutRes.error ? payoutRes.error : (payoutRes.data || []).length + ' inserted')
 
-    // Referrals
-    const ref = { referrer_id: t.user_id, code: 'REF-T-' + Math.random().toString(36).slice(2,7).toUpperCase(), created_at: new Date().toISOString() }
-    const refRes = await admin.from('referrals').insert(ref)
-    console.log('referrals insert:', refRes.error ? refRes.error : (refRes.data || []).length + ' inserted')
-
     // Review for completed booking: attach to most recent completed booking if exists
     try {
       const { data: completed } = await admin.from('bookings').select('*').eq('trainer_id', t.user_id).eq('status', 'completed').order('session_date', { ascending: false }).limit(1).maybeSingle()

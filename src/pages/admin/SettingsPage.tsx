@@ -184,19 +184,6 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Timezone</Label>
-              <Select value={settings.timezone} onValueChange={(v) => update({ timezone: v as any })}>
-                <SelectTrigger className="bg-input border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONE_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
