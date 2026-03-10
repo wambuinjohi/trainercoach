@@ -63,7 +63,7 @@ const AppContent = () => {
   }
 
   if (!user) {
-    return <Home />;
+    return <Navigate to="/explore" replace />;
   }
 
   // Route based on user type

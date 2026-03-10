@@ -287,13 +287,6 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Enable Referral Program</p>
-              <p className="text-sm text-muted-foreground">Allow discounts and commission benefits</p>
-            </div>
-            <Switch checked={settings.enableReferralProgram} onCheckedChange={(v) => update({ enableReferralProgram: v })} />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
               <p className="font-medium text-foreground">Email Notifications</p>
               <p className="text-sm text-muted-foreground">Send system emails to users</p>
             </div>

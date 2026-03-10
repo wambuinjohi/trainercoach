@@ -26,19 +26,7 @@ export type PlatformSettings = {
   taxRate: number
   payoutSchedule: 'weekly' | 'biweekly' | 'monthly'
   currency: 'USD' | 'KES' | 'EUR' | 'GBP'
-  // Referral (existing)
-  referralClientDiscount: number
-  referralClientBookings: number
-  referralTrainerDiscount: number
-  referralTrainerBookings: number
-  enableReferralProgram: boolean
-  useReferrerPhoneAsCode: boolean
-  // Referral/Affiliate (new)
-  referralReferrerPercent: number
-  referralReferredPercent: number
-  promptReferralOnFirstBooking: boolean
-  applyReferralDiscountImmediately: boolean
-  // Platform charges (new)
+  // Platform charges
   platformChargeTrainerPercent: number
   platformChargeClientPercent: number
   compensationFeePercent: number
@@ -109,19 +97,7 @@ export const defaultSettings: PlatformSettings = {
   taxRate: 0,
   payoutSchedule: 'monthly',
   currency: 'KES',
-  // Referral (existing)
-  referralClientDiscount: 10,
-  referralClientBookings: 5,
-  referralTrainerDiscount: 10,
-  referralTrainerBookings: 3,
-  enableReferralProgram: true,
-  useReferrerPhoneAsCode: false,
-  // Referral/Affiliate (new)
-  referralReferrerPercent: 15,
-  referralReferredPercent: 15,
-  promptReferralOnFirstBooking: true,
-  applyReferralDiscountImmediately: true,
-  // Platform charges (new)
+  // Platform charges
   platformChargeTrainerPercent: 10,
   platformChargeClientPercent: 15,
   compensationFeePercent: 10,

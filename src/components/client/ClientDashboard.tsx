@@ -103,9 +103,6 @@ export const ClientDashboard: React.FC = () => {
   const [showHelpSupport, setShowHelpSupport] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [nextSessionBooking, setNextSessionBooking] = useState<any>(null)
-  const [referralCode] = useState('TRAINER123')
-  const [referralSavings] = useState(1500)
-  const [referralCount] = useState(3)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -326,10 +323,6 @@ export const ClientDashboard: React.FC = () => {
     await requestGeoLocation()
   }
 
-  const inviteFriends = () => {
-    try { navigator.clipboard.writeText(referralCode) } catch {}
-    toast({ title: 'Referral code', description: `Share this code: ${referralCode}` })
-  }
 
   const openTrainer = (trainer: any) => setSelectedTrainer(trainer)
   const closeTrainer = () => setSelectedTrainer(null)
@@ -474,21 +467,6 @@ export const ClientDashboard: React.FC = () => {
         </Card>
       )}
 
-      <Card className="bg-gradient-primary border-0 text-white">
-        <CardContent className="p-6 flex justify-between items-center">
-          <div>
-            <div className="flex items-center gap-2 mb-2"><Gift className="h-5 w-5" /><span className="font-semibold">Referral Rewards</span></div>
-            <p className="text-sm opacity-90 mb-3">Invite friends and get 10% off your next 5 bookings!</p>
-            <Button variant="secondary" size="sm" className="bg-white text-trainer-accent hover:bg-gray-100" onClick={inviteFriends}>Invite Friends</Button>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">Ksh {referralSavings}</div>
-            <div className="text-sm opacity-90">Saved so far</div>
-            <div className="text-xs opacity-90">Code: {referralCode}</div>
-            <div className="text-xs opacity-90">Referrals: {referralCount}</div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Browse Categories</h2>

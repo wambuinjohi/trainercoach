@@ -256,11 +256,11 @@ const Explore: React.FC = () => {
                 variant={userLocation ? 'default' : 'outline'}
                 size="sm"
                 onClick={requestLocation}
-                disabled={locationLoading}
+                disabled={geoLoading}
                 className="flex-1"
               >
                 <MapPin className="h-4 w-4 mr-2" />
-                {locationLoading ? 'Getting location...' : userLocation ? 'Location set' : 'Use my location'}
+                {geoLoading ? 'Getting location...' : userLocation ? 'Location set' : 'Use my location'}
               </Button>
               <Button
                 variant={hasActiveFilters ? 'default' : 'outline'}
