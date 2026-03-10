@@ -77,8 +77,12 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (formData.password.length !== 4) {
+      toast({ title: 'Invalid PIN', description: 'Please enter a 4-digit PIN', variant: 'destructive' })
+      return
+    }
     if (formData.password !== formData.confirmPassword) {
-      toast({ title: 'Passwords do not match', description: 'Please ensure your passwords match', variant: 'destructive' })
+      toast({ title: 'PINs do not match', description: 'Please ensure your PINs match', variant: 'destructive' })
       return
     }
 
@@ -146,13 +150,13 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password">4-Digit PIN</Label>
                     <Link to="/password-reset" className="text-xs text-trainer-primary hover:underline">
                       Forgot?
                     </Link>
                   </div>
                   <div className="relative">
-                    <Input id="signin-password" type={showPassword ? "text" : "password"} placeholder="Enter your password" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} required className="bg-input border-border pr-10" />
+                    <Input id="signin-password" type={showPassword ? "text" : "password"} placeholder="Enter your 4-digit PIN" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} required className="bg-input border-border pr-10" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -213,9 +217,9 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password">4-Digit PIN</Label>
                   <div className="relative">
-                    <Input id="signup-password" type={showPassword ? "text" : "password"} placeholder="Create a password" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} required className="bg-input border-border pr-10" />
+                    <Input id="signup-password" type={showPassword ? "text" : "password"} placeholder="Create a 4-digit PIN" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} required className="bg-input border-border pr-10" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -223,9 +227,9 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Label htmlFor="confirm-password">Confirm PIN</Label>
                   <div className="relative">
-                    <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} placeholder="Confirm your password" value={formData.confirmPassword} onChange={(e) => handleInputChange('confirmPassword', e.target.value)} required className="bg-input border-border pr-10" />
+                    <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} placeholder="Confirm your 4-digit PIN" value={formData.confirmPassword} onChange={(e) => handleInputChange('confirmPassword', e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} required className="bg-input border-border pr-10" />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

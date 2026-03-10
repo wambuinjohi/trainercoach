@@ -1140,7 +1140,6 @@ switch ($action) {
           `date_of_birth` DATE,
           `status` VARCHAR(50) DEFAULT 'active',
           `balance` DECIMAL(15, 2) DEFAULT 0,
-          `bonus_balance` DECIMAL(15, 2) DEFAULT 0,
           `currency` VARCHAR(3) DEFAULT 'KES',
           `country` VARCHAR(100),
           `email_verified` BOOLEAN DEFAULT FALSE,
@@ -3152,78 +3151,6 @@ switch ($action) {
         }
         break;
 
-    // GET REFERRAL
-    case 'referral_get':
-        if (!isset($input['code'])) {
-            respond("error", "Missing code.", null, 400);
-        }
-
-        $code = $conn->real_escape_string($input['code']);
-        $sql = "SELECT * FROM referrals WHERE code = '$code' LIMIT 1";
-        $result = $conn->query($sql);
-
-        if (!$result) {
-            respond("error", "Query failed: " . $conn->error, null, 500);
-        }
-
-        if ($result->num_rows === 0) {
-            respond("success", "Referral not found.", ["data" => null]);
-        }
-
-        $referral = $result->fetch_assoc();
-        respond("success", "Referral fetched successfully.", ["data" => $referral]);
-        break;
-
-    // UPDATE REFERRAL
-    case 'referral_update':
-        if (!isset($input['id'])) {
-            respond("error", "Missing referral id.", null, 400);
-        }
-
-        $referralId = $conn->real_escape_string($input['id']);
-        $updates = [];
-        $params = [];
-        $types = "";
-
-        if (isset($input['referee_id'])) {
-            $updates[] = "referee_id = ?";
-            $params[] = $conn->real_escape_string($input['referee_id']);
-            $types .= "s";
-        }
-        if (isset($input['discount_used'])) {
-            $updates[] = "discount_used = ?";
-            $params[] = $input['discount_used'] ? 1 : 0;
-            $types .= "i";
-        }
-        if (isset($input['discount_amount'])) {
-            $updates[] = "discount_amount = ?";
-            $params[] = floatval($input['discount_amount']);
-            $types .= "d";
-        }
-
-        if (empty($updates)) {
-            respond("error", "No fields to update.", null, 400);
-        }
-
-        $params[] = $referralId;
-        $types .= "s";
-
-        $sql = "UPDATE referrals SET " . implode(", ", $updates) . " WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-
-        if (count($params) > 0) {
-            $stmt->bind_param($types, ...$params);
-        }
-
-        if ($stmt->execute()) {
-            $stmt->close();
-            logEvent('referral_updated', ['referral_id' => $referralId]);
-            respond("success", "Referral updated successfully.", ["affected_rows" => $conn->affected_rows]);
-        } else {
-            $stmt->close();
-            respond("error", "Failed to update referral: " . $conn->error, null, 500);
-        }
-        break;
 
     // INSERT BOOKING (custom action wrapper)
     // CREATE BOOKING WITH TRANSPORT FEE CALCULATION
@@ -3530,7 +3457,15 @@ switch ($action) {
                 if (!empty($availabilityJson)) {
                     $availability = json_decode($availabilityJson, true);
                     if (is_array($availability)) {
-                        $bookingDateTime = new DateTime($sessionDate . ' ' . $sessionTime);
+                        // Use trainer's timezone if available, otherwise default to UTC
+                        $trainerTimezone = $profile['timezone'] ?: 'UTC';
+                        try {
+                            $tz = new DateTimeZone($trainerTimezone);
+                        } catch (Exception $e) {
+                            $tz = new DateTimeZone('UTC');
+                        }
+
+                        $bookingDateTime = new DateTime($sessionDate . ' ' . $sessionTime, $tz);
                         $dayName = strtolower($bookingDateTime->format('l'));
                         $bookingTime = $bookingDateTime->format('H:i');
 
@@ -3937,6 +3872,115 @@ switch ($action) {
         }
         break;
 
+    // INITIATE AUTOMATIC TRAINER PAYOUT AFTER SESSION COMPLETION
+    case 'trainer_payout_initiate':
+        if (!isset($input['booking_id'])) {
+            respond("error", "Missing booking_id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+
+        // 1. Validate booking exists and is completed
+        $bookingSql = "SELECT * FROM bookings WHERE id = '$bookingId' LIMIT 1";
+        $bookingResult = $conn->query($bookingSql);
+        if (!$bookingResult || $bookingResult->num_rows === 0) {
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $booking = $bookingResult->fetch_assoc();
+        if ($booking['status'] !== 'completed') {
+            respond("error", "Payout can only be initiated for completed bookings. Current status: " . $booking['status'], null, 400);
+        }
+
+        $trainerId = $booking['trainer_id'];
+        $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? 0);
+
+        if ($trainerNetAmount <= 0) {
+            respond("error", "Trainer net amount must be greater than zero for payout.", null, 400);
+        }
+
+        // 2. Ensure trainer has MPESA number in payout_details or profile
+        $profileSql = "SELECT payout_details, phone FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
+        $profileResult = $conn->query($profileSql);
+        if (!$profileResult || $profileResult->num_rows === 0) {
+            respond("error", "Trainer profile not found.", null, 404);
+        }
+
+        $profile = $profileResult->fetch_assoc();
+        $payoutDetails = json_decode($profile['payout_details'] ?? '{}', true);
+
+        // Check multiple possible locations for mpesa number
+        $mpesaNumber = $payoutDetails['mpesa_number'] ?? $profile['phone'] ?? null;
+
+        if (empty($mpesaNumber)) {
+            respond("error", "Trainer MPESA number not found in payout details or profile.", null, 400);
+        }
+
+        // Normalize phone number for MPESA B2C (254XXXXXXXXX)
+        $mpesaNumber = preg_replace('/[^0-9]/', '', $mpesaNumber);
+        if (strlen($mpesaNumber) === 10 && $mpesaNumber[0] === '0') {
+            $mpesaNumber = '254' . substr($mpesaNumber, 1);
+        } elseif (strlen($mpesaNumber) === 9) {
+            $mpesaNumber = '254' . $mpesaNumber;
+        }
+
+        // 3. Create b2c_payments record
+        $b2cId = 'b2c_' . uniqid();
+        $referenceId = 'payout_' . $bookingId;
+        $now = date('Y-m-d H:i:s');
+
+        $stmt = $conn->prepare("
+            INSERT INTO b2c_payments (
+                id, user_id, user_type, phone_number, amount, reference_id, status, initiated_at, updated_at
+            ) VALUES (?, ?, 'trainer', ?, ?, ?, 'pending', ?, ?)
+        ");
+
+        if (!$stmt) {
+             respond("error", "Failed to prepare B2C payment statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("sssdsss", $b2cId, $trainerId, $mpesaNumber, $trainerNetAmount, $referenceId, $now, $now);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+
+            // 4. Call initiateB2CPayment() from mpesa_helper.php
+            if (function_exists('getMpesaCredentials') && function_exists('initiateB2CPayment')) {
+                $creds = getMpesaCredentials();
+                if ($creds) {
+                    $b2cResult = initiateB2CPayment($creds, $mpesaNumber, $trainerNetAmount, 'BusinessPayment', "Payout for booking $bookingId");
+                    if ($b2cResult['success']) {
+                        // Update booking to indicate payout initiated
+                        $conn->query("UPDATE bookings SET payout_status = 'initiated', updated_at = NOW() WHERE id = '$bookingId'");
+
+                        logEvent('trainer_payout_initiated', [
+                            'booking_id' => $bookingId,
+                            'trainer_id' => $trainerId,
+                            'amount' => $trainerNetAmount,
+                            'b2c_payment_id' => $b2cId
+                        ]);
+
+                        respond("success", "Trainer payout initiated successfully.", [
+                            "b2c_payment_id" => $b2cId,
+                            "conversation_id" => $b2cResult['conversation_id'] ?? null
+                        ]);
+                    } else {
+                        // Mark B2C payment as failed
+                        $conn->query("UPDATE b2c_payments SET status = 'failed', updated_at = NOW() WHERE id = '$b2cId'");
+                        respond("error", "M-Pesa B2C initiation failed: " . ($b2cResult['error'] ?? 'Unknown error'), null, 500);
+                    }
+                } else {
+                    respond("error", "M-Pesa credentials not configured.", null, 500);
+                }
+            } else {
+                respond("error", "M-Pesa helper functions not available.", null, 500);
+            }
+        } else {
+            $stmt->close();
+            respond("error", "Failed to create B2C payment record: " . $conn->error, null, 500);
+        }
+        break;
+
     // SAVE ADMIN SETTINGS (including M-Pesa credentials)
     case 'settings_save':
         try {
@@ -3963,10 +4007,6 @@ switch ($action) {
                     'commissionRate', 'taxRate', 'payoutSchedule',
                     'emailNotifications', 'maintenanceMode',
                     'cancellationHours', 'rescheduleHours', 'maxDailySessionsPerTrainer',
-                    'enableReferralProgram', 'referralClientDiscount', 'referralClientBookings',
-                    'referralTrainerDiscount', 'referralTrainerBookings', 'useReferrerPhoneAsCode',
-                    'referralReferrerPercent', 'referralReferredPercent',
-                    'promptReferralOnFirstBooking', 'applyReferralDiscountImmediately',
                     'platformChargeTrainerPercent', 'platformChargeClientPercent',
                     'compensationFeePercent', 'maintenanceFeePercent'
                 ];

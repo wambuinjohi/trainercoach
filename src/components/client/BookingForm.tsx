@@ -128,7 +128,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   }, [trainer?.id])
 
   // Get fee breakdown using new calculation utility
-  const baseAmount = computeBaseAmount() - appliedDiscount
+  const baseAmount = computeBaseAmount()
   const feeBreakdown = calculateFeeBreakdown(baseAmount, {
     platformChargeClientPercent: settings.platformChargeClientPercent || 15,
     platformChargeTrainerPercent: settings.platformChargeTrainerPercent || 10,

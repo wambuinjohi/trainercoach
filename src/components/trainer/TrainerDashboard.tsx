@@ -138,7 +138,11 @@ export const TrainerDashboard: React.FC = () => {
 
         // Initiate automatic payout to trainer's MPESA account
         try {
-          const trainerMpesaNumber = profileData?.mpesa_number
+          const payoutDetails = typeof profileData.payout_details === 'string'
+            ? JSON.parse(profileData.payout_details)
+            : (profileData.payout_details || {})
+
+          const trainerMpesaNumber = payoutDetails.mpesa_number || profileData.phone
           const trainerNetAmount = booking.trainer_net_amount || 0
 
           if (trainerMpesaNumber && trainerNetAmount > 0) {

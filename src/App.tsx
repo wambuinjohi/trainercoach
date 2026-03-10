@@ -64,7 +64,7 @@ const AppContent = () => {
   }
 
   if (!user) {
-    return <Navigate to="/explore" replace />;
+    return <Explore />;
   }
 
   // Route based on user type
@@ -74,9 +74,9 @@ const AppContent = () => {
     case "trainer":
       return <Navigate to="/trainer" replace />;
     case "client":
-      return <Navigate to="/client" replace />;
+      return <ClientDashboard />;
     default:
-      return <Navigate to="/client" replace />;
+      return <ClientDashboard />;
   }
 };
 

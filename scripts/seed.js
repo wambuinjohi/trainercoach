@@ -110,17 +110,6 @@ async function main() {
       console.warn('payments insert', e.message || e)
     }
 
-    console.log('Seeding referrals...')
-    const referrals = [
-      { referrer_id: 'trainer_1', code: 'REF-T-ABC123', created_at: new Date().toISOString() }
-    ]
-    try {
-      await admin.from('referrals').upsert(referrals, { onConflict: ['referrer_id','code'] })
-      console.log('referrals seeded')
-    } catch (e) {
-      console.warn('referrals upsert', e.message || e)
-    }
-
     console.log('Seeding notifications...')
     const notifications = [
       { user_id: 'trainer_1', title: 'Welcome', body: 'Thanks for joining TrainerTrove', created_at: new Date().toISOString() }
