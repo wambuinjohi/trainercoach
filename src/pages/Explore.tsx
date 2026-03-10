@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   Star, MapPin, Search, Sliders, X,
   Dumbbell, Zap, Activity, Heart, Brain, Flame,
-  Wind, Foot, Bike, Music, Trophy, Compass, Mountain
+  Wind, Running, Bike, Music, Trophy, Compass, Mountain
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Header from '@/components/Header'
@@ -33,7 +33,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className: string }>>
   'boxing': Trophy,
   'martial arts': Flame,
   'dance': Music,
-  'running': Foot,
+  'running': Running,
   'cycling': Bike,
   'swimming': Activity,
   'hiit': Flame,
