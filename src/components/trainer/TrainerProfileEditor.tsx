@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
+import { MapLocationSelector } from './MapLocationSelector'
 import { useFileUpload } from '@/hooks/use-file-upload'
 import { Upload, X } from 'lucide-react'
 import { detectDeviceTimezone } from '@/lib/timezone'
@@ -26,6 +27,9 @@ interface TrainerProfile {
   payout_details?: any
   profile_image?: string
   bio?: string
+  area_of_residence?: string
+  area_coordinates?: { lat: number; lng: number }
+  mpesa_number?: string
 }
 
 interface Category {
@@ -86,6 +90,11 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, number>>({})
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [areaLocation, setAreaLocation] = useState<{ lat: number; lng: number; label: string }>({
+    lat: -1.2921,
+    lng: 36.8219, // Default to Nairobi, Kenya
+    label: ''
+  })
   const imageInputRef = useRef<HTMLInputElement>(null)
   const { upload } = useFileUpload({
     maxFileSize: 5 * 1024 * 1024,
@@ -155,6 +164,22 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           console.log('[Profile Load] Loaded profile_image from API:', profileData.profile_image)
           setProfile(profileData)
           setName(String(profileData.full_name || profileData.name || ''))
+
+          // Load area coordinates if available
+          if (profileData.area_coordinates) {
+            try {
+              const coords = typeof profileData.area_coordinates === 'string'
+                ? JSON.parse(profileData.area_coordinates)
+                : profileData.area_coordinates
+              setAreaLocation({
+                lat: coords.lat || -1.2921,
+                lng: coords.lng || 36.8219,
+                label: profileData.area_of_residence || ''
+              })
+            } catch (e) {
+              console.warn('Could not parse area_coordinates:', e)
+            }
+          }
         } else {
           // Fallback to localStorage
           const savedProfile = localStorage.getItem(`trainer_profile_${userId}`)
@@ -383,6 +408,9 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           bio: profile.bio || null,
           payout_details: payoutDetails ? JSON.stringify(payoutDetails) : null,
           hourly_rate_by_radius: cleanedTiers.length ? JSON.stringify(cleanedTiers) : null,
+          area_of_residence: areaLocation.label || null,
+          area_coordinates: JSON.stringify({ lat: areaLocation.lat, lng: areaLocation.lng }),
+          mpesa_number: profile.mpesa_number || null,
         }
         console.log('[Profile Save] ========== SAVING PROFILE ==========')
         console.log('[Profile Save] User ID:', userId)
@@ -542,7 +570,55 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
 
           <div>
             <Label htmlFor="bio">Bio</Label>
-            <textarea id="bio" value={profile.bio || ''} onChange={(e) => handleChange('bio', e.target.value)} className="w-full p-2 border border-border rounded-md bg-input" rows={4} />
+            <p className="text-sm text-gray-600 mb-2">Describe your expertise, experience, and what clients should expect during training sessions</p>
+            <textarea
+              id="bio"
+              value={profile.bio || ''}
+              onChange={(e) => handleChange('bio', e.target.value)}
+              placeholder="Share your expertise and training philosophy..."
+              className="w-full p-2 border border-border rounded-md bg-input"
+              rows={4}
+            />
+          </div>
+
+          {/* Area of Residence Selector */}
+          <MapLocationSelector
+            initialLocation={areaLocation}
+            onChange={(location) => setAreaLocation(location)}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="hourly_rate">Default Hourly Rate (Ksh)</Label>
+              <Input
+                id="hourly_rate"
+                type="number"
+                value={profile.hourly_rate ?? ''}
+                onChange={(e) => handleChange('hourly_rate', Number(e.target.value))}
+                placeholder="e.g., 300 or 500"
+              />
+            </div>
+            <div>
+              <Label htmlFor="service_radius">Service Radius (km)</Label>
+              <Input
+                id="service_radius"
+                type="number"
+                value={profile.service_radius ?? 5}
+                onChange={(e) => handleChange('service_radius', Number(e.target.value))}
+                placeholder="Default: 5 km"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="mpesa_number">M-Pesa Payout Number (required)</Label>
+            <Input
+              id="mpesa_number"
+              value={profile.mpesa_number || ''}
+              onChange={(e) => handleChange('mpesa_number', e.target.value)}
+              placeholder="e.g., 254712345678 or 0712345678"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Payments will be sent directly to this number after each completed session.</p>
           </div>
 
           <div className="space-y-3">
@@ -615,17 +691,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             <Input id="certifications" value={cleanAndParseArray(profile.certifications).join(', ')} onChange={(e) => handleChange('certifications', e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="hourly_rate">Default Hourly Rate</Label>
-              <Input id="hourly_rate" type="number" value={profile.hourly_rate ?? ''} onChange={(e) => handleChange('hourly_rate', Number(e.target.value))} />
-            </div>
-            <div>
-              <Label htmlFor="service_radius">Service Radius (km)</Label>
-              <Input id="service_radius" type="number" value={profile.service_radius ?? ''} onChange={(e) => handleChange('service_radius', Number(e.target.value))} />
-            </div>
-          </div>
-
 
           <div className="space-y-2">
             <Label>Pricing by Service Radius</Label>
@@ -667,21 +732,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 handleChange('hourly_rate_by_radius', arr)
               }}>Add tier</Button>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="mpesa_number">M-Pesa Payout Number</Label>
-            <Input
-              id="mpesa_number"
-              value={profile.payout_details?.mpesa_number || ''}
-              onChange={(e) => {
-                const val = e.target.value
-                const currentPayoutDetails = typeof profile.payout_details === 'object' ? profile.payout_details : {}
-                handleChange('payout_details', { ...currentPayoutDetails, mpesa_number: val })
-              }}
-              placeholder="e.g., 254712345678"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Payments will be sent directly to this number after each completed session.</p>
           </div>
 
           <div>

@@ -26,7 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { Navigate } from 'react-router-dom'
 import { apiRequest, withAuth } from '@/lib/api'
-import { TrainerProfileEditor } from './TrainerProfileEditor'
+import { ProfileEditorModal } from './ProfileEditorModal'
 import { AvailabilityEditor } from './AvailabilityEditor'
 import { ServicesManager } from './ServicesManager'
 import { ServiceAreaEditor } from './ServiceAreaEditor'
@@ -40,6 +40,7 @@ import { TrainerDisputes } from './TrainerDisputes'
 import * as apiService from '@/lib/api-service'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { NotificationsCenter } from '@/components/client/NotificationsCenter'
+import { StatusIndicator } from './StatusIndicator'
 
 export const TrainerDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -241,8 +242,10 @@ export const TrainerDashboard: React.FC = () => {
             ...profileData // Include all other fields for status determination
           })
 
-          // Determine account status
-          if (profileData.is_suspended) {
+          // Use account_status from API if available, otherwise fallback to legacy fields
+          if (profileData.account_status) {
+            setAccountStatus(profileData.account_status)
+          } else if (profileData.is_suspended) {
             setAccountStatus('suspended')
           } else if (profileData.is_approved) {
             setAccountStatus('approved')
@@ -376,7 +379,7 @@ export const TrainerDashboard: React.FC = () => {
 
   const renderHomeContent = () => (
     <div className="space-y-6">
-      {renderAccountStatus()}
+      <StatusIndicator status={accountStatus} onAction={() => setEditingProfile(true)} />
       <div className="flex items-center justify-between mb-4">
         <div></div>
         <div className="flex items-center gap-2">
@@ -643,7 +646,7 @@ export const TrainerDashboard: React.FC = () => {
       </div>
 
       {showServicesManager && <ServicesManager onClose={() => setShowServicesManager(false)} />}
-      {editingProfile && <TrainerProfileEditor onClose={() => setEditingProfile(false)} />}
+      <ProfileEditorModal isOpen={editingProfile} onClose={() => setEditingProfile(false)} />
       {editingAvailability && <AvailabilityEditor onClose={() => setEditingAvailability(false)} />}
       {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} />}
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}

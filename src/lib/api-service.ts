@@ -603,6 +603,68 @@ export async function updatePayoutStatus(payoutId: string, status: string) {
 }
 
 // ============================================================================
+// TRAINER ACCOUNT STATUS & VERIFICATION SERVICES
+// ============================================================================
+
+export async function checkProfileCompletion(userId: string) {
+  return apiRequest('trainer_check_profile_completion', { user_id: userId })
+}
+
+export async function checkDocumentsSubmission(userId: string) {
+  return apiRequest('trainer_check_documents_submission', { user_id: userId })
+}
+
+export async function setTrainerAccountStatus(userId: string, status: string, token?: string) {
+  const headers = token ? { 'X-Admin-Token': token } : {}
+  return apiRequest('trainer_set_account_status', { user_id: userId, status }, { headers })
+}
+
+export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string) {
+  const formData = new FormData()
+  formData.append('action', 'verification_document_upload')
+  formData.append('trainer_id', trainerId)
+  formData.append('document_type', documentType)
+  formData.append('file', file)
+  if (idNumber) {
+    formData.append('id_number', idNumber)
+  }
+
+  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+  const response = await fetch(apiBaseUrl, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to upload verification document')
+  }
+
+  return response.json()
+}
+
+export async function getVerificationDocuments(trainerId: string) {
+  return apiRequest('verification_documents_get', { trainer_id: trainerId })
+}
+
+export async function listVerificationDocuments(status?: string, token?: string) {
+  const headers = token ? { 'X-Admin-Token': token } : {}
+  const payload: any = {}
+  if (status) {
+    payload.status = status
+  }
+  return apiRequest('verification_documents_list', payload, { headers })
+}
+
+export async function verifyDocument(documentId: string, status: 'approved' | 'rejected', rejectionReason?: string, token?: string) {
+  const headers = token ? { 'X-Admin-Token': token } : {}
+  return apiRequest('verification_document_verify', {
+    document_id: documentId,
+    status,
+    rejection_reason: rejectionReason || null
+  }, { headers })
+}
+
+// ============================================================================
 // GENERIC DATABASE OPERATIONS (for flexibility)
 // ============================================================================
 

@@ -1548,20 +1548,97 @@ switch ($action) {
                 `disciplines` JSON,
                 `certifications` JSON,
                 `hourly_rate` DECIMAL(10, 2),
-                `service_radius` INT,
+                `service_radius` INT DEFAULT 5,
                 `availability` JSON,
                 `rating` DECIMAL(3, 2),
                 `total_reviews` INT DEFAULT 0,
                 `is_approved` BOOLEAN DEFAULT FALSE,
+                `account_status` ENUM('registered', 'profile_incomplete', 'pending_approval', 'approved', 'suspended') DEFAULT 'registered',
+                `area_of_residence` VARCHAR(255),
+                `area_coordinates` JSON,
+                `mpesa_number` VARCHAR(20),
+                `sponsor_id` VARCHAR(36),
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (sponsor_id) REFERENCES users(id) ON DELETE SET NULL,
                 INDEX idx_user_id (user_id),
                 INDEX idx_user_type (user_type),
+                INDEX idx_account_status (account_status),
                 INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ";
         $conn->query($createProfilesTable);
+
+        // Create verification_documents table
+        $createVerificationTable = "
+            CREATE TABLE IF NOT EXISTS `verification_documents` (
+                `id` VARCHAR(36) PRIMARY KEY,
+                `trainer_id` VARCHAR(36) NOT NULL,
+                `document_type` ENUM('national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference') NOT NULL,
+                `file_url` VARCHAR(500),
+                `file_path` VARCHAR(500),
+                `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                `rejection_reason` TEXT,
+                `id_number` VARCHAR(50),
+                `uploaded_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `reviewed_at` TIMESTAMP NULL,
+                `reviewed_by` VARCHAR(36),
+                `expires_at` TIMESTAMP NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+                INDEX idx_trainer_id (trainer_id),
+                INDEX idx_document_type (document_type),
+                INDEX idx_status (status),
+                UNIQUE KEY unique_trainer_doc_type (trainer_id, document_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ";
+        $conn->query($createVerificationTable);
+
+        // Create discipline_recommendations table
+        $createDisciplineRecommendationsTable = "
+            CREATE TABLE IF NOT EXISTS `discipline_recommendations` (
+                `id` VARCHAR(36) PRIMARY KEY,
+                `trainer_id` VARCHAR(36) NOT NULL,
+                `discipline_name` VARCHAR(255) NOT NULL,
+                `description` TEXT,
+                `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                `admin_notes` TEXT,
+                `uploaded_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `reviewed_at` TIMESTAMP NULL,
+                `reviewed_by` VARCHAR(36),
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+                INDEX idx_trainer_id (trainer_id),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ";
+        $conn->query($createDisciplineRecommendationsTable);
+
+        // Create sponsor_commissions table
+        $createSponsorCommissionsTable = "
+            CREATE TABLE IF NOT EXISTS `sponsor_commissions` (
+                `id` VARCHAR(36) PRIMARY KEY,
+                `sponsor_trainer_id` VARCHAR(36) NOT NULL,
+                `sponsored_trainer_id` VARCHAR(36) NOT NULL,
+                `booking_id` VARCHAR(36),
+                `payment_id` VARCHAR(36),
+                `commission_amount` DECIMAL(15, 2) NOT NULL,
+                `status` ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `paid_at` TIMESTAMP NULL,
+                FOREIGN KEY (sponsor_trainer_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (sponsored_trainer_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_sponsor_trainer_id (sponsor_trainer_id),
+                INDEX idx_sponsored_trainer_id (sponsored_trainer_id),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ";
+        $conn->query($createSponsorCommissionsTable);
 
         $testUsers = [
             [
@@ -1920,6 +1997,360 @@ switch ($action) {
         } else {
             $stmt->close();
             respond("error", "Failed to update user type: " . $conn->error, null, 500);
+        }
+        break;
+
+    // CHECK TRAINER PROFILE COMPLETION
+    case 'trainer_check_profile_completion':
+        if (!isset($input['user_id'])) {
+            respond("error", "Missing user_id.", null, 400);
+        }
+
+        $userId = $conn->real_escape_string($input['user_id']);
+        $stmt = $conn->prepare("
+            SELECT
+                user_id,
+                CASE WHEN profile_image IS NOT NULL AND profile_image != '' THEN 1 ELSE 0 END as has_image,
+                CASE WHEN disciplines IS NOT NULL AND JSON_LENGTH(disciplines) > 0 THEN 1 ELSE 0 END as has_disciplines,
+                CASE WHEN bio IS NOT NULL AND bio != '' THEN 1 ELSE 0 END as has_bio,
+                CASE WHEN hourly_rate > 0 THEN 1 ELSE 0 END as has_rate,
+                CASE WHEN area_of_residence IS NOT NULL AND area_of_residence != '' THEN 1 ELSE 0 END as has_area,
+                CASE WHEN service_radius > 0 THEN 1 ELSE 0 END as has_radius,
+                CASE WHEN mpesa_number IS NOT NULL AND mpesa_number != '' THEN 1 ELSE 0 END as has_mpesa
+            FROM user_profiles
+            WHERE user_id = ?
+        ");
+        $stmt->bind_param("s", $userId);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            if ($result->num_rows === 0) {
+                $stmt->close();
+                respond("error", "User profile not found.", null, 404);
+            }
+
+            $row = $result->fetch_assoc();
+            $stmt->close();
+
+            $allComplete = ($row['has_image'] && $row['has_disciplines'] && $row['has_bio'] &&
+                          $row['has_rate'] && $row['has_area'] && $row['has_radius'] && $row['has_mpesa']);
+
+            // Auto-update status if profile is complete and not already updated
+            if ($allComplete) {
+                $updateStmt = $conn->prepare("
+                    UPDATE user_profiles
+                    SET account_status = 'profile_incomplete'
+                    WHERE user_id = ? AND account_status = 'registered'
+                ");
+                $updateStmt->bind_param("s", $userId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            }
+
+            respond("success", "Profile completion check done.", [
+                "profile_complete" => $allComplete,
+                "fields" => $row
+            ]);
+        } else {
+            $stmt->close();
+            respond("error", "Query failed: " . $conn->error, null, 500);
+        }
+        break;
+
+    // CHECK TRAINER DOCUMENTS SUBMISSION
+    case 'trainer_check_documents_submission':
+        if (!isset($input['user_id'])) {
+            respond("error", "Missing user_id.", null, 400);
+        }
+
+        $userId = $conn->real_escape_string($input['user_id']);
+        $stmt = $conn->prepare("
+            SELECT
+                document_type,
+                status,
+                uploaded_at
+            FROM verification_documents
+            WHERE trainer_id = ?
+        ");
+        $stmt->bind_param("s", $userId);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            $documents = [];
+            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference'];
+            $submittedDocs = [];
+
+            while ($row = $result->fetch_assoc()) {
+                $documents[] = $row;
+                if ($row['status'] === 'pending' || $row['status'] === 'approved') {
+                    $submittedDocs[] = $row['document_type'];
+                }
+            }
+            $stmt->close();
+
+            // Check if all required docs are submitted (at least pending)
+            $allSubmitted = count(array_intersect($requiredDocs, $submittedDocs)) === count($requiredDocs);
+
+            // Auto-update status if all docs submitted and not already updated
+            if ($allSubmitted) {
+                $updateStmt = $conn->prepare("
+                    UPDATE user_profiles
+                    SET account_status = 'pending_approval'
+                    WHERE user_id = ? AND account_status = 'profile_incomplete'
+                ");
+                $updateStmt->bind_param("s", $userId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            }
+
+            respond("success", "Documents submission check done.", [
+                "all_submitted" => $allSubmitted,
+                "required_docs" => $requiredDocs,
+                "submitted_docs" => $submittedDocs,
+                "documents" => $documents
+            ]);
+        } else {
+            $stmt->close();
+            respond("error", "Query failed: " . $conn->error, null, 500);
+        }
+        break;
+
+    // SET TRAINER ACCOUNT STATUS (Admin only)
+    case 'trainer_set_account_status':
+        $adminId = verifyAdminToken();
+        if (!$adminId) exit; // verifyAdminToken handles the response
+
+        if (!isset($input['user_id']) || !isset($input['status'])) {
+            respond("error", "Missing user_id or status.", null, 400);
+        }
+
+        $userId = $conn->real_escape_string($input['user_id']);
+        $status = $conn->real_escape_string($input['status']);
+
+        // Validate status enum
+        $validStatuses = ['registered', 'profile_incomplete', 'pending_approval', 'approved', 'suspended'];
+        if (!in_array($status, $validStatuses)) {
+            respond("error", "Invalid status value.", null, 400);
+        }
+
+        $stmt = $conn->prepare("
+            UPDATE user_profiles
+            SET account_status = ?, updated_at = NOW()
+            WHERE user_id = ?
+        ");
+        $stmt->bind_param("ss", $status, $userId);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('trainer_status_set', ['user_id' => $userId, 'status' => $status, 'admin_id' => $adminId]);
+            respond("success", "Trainer account status updated.", ["status" => $status]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to update status: " . $conn->error, null, 500);
+        }
+        break;
+
+    // UPLOAD VERIFICATION DOCUMENT
+    case 'verification_document_upload':
+        if (!isset($input['trainer_id']) || !isset($input['document_type'])) {
+            respond("error", "Missing trainer_id or document_type.", null, 400);
+        }
+
+        $trainerId = $conn->real_escape_string($input['trainer_id']);
+        $documentType = $conn->real_escape_string($input['document_type']);
+        $idNumber = isset($input['id_number']) ? $conn->real_escape_string($input['id_number']) : null;
+
+        // Handle file upload
+        $fileUrl = null;
+        $filePath = null;
+        if (isset($_FILES['file'])) {
+            $file = $_FILES['file'];
+            $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
+
+            if (!in_array($file['type'], $allowedMimes)) {
+                respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
+            }
+
+            // Create upload directory
+            $uploadDir = 'uploads/verification_documents/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $fileName = $trainerId . '_' . $documentType . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
+            $filePath = $uploadDir . $fileName;
+            $uploadBase = getenv('UPLOAD_BASE_URL') ?: '/uploads/';
+            $fileUrl = $uploadBase . 'verification_documents/' . $fileName;
+
+            if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+                respond("error", "Failed to upload file.", null, 500);
+            }
+        }
+
+        // Check if document already exists
+        $stmt = $conn->prepare("SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?");
+        $stmt->bind_param("ss", $trainerId, $documentType);
+        $stmt->execute();
+        $existingDoc = $stmt->get_result();
+        $stmt->close();
+
+        if ($existingDoc->num_rows > 0) {
+            // Update existing document
+            $doc = $existingDoc->fetch_assoc();
+            $docId = $doc['id'];
+
+            $expiresAt = null;
+            if ($documentType === 'certificate_of_good_conduct') {
+                // Good conduct certificate expires in 30 minutes
+                $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
+            }
+
+            $stmt = $conn->prepare("
+                UPDATE verification_documents
+                SET file_url = ?, file_path = ?, id_number = ?, status = 'pending', expires_at = ?, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->bind_param("sssss", $fileUrl, $filePath, $idNumber, $expiresAt, $docId);
+
+            if ($stmt->execute()) {
+                $stmt->close();
+                logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
+                respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
+            } else {
+                $stmt->close();
+                respond("error", "Failed to upload document: " . $conn->error, null, 500);
+            }
+        } else {
+            // Create new document
+            $docId = 'doc_' . uniqid();
+            $expiresAt = null;
+            if ($documentType === 'certificate_of_good_conduct') {
+                // Good conduct certificate expires in 30 minutes
+                $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
+            }
+
+            $stmt = $conn->prepare("
+                INSERT INTO verification_documents (id, trainer_id, document_type, file_url, file_path, id_number, expires_at, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+            ");
+            $stmt->bind_param("sssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $expiresAt);
+
+            if ($stmt->execute()) {
+                $stmt->close();
+                logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
+                respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
+            } else {
+                $stmt->close();
+                respond("error", "Failed to upload document: " . $conn->error, null, 500);
+            }
+        }
+        break;
+
+    // GET TRAINER VERIFICATION DOCUMENTS
+    case 'verification_documents_get':
+        if (!isset($input['trainer_id'])) {
+            respond("error", "Missing trainer_id.", null, 400);
+        }
+
+        $trainerId = $conn->real_escape_string($input['trainer_id']);
+        $stmt = $conn->prepare("
+            SELECT id, trainer_id, document_type, file_url, file_path, status, rejection_reason, id_number, uploaded_at, reviewed_at, expires_at
+            FROM verification_documents
+            WHERE trainer_id = ?
+            ORDER BY uploaded_at DESC
+        ");
+        $stmt->bind_param("s", $trainerId);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            $documents = [];
+            while ($row = $result->fetch_assoc()) {
+                // Normalize file URLs
+                if (!empty($row['file_url']) && !filter_var($row['file_url'], FILTER_VALIDATE_URL)) {
+                    $uploadBase = getenv('UPLOAD_BASE_URL') ?: '/uploads/';
+                    $row['file_url'] = $uploadBase . $row['file_url'];
+                }
+                $documents[] = $row;
+            }
+            $stmt->close();
+            respond("success", "Verification documents fetched.", $documents);
+        } else {
+            $stmt->close();
+            respond("error", "Query failed: " . $conn->error, null, 500);
+        }
+        break;
+
+    // LIST ALL VERIFICATION DOCUMENTS (Admin only)
+    case 'verification_documents_list':
+        $adminId = verifyAdminToken();
+        if (!$adminId) exit;
+
+        $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : null;
+
+        $sql = "
+            SELECT
+                vd.id, vd.trainer_id, vd.document_type, vd.file_url, vd.status,
+                vd.rejection_reason, vd.uploaded_at, vd.reviewed_at, vd.reviewed_by,
+                up.full_name, up.user_type
+            FROM verification_documents vd
+            LEFT JOIN user_profiles up ON vd.trainer_id = up.user_id
+        ";
+
+        if ($status) {
+            $sql .= " WHERE vd.status = '$status'";
+        }
+
+        $sql .= " ORDER BY vd.uploaded_at DESC";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            respond("error", "Query failed: " . $conn->error, null, 500);
+        }
+
+        $documents = [];
+        while ($row = $result->fetch_assoc()) {
+            if (!empty($row['file_url']) && !filter_var($row['file_url'], FILTER_VALIDATE_URL)) {
+                $uploadBase = getenv('UPLOAD_BASE_URL') ?: '/uploads/';
+                $row['file_url'] = $uploadBase . $row['file_url'];
+            }
+            $documents[] = $row;
+        }
+
+        respond("success", "Verification documents list fetched.", $documents);
+        break;
+
+    // VERIFY/APPROVE/REJECT VERIFICATION DOCUMENT (Admin only)
+    case 'verification_document_verify':
+        $adminId = verifyAdminToken();
+        if (!$adminId) exit;
+
+        if (!isset($input['document_id']) || !isset($input['status'])) {
+            respond("error", "Missing document_id or status.", null, 400);
+        }
+
+        $docId = $conn->real_escape_string($input['document_id']);
+        $status = $conn->real_escape_string($input['status']);
+        $rejectionReason = isset($input['rejection_reason']) ? $conn->real_escape_string($input['rejection_reason']) : null;
+
+        $validStatuses = ['approved', 'rejected'];
+        if (!in_array($status, $validStatuses)) {
+            respond("error", "Invalid status value. Must be 'approved' or 'rejected'.", null, 400);
+        }
+
+        $stmt = $conn->prepare("
+            UPDATE verification_documents
+            SET status = ?, rejection_reason = ?, reviewed_at = NOW(), reviewed_by = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
+        $stmt->bind_param("ssss", $status, $rejectionReason, $adminId, $docId);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('verification_document_reviewed', ['document_id' => $docId, 'status' => $status, 'admin_id' => $adminId]);
+            respond("success", "Document verification completed.", ["status" => $status]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to verify document: " . $conn->error, null, 500);
         }
         break;
 
