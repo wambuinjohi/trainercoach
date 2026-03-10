@@ -467,7 +467,12 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           </div>
 
           <div className="space-y-2">
-            <Label>Profile Image</Label>
+            <div className="flex items-center justify-between">
+              <Label>Profile Image</Label>
+              <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                💡 A high quality photo creates client trust.
+              </p>
+            </div>
             <div className="space-y-3">
               {/* Image Preview */}
               {profile.profile_image && (

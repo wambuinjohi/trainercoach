@@ -23,7 +23,8 @@ import {
   LogOut,
   DollarSign,
   Bell,
-  RefreshCw
+  RefreshCw,
+  Sliders
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { ClientProfileEditor } from './ClientProfileEditor'
@@ -34,6 +35,7 @@ import { FiltersModal } from './FiltersModal'
 import { ReviewModal } from './ReviewModal'
 import { NextSessionModal } from './NextSessionModal'
 import { LocationSelector } from './LocationSelector'
+import { SessionEndConfirmModal } from './SessionEndConfirmModal'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { UnratedSessionNotice } from './UnratedSessionNotice'
 
@@ -103,6 +105,7 @@ export const ClientDashboard: React.FC = () => {
   const [showHelpSupport, setShowHelpSupport] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [nextSessionBooking, setNextSessionBooking] = useState<any>(null)
+  const [pendingSessionConfirm, setPendingSessionConfirm] = useState<any>(null)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -176,12 +179,21 @@ export const ClientDashboard: React.FC = () => {
       const bookingsData = await apiService.getBookings(user.id, 'client')
       if (bookingsData?.data) {
         setBookings(bookingsData.data)
+
+        // Check for pending session confirmation (status = 'ending' or similar)
+        const sessionPending = bookingsData.data.find((b: any) =>
+          b.status === 'ending' || b.status === 'in_session' && b.trainer_marked_end
+        )
+
+        if (sessionPending && !pendingSessionConfirm) {
+          setPendingSessionConfirm(sessionPending)
+        }
       }
     } catch (err) {
       console.warn('Failed to load bookings', err)
       setBookings([])
     }
-  }, [user?.id])
+  }, [user?.id, pendingSessionConfirm])
 
   const checkPendingRatings = useCallback(async () => {
     if (!user?.id) return
@@ -539,8 +551,38 @@ export const ClientDashboard: React.FC = () => {
               {selectedCategory ? `${selectedCategory} Trainers` : 'Nearby Trainers'}
             </h1>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}><MapPin className="h-4 w-4 mr-2" />Filters</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}><Sliders className="h-4 w-4 mr-2" />Filters</Button>
         </div>
+
+        {/* Horizontal Scrollable Categories */}
+        {dbCategories.length > 0 && (
+          <div className="flex overflow-x-auto gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                !selectedCategory
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+              }`}
+            >
+              All
+            </button>
+            {dbCategories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                  selectedCategory === cat.name
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                }`}
+              >
+                {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {filteredTrainers.length === 0 ? (
           <Card className="bg-card border-border">
@@ -807,6 +849,7 @@ export const ClientDashboard: React.FC = () => {
         await loadBookings()
       }} />}
       {nextSessionBooking && <NextSessionModal previous={nextSessionBooking} onClose={() => setNextSessionBooking(null)} onBooked={() => { setNextSessionBooking(null); loadBookings() }} />}
+      {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
 
       {!modalOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">

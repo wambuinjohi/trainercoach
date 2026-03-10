@@ -282,6 +282,38 @@ const Explore: React.FC = () => {
               )}
             </div>
 
+            {/* Horizontal Scrollable Categories */}
+            {categories.length > 0 && (
+              <div className="mt-4">
+                <div className="flex overflow-x-auto gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                      !filters.categoryId
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
+                      className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                        filters.categoryId === cat.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                      }`}
+                    >
+                      {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Active Filters Display */}
             {hasActiveFilters && (
               <div className="flex flex-wrap gap-2">

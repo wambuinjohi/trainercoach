@@ -69,6 +69,7 @@ export const TrainerDashboard: React.FC = () => {
   const [showReviews, setShowReviews] = useState(false)
   const [reviews, setReviews] = useState<any[]>([])
   const [avgRating, setAvgRating] = useState<number>(0)
+  const [accountStatus, setAccountStatus] = useState<'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'>('registered')
 
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
@@ -231,8 +232,22 @@ export const TrainerDashboard: React.FC = () => {
             profile_image: profileData.profile_image || null,
             hourly_rate: profileData.hourly_rate || 0,
             availability: profileData.availability ? (typeof profileData.availability === 'string' ? JSON.parse(profileData.availability) : profileData.availability) : [],
-            pricing_packages: profileData.pricing_packages ? (typeof profileData.pricing_packages === 'string' ? JSON.parse(profileData.pricing_packages) : profileData.pricing_packages) : []
+            pricing_packages: profileData.pricing_packages ? (typeof profileData.pricing_packages === 'string' ? JSON.parse(profileData.pricing_packages) : profileData.pricing_packages) : [],
+            ...profileData // Include all other fields for status determination
           })
+
+          // Determine account status
+          if (profileData.is_suspended) {
+            setAccountStatus('suspended')
+          } else if (profileData.is_approved) {
+            setAccountStatus('approved')
+          } else if (profileData.pending_approval) {
+            setAccountStatus('pending_approval')
+          } else if (profileData.full_name && profileData.hourly_rate && profileData.bio) {
+            setAccountStatus('profile_incomplete') // Profile complete, awaiting approval
+          } else {
+            setAccountStatus('registered') // Just registered, incomplete profile
+          }
         } else {
           setProfileData({
             name: user.email,
@@ -242,6 +257,7 @@ export const TrainerDashboard: React.FC = () => {
             availability: [],
             pricing_packages: []
           })
+          setAccountStatus('registered')
         }
       } catch (err) {
         console.warn('Failed to load trainer profile', err)
@@ -253,6 +269,7 @@ export const TrainerDashboard: React.FC = () => {
           availability: [],
           pricing_packages: []
         })
+        setAccountStatus('registered')
       }
 
       // Load wallet balance - handle gracefully if table doesn't exist
@@ -290,8 +307,71 @@ export const TrainerDashboard: React.FC = () => {
     return () => clearInterval(notificationInterval)
   }, [user?.id])
 
+  const renderAccountStatus = () => {
+    const statuses = [
+      { key: 'registered', label: 'Registered', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' },
+      { key: 'profile_incomplete', label: 'Complete Profile', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+      { key: 'pending_approval', label: 'Pending Approval', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+      { key: 'approved', label: 'Approved', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      { key: 'suspended', label: 'Suspended', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+    ]
+
+    const currentStatus = statuses.find(s => s.key === accountStatus)
+    if (!currentStatus) return null
+
+    const completedSteps = statuses.slice(0, statuses.findIndex(s => s.key === accountStatus) + 1)
+    const nextSteps = statuses.slice(statuses.findIndex(s => s.key === accountStatus) + 1)
+
+    return (
+      <Card className="bg-card border-border mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Account Status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <span className={`inline-block px-4 py-2 rounded-full font-semibold text-sm ${currentStatus.color}`}>
+              {currentStatus.label}
+            </span>
+            {accountStatus === 'suspended' && (
+              <span className="text-xs text-red-600 dark:text-red-400 font-semibold">Action Required</span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {completedSteps.map((step) => (
+              <div key={step.key} className="flex items-center gap-2 text-sm">
+                <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
+                </div>
+                <span className="text-foreground">{step.label}</span>
+              </div>
+            ))}
+            {nextSteps.map((step) => (
+              <div key={step.key} className="flex items-center gap-2 text-sm">
+                <div className="w-4 h-4 rounded-full border-2 border-muted-foreground"></div>
+                <span className="text-muted-foreground">{step.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {accountStatus === 'registered' && (
+            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => setEditingProfile(true)}>
+              Complete Your Profile
+            </Button>
+          )}
+          {accountStatus === 'profile_incomplete' && (
+            <div className="text-xs text-blue-600 dark:text-blue-400 mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded">
+              Your profile is complete. Submit your verification documents to proceed to approval.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
   const renderHomeContent = () => (
     <div className="space-y-6">
+      {renderAccountStatus()}
       <div className="flex items-center justify-between mb-4">
         <div></div>
         <div className="flex items-center gap-2">
