@@ -155,6 +155,7 @@ export interface FilterCriteria {
   onlyAvailable?: boolean
   radius?: number
   categoryId?: number | null
+  categoryIds?: number[]
   searchQuery?: string
 }
 
@@ -174,8 +175,15 @@ export function filterTrainers(
   criteria: FilterCriteria
 ): TrainerWithCategories[] {
   return trainers.filter((trainer) => {
-    // Filter by category
-    if (criteria.categoryId !== null && criteria.categoryId !== undefined) {
+    // Filter by categories (support both single and multi-select)
+    // If categoryIds array is provided, use it (OR logic - trainer must have at least one)
+    if (criteria.categoryIds && criteria.categoryIds.length > 0) {
+      if (!trainer.categoryIds || !trainer.categoryIds.some(id => criteria.categoryIds!.includes(id))) {
+        return false
+      }
+    }
+    // Fallback to legacy categoryId for backward compatibility
+    else if (criteria.categoryId !== null && criteria.categoryId !== undefined) {
       if (!trainer.categoryIds || !trainer.categoryIds.includes(criteria.categoryId)) {
         return false
       }

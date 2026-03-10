@@ -38,6 +38,14 @@ export async function resetPasswordWithToken(
   })
 }
 
+export async function checkPhoneExists(phone: string) {
+  return apiRequest('check_phone_exists', { phone_number: phone })
+}
+
+export async function resetPINWithPhone(phone: string, newPin: string) {
+  return apiRequest('reset_pin_with_phone', { phone_number: phone, new_pin: newPin })
+}
+
 export async function getUserType(userId: string) {
   return apiRequest('get_user_type', { user_id: userId })
 }

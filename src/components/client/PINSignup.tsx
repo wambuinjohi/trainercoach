@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import * as apiService from '@/lib/api-service'
+import { AccountExistsModal } from '@/components/auth/AccountExistsModal'
+import { PINReset } from '@/components/auth/PINReset'
 
 interface PINSignupProps {
   onSuccess?: () => void
@@ -15,14 +18,15 @@ interface PINSignupProps {
 }
 
 export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email: initialEmail, phone: initialPhone }) => {
-  const { signUp } = useAuth()
-  const [step, setStep] = useState<'contact' | 'pin'>('contact')
+  const { signUp, signIn } = useAuth()
+  const [step, setStep] = useState<'contact' | 'phoneCheck' | 'pin' | 'accountExists' | 'pinReset'>('contact')
   const [email, setEmail] = useState(initialEmail || '')
   const [phone, setPhone] = useState(initialPhone || '')
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkedPhone, setCheckedPhone] = useState('')
 
   const sanitizePhone = (input: string): string => {
     if (!input) return ''
@@ -48,7 +52,37 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
       return
     }
 
-    setStep('pin')
+    // If phone is provided, check if account exists
+    if (phone) {
+      const sanitizedPhone = sanitizePhone(phone)
+      if (!sanitizedPhone) {
+        setError('Please provide a valid phone number')
+        return
+      }
+
+      setLoading(true)
+      try {
+        const response = await apiService.checkPhoneExists(sanitizedPhone)
+        setCheckedPhone(sanitizedPhone)
+
+        if (response?.exists) {
+          // Account found - show account exists modal
+          setStep('accountExists')
+        } else {
+          // No account - proceed to PIN creation
+          setStep('pin')
+        }
+      } catch (err: any) {
+        console.error('Phone check error:', err)
+        // On error, assume account doesn't exist and proceed
+        setStep('pin')
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // No phone provided, proceed to PIN creation
+      setStep('pin')
+    }
   }
 
   const handlePINSubmit = async (e: React.FormEvent) => {
@@ -69,7 +103,7 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
     setLoading(true)
     try {
       const sanitizedPhone = sanitizePhone(phone)
-      
+
       // Sign up with PIN as password
       await signUp(
         email.trim().toLowerCase() || `user_${Date.now()}@temp.local`,
@@ -91,138 +125,185 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
     }
   }
 
+  const handleLoginExistingAccount = async () => {
+    // Navigate to login screen or show login form
+    // The parent component should handle redirecting to login
+    onCancel?.()
+    toast({ title: 'Please sign in', description: 'Use your phone number and PIN to sign in' })
+  }
+
+  const handleResetPIN = () => {
+    setStep('pinReset')
+  }
+
+  const handleResetSuccess = () => {
+    toast({ title: 'Success', description: 'Your PIN has been reset. Please sign in with your new PIN.' })
+    onCancel?.()
+  }
+
+  const handleBackFromAccountExists = () => {
+    setStep('contact')
+    setCheckedPhone('')
+  }
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Create Your Account</CardTitle>
-        <CardDescription>
-          {step === 'contact' ? 'Enter your contact information' : 'Create a 4-digit PIN for your account'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {step === 'contact' ? (
-          <form onSubmit={handleContactSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email (optional)</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+    <>
+      {step === 'accountExists' ? (
+        <AccountExistsModal
+          phone={checkedPhone}
+          onLogin={handleLoginExistingAccount}
+          onResetPin={handleResetPIN}
+          onCancel={handleBackFromAccountExists}
+        />
+      ) : step === 'pinReset' ? (
+        <PINReset
+          phone={checkedPhone}
+          onSuccess={handleResetSuccess}
+          onBack={handleBackFromAccountExists}
+        />
+      ) : (
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Create Your Account</CardTitle>
+            <CardDescription>
+              {step === 'contact' ? 'Enter your contact information' : 'Create a 4-digit PIN for your account'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {step === 'contact' ? (
+              <form onSubmit={handleContactSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="email">Email (optional)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="phone">Phone Number (optional)</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="07XX XXX XXX or +254..."
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                We accept Kenyan phone numbers (07... or +254...)
-              </p>
-            </div>
+                <div>
+                  <Label htmlFor="phone">Phone Number (optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="07XX XXX XXX or +254..."
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    We accept Kenyan phone numbers (07... or +254...)
+                  </p>
+                </div>
 
-            {error && (
-              <div className="flex gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={onCancel}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1">
-                Next
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handlePINSubmit} className="space-y-4">
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
-              <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-700 dark:text-blue-400">
-                <p className="font-semibold">Create a 4-digit PIN</p>
-                <p>This PIN will be used to sign in to your account instead of a password.</p>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="pin">4-Digit PIN</Label>
-              <Input
-                id="pin"
-                type="text"
-                inputMode="numeric"
-                pattern="\d*"
-                maxLength={4}
-                placeholder="0000"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                className="text-center text-2xl tracking-widest"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="confirm-pin">Confirm PIN</Label>
-              <Input
-                id="confirm-pin"
-                type="text"
-                inputMode="numeric"
-                pattern="\d*"
-                maxLength={4}
-                placeholder="0000"
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                className="text-center text-2xl tracking-widest"
-              />
-            </div>
-
-            {error && (
-              <div className="flex gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => setStep('contact')}
-                disabled={loading}
-              >
-                Back
-              </Button>
-              <Button 
-                type="submit" 
-                className="flex-1"
-                disabled={loading || !pin || pin.length < 4}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Account'
+                {error && (
+                  <div className="flex gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm">{error}</span>
+                  </div>
                 )}
-              </Button>
-            </div>
-          </form>
-        )}
-      </CardContent>
-    </Card>
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={onCancel}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      'Next'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handlePINSubmit} className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
+                  <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-700 dark:text-blue-400">
+                    <p className="font-semibold">Create a 4-digit PIN</p>
+                    <p>This PIN will be used to sign in to your account instead of a password.</p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="pin">4-Digit PIN</Label>
+                  <Input
+                    id="pin"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    maxLength={4}
+                    placeholder="0000"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                    className="text-center text-2xl tracking-widest"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="confirm-pin">Confirm PIN</Label>
+                  <Input
+                    id="confirm-pin"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    maxLength={4}
+                    placeholder="0000"
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                    className="text-center text-2xl tracking-widest"
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm">{error}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setStep('contact')}
+                    disabled={loading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={loading || !pin || pin.length < 4}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Account'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </>
   )
 }
