@@ -1,6 +1,7 @@
 /**
  * Timezone utility for automatic device timezone detection
  * Uses the browser's Intl API to detect the user's local timezone
+ * Automatically stores and retrieves user timezone preference
  */
 
 /**
@@ -43,16 +44,16 @@ export function convertToTimezone(date: Date, timezone: string): Date {
       second: '2-digit',
       hour12: false,
     })
-    
+
     const parts = formatter.formatToParts(date)
     const values: { [key: string]: string } = {}
-    
+
     for (const part of parts) {
       if (part.type !== 'literal') {
         values[part.type] = part.value
       }
     }
-    
+
     return new Date(
       parseInt(values.year),
       parseInt(values.month) - 1,
@@ -68,22 +69,89 @@ export function convertToTimezone(date: Date, timezone: string): Date {
 }
 
 /**
- * List of common timezone options (can be expanded)
+ * Format a date in a specific timezone
+ */
+export function formatInTimezone(
+  date: Date,
+  timezone: string,
+  options?: Intl.DateTimeFormatOptions
+): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      ...options,
+    })
+    return formatter.format(date)
+  } catch (error) {
+    console.warn('Failed to format date in timezone:', error)
+    return date.toString()
+  }
+}
+
+/**
+ * Get current time in a specific timezone
+ */
+export function getNowInTimezone(timezone: string): Date {
+  return convertToTimezone(new Date(), timezone)
+}
+
+/**
+ * Get the offset hours from UTC for a given timezone
+ */
+export function getTimezoneOffsetHours(timezone: string): number {
+  const now = new Date()
+  try {
+    const utcString = now.toLocaleString('en-US', { timeZone: 'UTC' })
+    const tzString = now.toLocaleString('en-US', { timeZone: timezone })
+
+    const utcDate = new Date(utcString)
+    const tzDate = new Date(tzString)
+
+    return (utcDate.getTime() - tzDate.getTime()) / (1000 * 60 * 60)
+  } catch (error) {
+    console.warn('Failed to get timezone offset:', error)
+    return 0
+  }
+}
+
+/**
+ * List of common timezone options with labels
  */
 export const COMMON_TIMEZONES = [
-  'Africa/Nairobi',
-  'Africa/Lagos',
-  'Africa/Johannesburg',
-  'Africa/Cairo',
-  'UTC',
-  'Europe/London',
-  'Europe/Paris',
-  'America/New_York',
-  'America/Los_Angeles',
-  'Asia/Dubai',
-  'Asia/Singapore',
-  'Australia/Sydney',
+  { value: 'Africa/Nairobi', label: 'Nairobi (Kenya)' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg (South Africa)' },
+  { value: 'Africa/Lagos', label: 'Lagos (Nigeria)' },
+  { value: 'Africa/Cairo', label: 'Cairo (Egypt)' },
+  { value: 'Asia/Dubai', label: 'Dubai (UAE)' },
+  { value: 'Asia/Bangkok', label: 'Bangkok (Thailand)' },
+  { value: 'Asia/Singapore', label: 'Singapore' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (Japan)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (China)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
+  { value: 'Asia/Kolkata', label: 'India' },
+  { value: 'Australia/Sydney', label: 'Sydney (Australia)' },
+  { value: 'Europe/London', label: 'London (UK)' },
+  { value: 'Europe/Paris', label: 'Paris (France)' },
+  { value: 'Europe/Berlin', label: 'Berlin (Germany)' },
+  { value: 'Europe/Moscow', label: 'Moscow (Russia)' },
+  { value: 'America/New_York', label: 'New York (USA)' },
+  { value: 'America/Chicago', label: 'Chicago (USA)' },
+  { value: 'America/Denver', label: 'Denver (USA)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (USA)' },
+  { value: 'America/Toronto', label: 'Toronto (Canada)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (Mexico)' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo (Brazil)' },
+  { value: 'America/Buenos_Aires', label: 'Buenos Aires (Argentina)' },
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
 ]
+
+/**
+ * Get timezone label from value
+ */
+export function getTimezoneLabel(timezone: string): string {
+  const found = COMMON_TIMEZONES.find(tz => tz.value === timezone)
+  return found?.label || timezone
+}
 
 /**
  * Store timezone preference in localStorage
@@ -106,6 +174,16 @@ export function getStoredOrDetectedTimezone(): string {
   } catch (error) {
     console.warn('Failed to retrieve stored timezone:', error)
   }
-  
+
   return detectDeviceTimezone()
+}
+
+/**
+ * Initialize automatic timezone detection on app load
+ * Detects and stores the user's timezone once
+ */
+export function initializeTimezoneDetection(): string {
+  const timezone = getStoredOrDetectedTimezone()
+  console.log('User timezone initialized:', timezone)
+  return timezone
 }

@@ -53,7 +53,7 @@ describe('Fee Calculations', () => {
     expect(breakdown.trainerNetAmount).toBe(1085)
   })
 
-  test('With referral discount (800 base)', () => {
+  test('Standard booking calculation (800 base)', () => {
     const breakdown = calculateFeeBreakdown(800, testSettings, 0)
 
     // platformChargeClient: 800 × 15% = 120
