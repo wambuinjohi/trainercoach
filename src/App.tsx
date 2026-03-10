@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ApiConfigProvider } from "@/contexts/ApiConfigContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AutoSetupWrapper } from "@/components/AutoSetupWrapper";
+import { initializeTimezoneDetection } from "@/lib/timezone";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { ClientDashboard } from "@/components/client/ClientDashboard";
 import { TrainerDashboard } from "@/components/trainer/TrainerDashboard";
@@ -34,7 +35,6 @@ import DisputesPage from "./pages/admin/DisputesPage";
 import IssuesPage from "./pages/admin/IssuesPage";
 import ContactsPage from "./pages/admin/ContactsPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
-import PromotionsPage from "./pages/admin/PromotionsPage";
 import PayoutsPage from "./pages/admin/PayoutsPage";
 import SMSManagerPage from "./pages/admin/SMSManagerPage";
 import CategoriesPage from "./pages/admin/CategoriesPage";
@@ -48,8 +48,9 @@ const AppContent = () => {
   const { user, userType, loading } = useAuth();
 
   useEffect(() => {
-    // Auth state updated
-  }, [user, userType, loading]);
+    // Initialize timezone detection on app load
+    initializeTimezoneDetection()
+  }, []);
 
   if (loading) {
     return (
@@ -133,7 +134,6 @@ const AdminRoutes = () => (
     <Route path="issues" element={<IssuesPage />} />
     <Route path="contacts" element={<ContactsPage />} />
     <Route path="analytics" element={<AnalyticsPage />} />
-    <Route path="promotions" element={<PromotionsPage />} />
     <Route path="payouts" element={<PayoutsPage />} />
     <Route path="sms-manager" element={<SMSManagerPage />} />
     <Route path="categories" element={<CategoriesPage />} />

@@ -64,10 +64,9 @@ export default function OverviewPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [usersData, bookingsData, promotionsData, issuesData] = await Promise.all([
+        const [usersData, bookingsData, issuesData] = await Promise.all([
           apiService.getUsers(),
           apiService.getAllBookings(),
-          apiService.getPromotionRequestsForAdmin('pending'),
           apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
         ])
 

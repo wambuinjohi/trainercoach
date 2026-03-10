@@ -33,7 +33,6 @@ import { ServiceAreaEditor } from './ServiceAreaEditor'
 import { TrainerChat } from './TrainerChat'
 import { Payouts } from './Payouts'
 import { TrainerTopUp } from './TrainerTopUp'
-import { PromoteProfile } from './PromoteProfile'
 import { loadSettings } from '@/lib/settings'
 import { toast } from '@/hooks/use-toast'
 import { TrainerReportIssue } from './TrainerReportIssue'
@@ -67,12 +66,10 @@ export const TrainerDashboard: React.FC = () => {
   })
   const [walletBalance, setWalletBalance] = useState<number>(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const [showPromote, setShowPromote] = useState(false)
   const [showReviews, setShowReviews] = useState(false)
   const [reviews, setReviews] = useState<any[]>([])
   const [avgRating, setAvgRating] = useState<number>(0)
 
-  const openPromote = () => setShowPromote(true)
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
 
@@ -136,6 +133,25 @@ export const TrainerDashboard: React.FC = () => {
           await apiRequest('notifications_insert', { notifications: notifRows }, { headers: withAuth() })
         } catch (err) {
           console.warn('Failed to send completion notification', err)
+        }
+
+        // Initiate automatic payout to trainer's MPESA account
+        try {
+          const trainerMpesaNumber = profileData?.mpesa_number
+          const trainerNetAmount = booking.trainer_net_amount || 0
+
+          if (trainerMpesaNumber && trainerNetAmount > 0) {
+            await apiService.initiateTrainerPayout({
+              booking_id: id,
+              trainer_id: user?.id || '',
+              trainer_mpesa_number: trainerMpesaNumber,
+              amount: trainerNetAmount,
+              reason: 'session_completion'
+            })
+          }
+        } catch (err) {
+          console.warn('Failed to initiate automatic payout', err)
+          // Don't fail the session completion if payout fails - it can be retried
         }
       }
 
@@ -546,7 +562,6 @@ export const TrainerDashboard: React.FC = () => {
       {editingAvailability && <AvailabilityEditor onClose={() => setEditingAvailability(false)} />}
       {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} />}
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}
-      {showPromote && <PromoteProfile onClose={() => setShowPromote(false)} />}
       {showReport && <TrainerReportIssue onDone={() => setShowReport(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}
       {showDisputes && (

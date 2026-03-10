@@ -525,46 +525,72 @@ export async function updateWalletBalance(userId: string, amount: number) {
 }
 
 // ============================================================================
-// PROMOTION/REFERRAL SERVICES
+// PAYOUT SERVICES - AUTOMATIC TRAINER MPESA PAYOUTS
 // ============================================================================
 
-export async function createPromotionRequest(data: Record<string, any>) {
+/**
+ * Initiate automatic payout to trainer's MPESA account after session completion
+ * Called automatically when a session is marked as completed
+ */
+export async function initiateTrainerPayout(data: {
+  booking_id: string
+  trainer_id: string
+  trainer_mpesa_number: string
+  amount: number
+  reason?: string // e.g., 'session_completion'
+}) {
+  return apiRequest('trainer_payout_initiate', {
+    booking_id: data.booking_id,
+    trainer_id: data.trainer_id,
+    mpesa_number: data.trainer_mpesa_number,
+    amount: data.amount,
+    reason: data.reason || 'session_completion',
+  })
+}
+
+/**
+ * Create payout record for tracking trainer earnings
+ */
+export async function createPayoutRecord(data: {
+  trainer_id: string
+  booking_id: string
+  amount: number
+  mpesa_number: string
+  status?: 'pending' | 'processing' | 'completed' | 'failed'
+}) {
   return apiRequest('insert', {
-    table: 'promotion_requests',
-    data,
+    table: 'trainer_payouts',
+    data: {
+      trainer_id: data.trainer_id,
+      booking_id: data.booking_id,
+      amount: data.amount,
+      mpesa_number: data.mpesa_number,
+      status: data.status || 'pending',
+      initiated_at: new Date().toISOString(),
+    },
   })
 }
 
-export async function getPromotionRequests(filter?: Record<string, any>) {
-  let where = '1=1'
-  if (filter?.trainerId) {
-    where += ` AND trainer_id = '${filter.trainerId}'`
-  }
-  if (filter?.status) {
-    where += ` AND status = '${filter.status}'`
-  }
+/**
+ * Get payout history for a trainer
+ */
+export async function getTrainerPayoutHistory(trainerId: string, limit: number = 50) {
   return apiRequest('select', {
-    table: 'promotion_requests',
-    where,
-    order: 'created_at DESC',
+    table: 'trainer_payouts',
+    where: `trainer_id = '${trainerId}'`,
+    order: 'initiated_at DESC',
+    limit,
   })
 }
 
-export async function getPromotionRequestsForAdmin(status: string = 'pending') {
-  return apiRequest('promotion_requests_get', { status })
-}
-
-export async function approvePromotionRequest(promotionRequestId: string, adminId?: string) {
-  return apiRequest('promotion_request_approve', {
-    promotion_request_id: promotionRequestId,
-    admin_id: adminId,
-  })
-}
-
-export async function rejectPromotionRequest(promotionRequestId: string, adminId?: string) {
-  return apiRequest('promotion_request_reject', {
-    promotion_request_id: promotionRequestId,
-    admin_id: adminId,
+/**
+ * Update payout status (for admin tracking)
+ */
+export async function updatePayoutStatus(payoutId: string, status: string) {
+  return apiRequest('update', {
+    table: 'trainer_payouts',
+    data: { status, updated_at: new Date().toISOString() },
+    where: `id = '${payoutId}'`,
   })
 }
 
