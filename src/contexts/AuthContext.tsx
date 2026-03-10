@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { detectDeviceTimezone, setStoredTimezone } from '@/lib/timezone';
 
 // Define user types
 interface User {
@@ -179,6 +180,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('app-user', JSON.stringify(user));
         localStorage.setItem('app-user-type', userProfileType);
         localStorage.setItem('auth_token', token);
+
+        // Store detected timezone on login
+        const timezone = detectDeviceTimezone();
+        setStoredTimezone(timezone);
       });
       return resultType;
     } catch (error) {
@@ -197,11 +202,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        const detectedTimezone = detectDeviceTimezone();
         const payload: any = {
           action: 'signup',
           email,
           password,
           user_type: userTypeParam,
+          timezone: detectedTimezone,
           ...profile,
         };
 
@@ -290,6 +297,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('app-user', JSON.stringify(user));
         localStorage.setItem('app-user-type', userTypeParam);
         localStorage.setItem('auth_token', access_token);
+
+        // Store detected timezone
+        const timezone = detectDeviceTimezone();
+        setStoredTimezone(timezone);
+
         return;
       } catch (error) {
         if (attempt === maxRetries) {

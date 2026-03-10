@@ -2053,13 +2053,6 @@ export const AdminDashboard: React.FC = () => {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Enable Referral Program</p>
-              <p className="text-sm text-muted-foreground">Allow discounts and commission benefits</p>
-            </div>
-            <Switch checked={settings.enableReferralProgram} onCheckedChange={(v) => update({ enableReferralProgram: v })} />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
               <p className="font-medium text-foreground">Email Notifications</p>
               <p className="text-sm text-muted-foreground">Send system emails to users</p>
             </div>
@@ -2078,78 +2071,6 @@ export const AdminDashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Referral Program</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="clientDiscount">Client Discount (%)</Label>
-              <Input id="clientDiscount" type="number" min={0} max={100} value={settings.referralClientDiscount}
-                onChange={(e) => update({ referralClientDiscount: Number(e.target.value) })}
-                className="bg-input border-border" />
-              <Label htmlFor="clientBookings" className="mt-3 block">Client Discount Lasts (bookings)</Label>
-              <Input id="clientBookings" type="number" min={1} value={settings.referralClientBookings}
-                onChange={(e) => update({ referralClientBookings: Number(e.target.value) })}
-                className="bg-input border-border" />
-            </div>
-            <div>
-              <Label htmlFor="trainerDiscount">Trainer Commission Discount (%)</Label>
-              <Input id="trainerDiscount" type="number" min={0} max={100} value={settings.referralTrainerDiscount}
-                onChange={(e) => update({ referralTrainerDiscount: Number(e.target.value) })}
-                className="bg-input border-border" />
-              <Label htmlFor="trainerBookings" className="mt-3 block">Trainer Discount Lasts (bookings)</Label>
-              <Input id="trainerBookings" type="number" min={1} value={settings.referralTrainerBookings}
-                onChange={(e) => update({ referralTrainerBookings: Number(e.target.value) })}
-                className="bg-input border-border" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="referrerPct">Affiliate: Referrer Award (%)</Label>
-              <Input id="referrerPct" type="number" min={0} max={100} value={settings.referralReferrerPercent}
-                onChange={(e)=>update({ referralReferrerPercent: Number(e.target.value) })}
-                className="bg-input border-border" />
-            </div>
-            <div>
-              <Label htmlFor="referredPct">Affiliate: Referred Award (%)</Label>
-              <Input id="referredPct" type="number" min={0} max={100} value={settings.referralReferredPercent}
-                onChange={(e)=>update({ referralReferredPercent: Number(e.target.value) })}
-                className="bg-input border-border" />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Require referral code on first booking</p>
-              <p className="text-sm text-muted-foreground">Show a prompt to enter a referral code on the first booking.</p>
-            </div>
-            <Switch checked={settings.promptReferralOnFirstBooking} onCheckedChange={(v)=>update({ promptReferralOnFirstBooking: v })} />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Apply referral discount immediately</p>
-              <p className="text-sm text-muted-foreground">If a valid code is provided, discount is applied to the current booking.</p>
-            </div>
-            <Switch checked={settings.applyReferralDiscountImmediately} onCheckedChange={(v)=>update({ applyReferralDiscountImmediately: v })} />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Use referrer's phone number as referral code</p>
-              <p className="text-sm text-muted-foreground">When enabled, the referrer's primary phone number will be used as the referral code.</p>
-            </div>
-            <Switch checked={settings.useReferrerPhoneAsCode} onCheckedChange={(v) => update({ useReferrerPhoneAsCode: v })} />
-          </div>
-
-          <Button onClick={handleSave} disabled={saving} variant="outline" size="sm" className="border-border">
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card className="bg-card border-border">
         <CardHeader>

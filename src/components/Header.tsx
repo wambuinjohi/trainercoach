@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import AuthLogo from '@/components/auth/AuthLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,8 @@ const NavLink: React.FC<{ to: string; children: React.ReactNode }> = ({ to, chil
 const Header: React.FC = () => {
   const [open, setOpen] = React.useState(false)
   const [waitlistOpen, setWaitlistOpen] = React.useState(false)
+  const { user, userType, signOut, loading } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -41,19 +44,38 @@ const Header: React.FC = () => {
               </button>
             </div>
             <div className="hidden md:flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setWaitlistOpen(true)}
-                className="text-trainer-primary border-trainer-primary"
-              >
-                Join Waitlist
-              </Button>
-              <Link to="/signin">
-                <Button variant="ghost">Sign In</Button>
-              </Link>
-              <Link to="/signup">
-                <Button>Get Started</Button>
-              </Link>
+              {!user && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setWaitlistOpen(true)}
+                    className="text-trainer-primary border-trainer-primary"
+                  >
+                    Join Waitlist
+                  </Button>
+                  <Link to="/signin">
+                    <Button variant="ghost">Sign In</Button>
+                  </Link>
+                  <Link to="/signup">
+                    <Button>Get Started</Button>
+                  </Link>
+                </>
+              )}
+              {user && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">{user.email}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await signOut()
+                      navigate('/')
+                    }}
+                  >
+                    Sign Out
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -67,19 +89,39 @@ const Header: React.FC = () => {
               <NavLink to="/about">About</NavLink>
               <NavLink to="/contact">Contact</NavLink>
               <div className="border-t border-border pt-4 mt-2 space-y-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setWaitlistOpen(true)}
-                  className="w-full text-trainer-primary border-trainer-primary"
-                >
-                  Join Waitlist
-                </Button>
-                <Link to="/signin" className="block">
-                  <Button variant="ghost" className="w-full justify-center">Sign In</Button>
-                </Link>
-                <Link to="/signup" className="block">
-                  <Button className="w-full">Get Started</Button>
-                </Link>
+                {!user && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setWaitlistOpen(true)}
+                      className="w-full text-trainer-primary border-trainer-primary"
+                    >
+                      Join Waitlist
+                    </Button>
+                    <Link to="/signin" className="block">
+                      <Button variant="ghost" className="w-full justify-center">Sign In</Button>
+                    </Link>
+                    <Link to="/signup" className="block">
+                      <Button className="w-full">Get Started</Button>
+                    </Link>
+                  </>
+                )}
+                {user && (
+                  <>
+                    <div className="text-sm text-muted-foreground px-2">{user.email}</div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={async () => {
+                        await signOut()
+                        navigate('/')
+                        setOpen(false)
+                      }}
+                    >
+                      Sign Out
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </div>

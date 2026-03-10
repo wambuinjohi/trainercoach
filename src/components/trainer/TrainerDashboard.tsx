@@ -47,27 +47,9 @@ export const TrainerDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('home')
   const [isAvailable, setIsAvailable] = useState(true)
   const [showServicesManager, setShowServicesManager] = useState(false)
-  const [referralCount, setReferralCount] = useState(0)
   const [monthRevenue, setMonthRevenue] = useState<number>(0)
   const [monthSessions, setMonthSessions] = useState<number>(0)
 
-  const referNow = async () => {
-    if (!user) return
-    const settings = loadSettings()
-    let code = 'REF-T-' + Math.random().toString(36).slice(2, 8).toUpperCase()
-    try {
-      if (settings.useReferrerPhoneAsCode) {
-        // Placeholder: replace with your own logic
-        code = '123456'
-      }
-      // Placeholder: simulate referral creation
-      setReferralCount(referralCount + 1)
-      toast({ title: 'Referral created', description: `Share this code: ${code}` })
-    } catch (err) {
-      console.warn('Referral create failed', err)
-      toast({ title: 'Referral', description: `Share this code: ${code}` })
-    }
-  }
 
   const [bookings, setBookings] = useState<any[]>([])
   const [chatBooking, setChatBooking] = useState<any | null>(null)

@@ -19,8 +19,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [sessions, setSessions] = useState<number>(1)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
-  const [referralCode, setReferralCode] = useState('')
-  const [appliedDiscount, setAppliedDiscount] = useState(0)
   const [payMethod, setPayMethod] = useState<'mpesa' | 'mock'>('mpesa')
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [availabilityError, setAvailabilityError] = useState<string>('')
@@ -151,7 +149,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     setLoading(true)
     const baseAmount = computeBaseAmount()
     let baseServiceAmount = baseAmount
-    let appliedReferralDiscount = 0
 
     // Load client saved location to link to booking
     let clientLocation: { label?: string; lat?: number | null; lng?: number | null } = {}
@@ -163,26 +160,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       clientLocation = { label, lat, lng }
     } catch {}
 
-    // Try apply referral code
-    if (referralCode.trim()) {
-      try {
-        const code = referralCode.trim().toUpperCase()
-        const row = await apiRequest('referral_get', { code }, { headers: withAuth() })
-        if (row && !row.discount_used && row.referrer_id !== user.id) {
-          const settings = loadSettings()
-          const pct = Math.max(0, Math.min(100, settings.referralClientDiscount || 0))
-          const discount = Math.round((baseAmount * pct) / 100)
-          baseServiceAmount = Math.max(0, baseAmount - discount)
-          appliedReferralDiscount = discount
-          setAppliedDiscount(discount)
-          try {
-            await apiRequest('referral_update', { id: row.id, referee_id: user.id, discount_used: true, discount_amount: discount }, { headers: withAuth() })
-          } catch {}
-        }
-      } catch (e) {
-        console.warn('Referral validation error', e)
-      }
-    }
 
     const payload: any = {
       client_id: user.id,
@@ -443,11 +420,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         )}
 
         <div>
-          <Label>Referral Code (optional)</Label>
-          <Input value={referralCode} onChange={(e)=>setReferralCode(e.target.value)} placeholder="Enter code" />
-          {appliedDiscount > 0 && <div className="text-xs text-blue-500 mt-1">Discount applied: −Ksh {appliedDiscount}</div>}
-        </div>
-        <div>
           <Label>Notes</Label>
           <input className="w-full p-2 border border-border rounded-md bg-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
@@ -483,7 +455,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           )}
           <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{sessions}</span></div>
           <div className="flex justify-between"><span>Base Service Amount</span><span className="font-semibold">Ksh {baseAmount}</span></div>
-          {appliedDiscount > 0 && <div className="flex justify-between text-blue-500"><span>Referral Discount</span><span>−Ksh {appliedDiscount}</span></div>}
           <div className="border-t border-border my-2 pt-2">
             <div className="text-xs text-muted-foreground mb-2">Fee Breakdown:</div>
             <div className="flex justify-between text-xs"><span>Platform Charge (Client)</span><span>Ksh {feeBreakdown.platformChargeClient}</span></div>
