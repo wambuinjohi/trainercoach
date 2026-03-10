@@ -106,6 +106,7 @@ export const TrainerDashboard: React.FC = () => {
       // Persist to database
       await apiService.updateBooking(id, {
         status: newStatus,
+        ...(newStatus === 'in_session' && { trainer_marked_start: true, in_session_at: new Date().toISOString() }),
         ...(newStatus === 'completed' && { completed_at: new Date().toISOString() })
       })
 
