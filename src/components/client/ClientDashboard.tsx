@@ -36,6 +36,7 @@ import { ReviewModal } from './ReviewModal'
 import { NextSessionModal } from './NextSessionModal'
 import { LocationSelector } from './LocationSelector'
 import { SessionEndConfirmModal } from './SessionEndConfirmModal'
+import { SessionStartConfirmModal } from './SessionStartConfirmModal'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { UnratedSessionNotice } from './UnratedSessionNotice'
 
@@ -106,6 +107,7 @@ export const ClientDashboard: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false)
   const [nextSessionBooking, setNextSessionBooking] = useState<any>(null)
   const [pendingSessionConfirm, setPendingSessionConfirm] = useState<any>(null)
+  const [pendingSessionStart, setPendingSessionStart] = useState<any>(null)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -180,7 +182,16 @@ export const ClientDashboard: React.FC = () => {
       if (bookingsData?.data) {
         setBookings(bookingsData.data)
 
-        // Check for pending session confirmation (status = 'ending' or similar)
+        // Check for pending session start confirmation (trainer marked start)
+        const sessionStartPending = bookingsData.data.find((b: any) =>
+          b.status === 'in_session' && b.trainer_marked_start && !b.client_confirmed_start
+        )
+
+        if (sessionStartPending && !pendingSessionStart) {
+          setPendingSessionStart(sessionStartPending)
+        }
+
+        // Check for pending session end confirmation (status = 'ending' or similar)
         const sessionPending = bookingsData.data.find((b: any) =>
           b.status === 'ending' || b.status === 'in_session' && b.trainer_marked_end
         )
@@ -193,7 +204,7 @@ export const ClientDashboard: React.FC = () => {
       console.warn('Failed to load bookings', err)
       setBookings([])
     }
-  }, [user?.id, pendingSessionConfirm])
+  }, [user?.id, pendingSessionConfirm, pendingSessionStart])
 
   const checkPendingRatings = useCallback(async () => {
     if (!user?.id) return
@@ -849,6 +860,7 @@ export const ClientDashboard: React.FC = () => {
         await loadBookings()
       }} />}
       {nextSessionBooking && <NextSessionModal previous={nextSessionBooking} onClose={() => setNextSessionBooking(null)} onBooked={() => { setNextSessionBooking(null); loadBookings() }} />}
+      {pendingSessionStart && <SessionStartConfirmModal booking={pendingSessionStart} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionStart(null)} />}
       {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
 
       {!modalOpen && (

@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Star, MapPin, Search, Sliders } from 'lucide-react'
+import { Star, MapPin, Search, Sliders, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Header from '@/components/Header'
 import { FiltersModal } from '@/components/client/FiltersModal'
@@ -32,59 +32,108 @@ interface Trainer {
   service_radius?: number
 }
 
-// Trainer card component
-const TrainerRow: React.FC<{
-  t: TrainerWithCategories
+// Improved Trainer Card component (Airbnb-inspired)
+const TrainerCard: React.FC<{
+  t: TrainerWithCategories & { image_url?: string }
   categories: any[]
   isNearest?: boolean
 }> = ({ t, categories, isNearest }) => {
+  const [imageLoaded, setImageLoaded] = React.useState(false)
+  const [imageError, setImageError] = React.useState(false)
+
   const categoryNames = t.categoryIds
     ? t.categoryIds.map(id => categories.find(c => c.id === id)?.name).filter(Boolean)
     : []
 
+  // Generate a consistent avatar color based on trainer ID
+  const getAvatarColor = (id: string) => {
+    const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-green-500', 'bg-amber-500', 'bg-cyan-500', 'bg-red-500', 'bg-indigo-500']
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[hash % colors.length]
+  }
+
+  // Get initials from trainer name
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  }
+
   return (
-    <Card
-      className={`mb-3 transition-all ${
-        isNearest ? 'border-green-500 bg-green-50 dark:bg-green-950/20 border-2' : ''
-      }`}
-    >
-      <CardContent>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="font-semibold text-foreground">{t.name || 'Trainer'}</div>
-              {isNearest && <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>}
-            </div>
-            {categoryNames.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {categoryNames.map((name, idx) => (
-                  <Badge key={idx} variant="outline" className="text-xs">
-                    {name}
-                  </Badge>
-                ))}
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 border-0 bg-white dark:bg-slate-800">
+      <div className="aspect-video bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center relative overflow-hidden">
+        {/* Trainer Image or Fallback Avatar */}
+        {t.image_url && !imageError ? (
+          <>
+            <img
+              src={t.image_url}
+              alt={t.name}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
+            />
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
+                <div className="text-slate-400 text-4xl">👤</div>
               </div>
             )}
-            <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1 flex-wrap">
-              <div className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                <span>{t.location_label || 'Unknown'}</span>
-              </div>
-              {t.distance !== '—' && (
-                <span className="font-semibold text-foreground">{t.distance}</span>
-              )}
-            </div>
+          </>
+        ) : (
+          <div className={`w-full h-full ${getAvatarColor(t.id)} flex items-center justify-center`}>
+            <span className="text-white text-2xl font-semibold">{getInitials(t.name)}</span>
           </div>
-          <div className="text-right">
-            <div className="font-semibold">Ksh {t.hourlyRate ?? '—'}/hr</div>
-            {t.rating && (
-              <div className="flex items-center gap-1 mt-1 justify-end text-sm">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span>{t.rating}</span>
-              </div>
-            )}
-            <div className="text-xs text-muted-foreground mt-2">
-              {t.available ? 'Available' : 'Offline'}
+        )}
+
+        {isNearest && (
+          <Badge className="absolute top-3 right-3 bg-green-500 text-white">Nearest</Badge>
+        )}
+        {!t.available && (
+          <Badge className="absolute top-3 left-3 bg-slate-500 text-white">Offline</Badge>
+        )}
+      </div>
+      
+      <CardContent className="p-4">
+        {/* Trainer Name and Rating */}
+        <div className="mb-2">
+          <h3 className="font-semibold text-lg text-foreground mb-1">{t.name || 'Trainer'}</h3>
+          {t.rating > 0 && (
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-medium">{t.rating.toFixed(1)}</span>
+              <span className="text-xs text-muted-foreground">(12 reviews)</span>
             </div>
+          )}
+        </div>
+
+        {/* Location and Distance */}
+        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>{t.location_label || 'Unknown'}</span>
+          {t.distance !== '—' && (
+            <span className="ml-auto font-semibold text-foreground">{t.distance}</span>
+          )}
+        </div>
+
+        {/* Categories/Disciplines */}
+        {categoryNames.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {categoryNames.slice(0, 2).map((name, idx) => (
+              <Badge key={idx} variant="secondary" className="text-xs">
+                {name}
+              </Badge>
+            ))}
+            {categoryNames.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{categoryNames.length - 2}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Price */}
+        <div className="flex items-baseline justify-between">
+          <div>
+            <span className="text-xl font-semibold">Ksh {t.hourlyRate ?? '—'}</span>
+            <span className="text-sm text-muted-foreground">/hour</span>
           </div>
         </div>
       </CardContent>
@@ -104,6 +153,7 @@ const Explore: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<any>({})
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationName, setLocationName] = useState<string | null>(null)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -111,6 +161,7 @@ const Explore: React.FC = () => {
   useEffect(() => {
     if (geoLocation?.lat != null && geoLocation?.lng != null) {
       setUserLocation({ lat: geoLocation.lat, lng: geoLocation.lng })
+      setLocationName('Current location')
     }
   }, [geoLocation])
 
@@ -163,6 +214,7 @@ const Explore: React.FC = () => {
                   location_lat: trainer.location_lat || null,
                   location_lng: trainer.location_lng || null,
                   categoryIds,
+                  image_url: trainer.profile_image_url || trainer.image_url || null,
                   distance: '—',
                   distanceKm: null,
                 }
@@ -178,6 +230,7 @@ const Explore: React.FC = () => {
                   location_lat: trainer.location_lat || null,
                   location_lng: trainer.location_lng || null,
                   categoryIds: [],
+                  image_url: trainer.profile_image_url || trainer.image_url || null,
                   distance: '—',
                   distanceKm: null,
                 }
@@ -225,19 +278,14 @@ const Explore: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-      <div className="p-4">
-        <div className="container max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold mb-2">Explore Trainers</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            Browse trainers nearby, view profiles, and book sessions. Sign in to see more details and to make bookings.
-          </p>
-
-          {/* Search and Filter Section */}
-          <div className="space-y-3 mb-6">
-            {/* Search Input */}
+      {/* Sticky Header with Search */}
+      <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <Header />
+        <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="container max-w-4xl mx-auto">
+            {/* Search Bar */}
             <SearchBar
-              placeholder="Search trainers or services..."
+              placeholder="Search trainers or disciplines..."
               value={searchQuery}
               onChange={setSearchQuery}
               onSubmit={(query) => {
@@ -250,8 +298,8 @@ const Explore: React.FC = () => {
               popularSearches={popularSearches}
             />
 
-            {/* Location and Filter Buttons */}
-            <div className="flex gap-2">
+            {/* Quick Action Buttons */}
+            <div className="flex gap-2 mt-3">
               <Button
                 variant={userLocation ? 'default' : 'outline'}
                 size="sm"
@@ -260,38 +308,28 @@ const Explore: React.FC = () => {
                 className="flex-1"
               >
                 <MapPin className="h-4 w-4 mr-2" />
-                {geoLoading ? 'Getting location...' : userLocation ? 'Location set' : 'Use my location'}
+                {geoLoading ? 'Getting location...' : userLocation ? '📍 Location set' : 'Use my location'}
               </Button>
               <Button
                 variant={hasActiveFilters ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowFilters(true)}
-                className="flex-1"
               >
                 <Sliders className="h-4 w-4 mr-2" />
                 Filters
               </Button>
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                >
-                  Clear
-                </Button>
-              )}
             </div>
 
             {/* Horizontal Scrollable Categories */}
             {categories.length > 0 && (
-              <div className="mt-4">
-                <div className="flex overflow-x-auto gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
+              <div className="mt-4 -mx-4 px-4 overflow-x-auto">
+                <div className="flex gap-2 pb-2">
                   <button
                     onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                    className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
                       !filters.categoryId
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     All
@@ -300,13 +338,12 @@ const Explore: React.FC = () => {
                     <button
                       key={cat.id}
                       onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
-                      className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+                      className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
                         filters.categoryId === cat.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {cat.icon && <span className="mr-1">{cat.icon}</span>}
                       {cat.name}
                     </button>
                   ))}
@@ -316,74 +353,130 @@ const Explore: React.FC = () => {
 
             {/* Active Filters Display */}
             {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-3">
                 {filters.categoryId && (
-                  <Badge variant="secondary">
-                    {categories.find(c => c.id === filters.categoryId)?.name || `Category ${filters.categoryId}`}
-                  </Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">{categories.find(c => c.id === filters.categoryId)?.name || `Category ${filters.categoryId}`}</span>
+                    <button onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {filters.minRating > 0 && (
-                  <Badge variant="secondary">Rating ≥ {filters.minRating}</Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">Rating ≥ {filters.minRating}</span>
+                    <button onClick={() => setFilters(prev => ({ ...prev, minRating: null }))} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {filters.maxPrice && (
-                  <Badge variant="secondary">Price ≤ Ksh {filters.maxPrice}</Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">Price ≤ Ksh {filters.maxPrice}</span>
+                    <button onClick={() => setFilters(prev => ({ ...prev, maxPrice: null }))} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {filters.radius && (
-                  <Badge variant="secondary">Within {filters.radius}km</Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">Within {filters.radius}km</span>
+                    <button onClick={() => setFilters(prev => ({ ...prev, radius: null }))} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {filters.onlyAvailable && (
-                  <Badge variant="secondary">Available only</Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">Available only</span>
+                    <button onClick={() => setFilters(prev => ({ ...prev, onlyAvailable: false }))} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 {searchQuery && (
-                  <Badge variant="secondary">"{searchQuery}"</Badge>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1">
+                    <span className="text-sm">"{searchQuery}"</span>
+                    <button onClick={() => setSearchQuery('')} className="ml-1">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="text-xs"
+                >
+                  Clear all
+                </Button>
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-4 pb-20">
+        <div className="container max-w-4xl mx-auto">
+          {/* Location Display */}
+          {userLocation && (
+            <p className="text-sm text-muted-foreground mb-4">
+              Searching near: <span className="font-semibold text-foreground">{locationName || 'Your location'}</span>
+            </p>
+          )}
 
           {/* Results */}
           {loading ? (
-            <div className="text-center text-muted-foreground py-8">Loading trainers…</div>
+            <div className="text-center text-muted-foreground py-12">
+              <p>Loading trainers…</p>
+            </div>
+          ) : filteredTrainers.length === 0 ? (
+            <Card className="border-0">
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground mb-3">
+                  {trainers.length === 0
+                    ? 'No trainers found. Try again later.'
+                    : 'No trainers match your criteria. Try adjusting your filters.'}
+                </p>
+                {trainers.length > 0 && hasActiveFilters && (
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           ) : (
             <div>
-              {filteredTrainers.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-muted-foreground mb-2">
-                      {trainers.length === 0
-                        ? 'No trainers found. Try again later.'
-                        : 'No trainers match your criteria. Try adjusting your filters.'}
-                    </p>
-                    {trainers.length > 0 && hasActiveFilters && (
-                      <Button variant="outline" size="sm" onClick={clearFilters}>
-                        Clear filters
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {filteredTrainers.length} trainer{filteredTrainers.length !== 1 ? 's' : ''} found
-                  </p>
-                  {filteredTrainers.map((t, idx) => (
-                    <TrainerRow
-                      key={t.id}
-                      t={t}
-                      categories={categories}
-                      isNearest={idx === 0 && userLocation && filteredTrainers.length > 0}
-                    />
-                  ))}
-                </div>
-              )}
+              <p className="text-sm text-muted-foreground mb-6 font-medium">
+                {filteredTrainers.length} trainer{filteredTrainers.length !== 1 ? 's' : ''} available
+              </p>
+              
+              {/* Trainer Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredTrainers.map((t, idx) => (
+                  <TrainerCard
+                    key={t.id}
+                    t={t}
+                    categories={categories}
+                    isNearest={idx === 0 && userLocation && filteredTrainers.length > 0}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
           {/* Sign In Prompt */}
-          <div className="mt-8 mb-4">
-            <Link to="/signin">
-              <Button className="w-full">Sign in to book a session</Button>
-            </Link>
+          <div className="mt-12 mb-4">
+            <Card className="bg-slate-50 dark:bg-slate-900 border-0">
+              <CardContent className="p-6 text-center">
+                <p className="text-foreground font-semibold mb-3">Ready to book your training session?</p>
+                <p className="text-sm text-muted-foreground mb-4">Sign in to view more details and make bookings</p>
+                <Link to="/signin">
+                  <Button className="w-full">Sign in to book</Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

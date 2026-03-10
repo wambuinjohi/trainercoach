@@ -45,12 +45,15 @@ export const SessionStartConfirmModal: React.FC<SessionStartConfirmModalProps> =
     setLoading(true)
     try {
       await apiRequest(
-        'booking_update',
+        'update',
         {
-          booking_id: booking.id,
-          session_started: true,
-          client_confirmed_start: true,
-          session_start_confirmed_at: new Date().toISOString(),
+          table: 'bookings',
+          data: {
+            client_confirmed_start: true,
+            trainer_marked_start: false,
+            session_start_confirmed_at: new Date().toISOString(),
+          },
+          where: `id = '${booking.id}'`,
         },
         { headers: withAuth() }
       )

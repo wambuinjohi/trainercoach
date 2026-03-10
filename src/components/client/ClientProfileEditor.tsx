@@ -6,12 +6,17 @@ import { Button } from '@/components/ui/button'
 import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
+import { useGeolocation } from '@/hooks/use-geolocation'
+import { MapPin } from 'lucide-react'
+import { reverseGeocode } from '@/lib/location'
 
 export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { user } = useAuth()
   const userId = user?.id
+  const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<any>({})
+  const [updatingLocation, setUpdatingLocation] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -28,6 +33,53 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
       .finally(() => setLoading(false))
   }, [userId])
 
+  const updateLocationFromGPS = async () => {
+    setUpdatingLocation(true)
+    try {
+      await requestGeoLocation()
+
+      if (geoLocation?.lat != null && geoLocation?.lng != null) {
+        // Reverse geocode to get location name
+        try {
+          const result = await reverseGeocode(geoLocation.lat, geoLocation.lng)
+          if (result?.label) {
+            setProfile(prev => ({
+              ...prev,
+              location: result.label,
+              location_label: result.label,
+              location_lat: geoLocation.lat,
+              location_lng: geoLocation.lng,
+            }))
+            toast({
+              title: 'Location updated',
+              description: `Your location has been set to ${result.label}`
+            })
+          }
+        } catch (err) {
+          console.warn('Failed to reverse geocode location', err)
+          setProfile(prev => ({
+            ...prev,
+            location_lat: geoLocation.lat,
+            location_lng: geoLocation.lng,
+          }))
+          toast({
+            title: 'Location coordinates saved',
+            description: 'Please save profile to apply changes'
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update location', err)
+      toast({
+        title: 'Error',
+        description: 'Failed to update location. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setUpdatingLocation(false)
+    }
+  }
+
   const save = async () => {
     if (!userId) return
     setLoading(true)
@@ -39,6 +91,8 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
         profile_image: profile.profile_image || null,
         bio: profile.bio || null,
         location: (profile.location || profile.location_label || '') || null,
+        location_lat: profile.location_lat || null,
+        location_lng: profile.location_lng || null,
       }
       await apiRequest('profile_update', payload, { headers: withAuth() })
       toast({ title: 'Saved', description: 'Profile updated' })
@@ -71,7 +125,27 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
               </div>
               <div>
                 <Label>Locality</Label>
-                <Input placeholder="e.g. Nairobi, Parklands" value={(profile.location || profile.location_label) || ''} onChange={(e) => setProfile({ ...profile, location: e.target.value })} />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. Nairobi, Parklands"
+                    value={(profile.location || profile.location_label) || ''}
+                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={updateLocationFromGPS}
+                    disabled={updatingLocation || geoLoading}
+                    className="flex-shrink-0"
+                  >
+                    <MapPin className="h-4 w-4 mr-1" />
+                    {updatingLocation || geoLoading ? 'Updating...' : 'Update'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Click "Update" to set your location from GPS
+                </p>
               </div>
               <div>
                 <Label>Profile image URL</Label>
