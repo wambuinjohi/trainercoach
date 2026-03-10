@@ -12,7 +12,7 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
   const [maxPrice, setMaxPrice] = useState<number | ''>(initial.maxPrice ?? '')
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(initial.onlyAvailable ?? false)
   const [radius, setRadius] = useState<number | ''>(initial.radius ?? '')
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(initial.categoryId ?? null)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(initial.categoryIds ?? [])
   const [categories, setCategories] = useState<any[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
 
@@ -38,7 +38,7 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
       maxPrice,
       onlyAvailable,
       radius,
-      categoryId: selectedCategoryId
+      categoryIds: selectedCategoryIds
     })
     onClose?.()
   }
@@ -48,7 +48,15 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
     setMaxPrice('')
     setOnlyAvailable(false)
     setRadius('')
-    setSelectedCategoryId(null)
+    setSelectedCategoryIds([])
+  }
+
+  const toggleCategory = (categoryId: number) => {
+    setSelectedCategoryIds(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    )
   }
 
   return (
@@ -67,38 +75,47 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
             <div className="space-y-6">
               {/* Primary Filters Section */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Discipline</h3>
-                <p className="text-xs text-muted-foreground mb-3">Select the type of training you're looking for</p>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Disciplines</h3>
+                <p className="text-xs text-muted-foreground mb-3">Select one or more types of training</p>
                 {categoriesLoading ? (
                   <div className="text-sm text-muted-foreground">Loading disciplines...</div>
                 ) : categories.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No disciplines available</div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setSelectedCategoryId(null)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
-                        selectedCategoryId === null
-                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
-                      }`}
-                    >
-                      All
-                    </button>
+                  <div className="space-y-2">
                     {categories.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategoryId(cat.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
-                          selectedCategoryId === cat.id
-                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
-                        }`}
-                      >
-                        {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                        {cat.name}
-                      </button>
+                      <label key={cat.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategoryIds.includes(cat.id)}
+                          onChange={() => toggleCategory(cat.id)}
+                          className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
+                        />
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          {cat.icon && <span>{cat.icon}</span>}
+                          {cat.name}
+                        </span>
+                      </label>
                     ))}
+                  </div>
+                )}
+                {selectedCategoryIds.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {selectedCategoryIds.map(id => {
+                      const cat = categories.find(c => c.id === id)
+                      return (
+                        <Badge key={id} variant="secondary" className="gap-1">
+                          {cat?.icon && <span>{cat.icon}</span>}
+                          {cat?.name}
+                          <button
+                            onClick={() => toggleCategory(id)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      )
+                    })}
                   </div>
                 )}
               </div>

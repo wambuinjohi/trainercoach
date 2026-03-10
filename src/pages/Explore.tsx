@@ -191,6 +191,22 @@ const TrainerCard: React.FC<{
           </div>
         )}
 
+        {/* Bio Snippet */}
+        {t.bio && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+            {t.bio}
+          </p>
+        )}
+
+        {/* Experience Level (if available) */}
+        {t.experience_level && (
+          <div className="flex items-center gap-2 mb-3 text-xs">
+            <span className="inline-block px-2 py-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 rounded">
+              {t.experience_level}
+            </span>
+          </div>
+        )}
+
         {/* Price */}
         <div className="flex items-baseline justify-between">
           <div>
@@ -277,6 +293,9 @@ const Explore: React.FC = () => {
                   location_lng: trainer.location_lng || null,
                   categoryIds,
                   image_url: trainer.profile_image_url || trainer.image_url || null,
+                  bio: trainer.bio || null,
+                  experience_level: trainer.experience_level || null,
+                  total_reviews: trainer.total_reviews || 0,
                   distance: '—',
                   distanceKm: null,
                 }
@@ -293,6 +312,9 @@ const Explore: React.FC = () => {
                   location_lng: trainer.location_lng || null,
                   categoryIds: [],
                   image_url: trainer.profile_image_url || trainer.image_url || null,
+                  bio: trainer.bio || null,
+                  experience_level: trainer.experience_level || null,
+                  total_reviews: trainer.total_reviews || 0,
                   distance: '—',
                   distanceKm: null,
                 }
@@ -318,7 +340,8 @@ const Explore: React.FC = () => {
       maxPrice: filters.maxPrice,
       onlyAvailable: filters.onlyAvailable,
       radius: filters.radius,
-      categoryId: filters.categoryId,
+      categoryIds: filters.categoryIds,
+      categoryId: filters.categoryId, // Fallback for backward compatibility
       searchQuery: searchQuery,
     }
 
@@ -390,9 +413,9 @@ const Explore: React.FC = () => {
               <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-2 pb-2">
                   <button
-                    onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
+                    onClick={() => setFilters(prev => ({ ...prev, categoryIds: [], categoryId: null }))}
                     className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
-                      !filters.categoryId
+                      (!filters.categoryIds || filters.categoryIds.length === 0) && !filters.categoryId
                         ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
@@ -403,9 +426,9 @@ const Explore: React.FC = () => {
                   {categories.map((cat) => (
                     <button
                       key={cat.id}
-                      onClick={() => setFilters(prev => ({ ...prev, categoryId: cat.id }))}
+                      onClick={() => setFilters(prev => ({ ...prev, categoryIds: [cat.id] }))}
                       className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
-                        filters.categoryId === cat.id
+                        filters.categoryIds && filters.categoryIds.length === 1 && filters.categoryIds[0] === cat.id
                           ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
                       }`}
@@ -422,7 +445,26 @@ const Explore: React.FC = () => {
             {/* Active Filters Display */}
             {hasActiveFilters && (
               <div className="flex flex-wrap gap-2 items-center">
-                {filters.categoryId && (
+                {filters.categoryIds && filters.categoryIds.length > 0 ? (
+                  filters.categoryIds.map(categoryId => {
+                    const cat = categories.find(c => c.id === categoryId)
+                    return (
+                      <Badge
+                        key={categoryId}
+                        variant="secondary"
+                        className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/15 cursor-pointer group"
+                        onClick={() => setFilters(prev => ({
+                          ...prev,
+                          categoryIds: prev.categoryIds?.filter(id => id !== categoryId) || []
+                        }))}
+                      >
+                        <div className="flex items-center">{renderCategoryIcon(cat?.icon, cat?.name, 'h-3.5 w-3.5')}</div>
+                        <span className="text-xs font-medium">{cat?.name || `Category`}</span>
+                        <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
+                      </Badge>
+                    )
+                  })
+                ) : filters.categoryId ? (
                   <Badge
                     variant="secondary"
                     className="pl-2.5 pr-1.5 h-7 flex items-center gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/15 cursor-pointer group"
@@ -435,7 +477,7 @@ const Explore: React.FC = () => {
                     <span className="text-xs font-medium">{categories.find(c => c.id === filters.categoryId)?.name || `Category`}</span>
                     <X className="h-3 w-3 ml-0.5 group-hover:scale-110 transition-transform" />
                   </Badge>
-                )}
+                ) : null}
                 {filters.minRating > 0 && (
                   <Badge
                     variant="secondary"
