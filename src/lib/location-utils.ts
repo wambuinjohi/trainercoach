@@ -122,12 +122,12 @@ export function getDefaultServiceRadius(trainerLevel?: string): number {
   // Default service radius mapping
   const radiusMap: Record<string, number> = {
     beginner: 5,
-    intermediate: 10,
-    expert: 15,
-    professional: 20,
+    intermediate: 5,
+    expert: 10,
+    professional: 15,
   };
 
-  return radiusMap[trainerLevel?.toLowerCase() || 'intermediate'] || 10;
+  return radiusMap[trainerLevel?.toLowerCase() || 'intermediate'] || 5;
 }
 
 /**
