@@ -1,4 +1,5 @@
 import { apiRequest, withAuth } from './api'
+import { calculateDistance, filterTrainersByServiceRadius, sortTrainersByDistance, Coordinates, isValidCoordinates } from './location-utils'
 
 // ============================================================================
 // AUTHENTICATION SERVICES
@@ -142,6 +143,13 @@ export async function rejectCategory(
   })
 }
 
+export async function getAdminCategories(status?: string, sortBy?: string) {
+  return apiRequest('admin_category_list', {
+    ...(status && { status }),
+    ...(sortBy && { sortBy }),
+  })
+}
+
 // ============================================================================
 // TRAINER CATEGORY SERVICES
 // ============================================================================
@@ -168,6 +176,39 @@ export async function getTrainerCategoryPricing(trainerId: string) {
 
 export async function getTrainersByCategory(categoryId: number) {
   return apiRequest('trainers_by_category', { category_id: categoryId })
+}
+
+/**
+ * Get trainers by category with distance filtering and sorting
+ * @param categoryId Category ID
+ * @param clientLocation Client's location coordinates
+ * @returns Trainers filtered by service radius and sorted by distance
+ */
+export async function getTrainersByCategoryWithDistance(
+  categoryId: number,
+  clientLocation: Coordinates
+) {
+  try {
+    const response = await getTrainersByCategory(categoryId)
+    const trainers = Array.isArray(response) ? response : response?.data || []
+
+    // Validate client location
+    if (!isValidCoordinates(clientLocation)) {
+      console.warn('Invalid client location, returning unfiltered trainers')
+      return trainers
+    }
+
+    // Filter trainers by service radius
+    const filteredTrainers = filterTrainersByServiceRadius(trainers, clientLocation)
+
+    // Sort by distance (closest first)
+    const sortedTrainers = sortTrainersByDistance(filteredTrainers, clientLocation)
+
+    return sortedTrainers
+  } catch (error) {
+    console.error('Error fetching trainers with distance calculation:', error)
+    return []
+  }
 }
 
 // ============================================================================

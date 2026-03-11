@@ -13,6 +13,7 @@ import { Upload, X } from 'lucide-react'
 import { detectDeviceTimezone } from '@/lib/timezone'
 import * as apiService from '@/lib/api-service'
 import { apiRequest, withAuth } from '@/lib/api'
+import { getDefaultServiceRadius } from '@/lib/location-utils'
 
 interface TrainerProfile {
   user_id?: string
@@ -95,6 +96,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     lng: 36.8219, // Default to Nairobi, Kenya
     label: ''
   })
+  const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
   const imageInputRef = useRef<HTMLInputElement>(null)
   const { upload } = useFileUpload({
     maxFileSize: 5 * 1024 * 1024,
@@ -328,13 +330,18 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
-      // Service radius validation
+      // Service radius validation and auto-calculation
       const serviceRadiusRaw = profile.service_radius == null ? '' : profile.service_radius
-      const serviceRadiusNum = serviceRadiusRaw === '' ? null : Number(serviceRadiusRaw)
+      let serviceRadiusNum = serviceRadiusRaw === '' ? null : Number(serviceRadiusRaw)
       if (serviceRadiusNum !== null && (!Number.isFinite(serviceRadiusNum) || serviceRadiusNum < 0)) {
         toast({ title: 'Invalid service radius', description: 'Enter a non-negative number for service radius.', variant: 'destructive' })
         setLoading(false)
         return
+      }
+
+      // Auto-calculate service radius if not manually set
+      if (serviceRadiusNum === null) {
+        serviceRadiusNum = getDefaultServiceRadius()
       }
 
       // Hourly rate by radius - sanitize and sort
@@ -401,8 +408,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           disciplines: JSON.stringify(disciplines),
           certifications: JSON.stringify(certifications),
           hourly_rate: hourlyRateNum,
-          // Only include service_radius if manually set (not auto-calculated)
-          ...(serviceRadiusNum !== null && { service_radius: serviceRadiusNum }),
+          // Always include service_radius (auto-calculated or manually set)
+          service_radius: serviceRadiusNum,
           availability: JSON.stringify(availabilityVal),
           timezone: detectedTimezone,
           profile_image: profile.profile_image || null,
@@ -606,16 +613,22 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
             <div>
               <Label htmlFor="service_radius">Service Radius (km)</Label>
-              <Input
-                id="service_radius"
-                type="number"
-                value={profile.service_radius ?? ''}
-                onChange={(e) => handleChange('service_radius', e.target.value === '' ? null : Number(e.target.value))}
-                placeholder="Leave empty for auto-calculated value (default: 10 km)"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                💡 Leave empty to auto-calculate based on your location. You can override by entering a custom value.
-              </p>
+              <div className="space-y-2">
+                <Input
+                  id="service_radius"
+                  type="number"
+                  value={profile.service_radius ?? ''}
+                  onChange={(e) => handleChange('service_radius', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder={`Leave empty for auto-calculated value (${calculatedServiceRadius} km)`}
+                />
+                <div className="text-xs text-muted-foreground">
+                  {profile.service_radius !== undefined && profile.service_radius !== null ? (
+                    <p>🎯 Custom value: {profile.service_radius} km (overriding auto-calculated {calculatedServiceRadius} km)</p>
+                  ) : (
+                    <p>💡 Auto-calculated: {calculatedServiceRadius} km (based on your location). Enter a value to override.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
