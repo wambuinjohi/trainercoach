@@ -401,7 +401,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           disciplines: JSON.stringify(disciplines),
           certifications: JSON.stringify(certifications),
           hourly_rate: hourlyRateNum,
-          service_radius: serviceRadiusNum,
+          // Only include service_radius if manually set (not auto-calculated)
+          ...(serviceRadiusNum !== null && { service_radius: serviceRadiusNum }),
           availability: JSON.stringify(availabilityVal),
           timezone: detectedTimezone,
           profile_image: profile.profile_image || null,
@@ -410,6 +411,11 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           hourly_rate_by_radius: cleanedTiers.length ? JSON.stringify(cleanedTiers) : null,
           area_of_residence: areaLocation.label || null,
           area_coordinates: JSON.stringify({ lat: areaLocation.lat, lng: areaLocation.lng }),
+          // Send location_lat and location_lng for auto service radius calculation
+          location_lat: areaLocation.lat,
+          location_lng: areaLocation.lng,
+          location_label: areaLocation.label || null,
+          location_updated_at: new Date().toISOString(),
           mpesa_number: profile.mpesa_number || null,
         }
         console.log('[Profile Save] ========== SAVING PROFILE ==========')
@@ -603,10 +609,13 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
               <Input
                 id="service_radius"
                 type="number"
-                value={profile.service_radius ?? 5}
-                onChange={(e) => handleChange('service_radius', Number(e.target.value))}
-                placeholder="Default: 5 km"
+                value={profile.service_radius ?? ''}
+                onChange={(e) => handleChange('service_radius', e.target.value === '' ? null : Number(e.target.value))}
+                placeholder="Leave empty for auto-calculated value (default: 10 km)"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                💡 Leave empty to auto-calculate based on your location. You can override by entering a custom value.
+              </p>
             </div>
           </div>
 

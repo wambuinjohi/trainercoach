@@ -77,6 +77,7 @@ import { useSearchHistory } from '@/hooks/use-search-history'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import * as apiService from '@/lib/api-service'
 import { enrichTrainersWithDistance } from '@/lib/distance-utils'
+import { filterTrainersByServiceRadius } from '@/lib/location-utils'
 import { apiRequest, withAuth } from '@/lib/api'
 import { reverseGeocode } from '@/lib/location'
 
@@ -322,11 +323,28 @@ export const ClientDashboard: React.FC = () => {
     loadBookings()
   }, [user?.id, filters, loadBookings])
 
-  // Update distances when user location changes
+  // Update distances when user location changes and filter by service radius
   useEffect(() => {
     if (userLocation && trainers.length > 0) {
-      const updatedTrainers = enrichTrainersWithDistance(trainers, userLocation)
-      setTrainers(updatedTrainers)
+      // First enrich with distance
+      const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
+
+      // Then filter by service radius - only show trainers within their service area
+      const filteredTrainers = enrichedTrainers.filter(trainer => {
+        if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
+          return true // Include trainers without location/radius info
+        }
+
+        // Check if user is within trainer's service radius
+        const distance = trainer.distanceKm
+        if (distance === null) {
+          return true // Include if distance can't be calculated
+        }
+
+        return distance <= trainer.service_radius
+      })
+
+      setTrainers(filteredTrainers)
     }
   }, [userLocation, trainers])
 

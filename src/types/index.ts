@@ -63,6 +63,11 @@ export interface Category {
   name: string
   icon?: string
   description?: string
+  status?: 'active' | 'pending_approval' | 'rejected'
+  created_by?: string
+  reviewed_by?: string
+  rejection_reason?: string
+  reviewed_at?: string
   created_at?: string
   updated_at?: string
 }
@@ -74,6 +79,11 @@ export interface Discipline {
   icon?: string
   description?: string
   status?: DisciplineStatus
+  submitted_by?: string
+  reviewed_by?: string
+  admin_notes?: string
+  submitted_at?: string
+  reviewed_at?: string
   created_at?: string
   updated_at?: string
 }
