@@ -4760,11 +4760,11 @@ switch ($action) {
                 ");
                 $settingsStmt->execute();
                 $settingsResult = $settingsStmt->get_result();
-                $commissionRate = 5; // Default 5%
+                $commissionRate = 10; // Default 10%
 
                 if ($settingsResult->num_rows > 0) {
                     $settings = $settingsResult->fetch_assoc();
-                    $commissionRate = floatval($settings['value'] ?? 5);
+                    $commissionRate = floatval($settings['value'] ?? 10);
                 }
                 $settingsStmt->close();
 
