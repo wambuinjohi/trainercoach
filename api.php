@@ -860,6 +860,17 @@ switch ($action) {
         $types = "";
         $values = [];
 
+        // Auto-calculate service_radius when location is updated for trainers
+        $isUserProfilesUpdate = $table === 'user_profiles';
+        $hasLocationUpdate = isset($data['location_lat']) || isset($data['location_lng']);
+
+        if ($isUserProfilesUpdate && $hasLocationUpdate && !isset($data['service_radius'])) {
+            // Auto-calculate service radius based on trainer tier/default
+            // For now, use a default of 10km if not explicitly set
+            $data['service_radius'] = 10;
+            $data['auto_service_radius'] = true;
+        }
+
         foreach ($data as $key => $value) {
             $escapedKey = "`" . $conn->real_escape_string($key) . "`";
             if ($value === null || $value === 'null') {
@@ -1445,14 +1456,20 @@ switch ($action) {
 
         // Enhance existing categories table with new columns if they don't exist
         $alterStatements = [
-            "ALTER TABLE `categories` ADD COLUMN `status` ENUM('active', 'archived') DEFAULT 'active' COMMENT 'Category status - active or archived'",
+            "ALTER TABLE `categories` ADD COLUMN `status` ENUM('active', 'pending_approval', 'archived', 'rejected') DEFAULT 'active' COMMENT 'Category status - active, pending_approval, archived, or rejected'",
             "ALTER TABLE `categories` ADD COLUMN `created_by_admin` BOOLEAN DEFAULT FALSE COMMENT 'Tracks if admin-created vs trainer-requested'",
-            "ALTER TABLE `categories` ADD INDEX `idx_status` (`status`)"
+            "ALTER TABLE `categories` ADD COLUMN `created_by` VARCHAR(36) COMMENT 'UUID of admin who created this category'",
+            "ALTER TABLE `categories` ADD COLUMN `reviewed_by` VARCHAR(36) COMMENT 'UUID of admin who reviewed/approved this category'",
+            "ALTER TABLE `categories` ADD COLUMN `rejection_reason` TEXT COMMENT 'Reason for category rejection'",
+            "ALTER TABLE `categories` ADD COLUMN `reviewed_at` TIMESTAMP NULL COMMENT 'When this category was reviewed/approved/rejected'",
+            "ALTER TABLE `categories` ADD INDEX `idx_status` (`status`)",
+            "ALTER TABLE `categories` ADD INDEX `idx_created_by` (`created_by`)",
+            "ALTER TABLE `categories` ADD INDEX `idx_reviewed_by` (`reviewed_by`)"
         ];
 
         foreach ($alterStatements as $alterSql) {
             // Check if column exists before altering
-            if (strpos($alterSql, 'ADD COLUMN') !== false && strpos($alterSql, 'idx_status') === false) {
+            if (strpos($alterSql, 'ADD COLUMN') !== false && strpos($alterSql, 'idx_') === false) {
                 $columnName = preg_match('/`(\w+)`/', $alterSql, $matches) ? $matches[1] : null;
                 if ($columnName) {
                     $checkResult = @$conn->query("SHOW COLUMNS FROM categories LIKE '$columnName'");
@@ -1465,12 +1482,52 @@ switch ($action) {
                     }
                 }
             } else if (strpos($alterSql, 'ADD INDEX') !== false) {
-                $indexResult = @$conn->query("SHOW INDEX FROM categories WHERE Key_name = 'idx_status'");
-                if (!$indexResult || $indexResult->num_rows === 0) {
-                    if ($conn->query($alterSql)) {
-                        $messages[] = "✓ Added index to categories table";
-                    } else {
-                        $messages[] = "⚠ Could not add index: " . $conn->error;
+                // Extract index name
+                $indexName = preg_match('/`idx_(\w+)`/', $alterSql, $matches) ? 'idx_' . $matches[1] : null;
+                if ($indexName) {
+                    $indexResult = @$conn->query("SHOW INDEX FROM categories WHERE Key_name = '$indexName'");
+                    if (!$indexResult || $indexResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Added index $indexName to categories table";
+                        } else {
+                            $messages[] = "⚠ Could not add index $indexName: " . $conn->error;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Enhance discipline_requests table with submission tracking fields
+        $disciplineAlterStatements = [
+            "ALTER TABLE `discipline_requests` ADD COLUMN `submitted_by` VARCHAR(36) COMMENT 'Trainer ID who submitted the request (alias for trainer_id)'",
+            "ALTER TABLE `discipline_requests` ADD COLUMN `submitted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'When the discipline was submitted'",
+            "ALTER TABLE `discipline_requests` ADD INDEX `idx_submitted_by` (`submitted_by`)",
+            "ALTER TABLE `discipline_requests` ADD INDEX `idx_reviewed_at` (`reviewed_at`)"
+        ];
+
+        foreach ($disciplineAlterStatements as $alterSql) {
+            if (strpos($alterSql, 'ADD COLUMN') !== false) {
+                $columnName = preg_match('/`(\w+)`/', $alterSql, $matches) ? $matches[1] : null;
+                if ($columnName) {
+                    $checkResult = @$conn->query("SHOW COLUMNS FROM discipline_requests LIKE '$columnName'");
+                    if ($checkResult && $checkResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Enhanced discipline_requests table with $columnName";
+                        } else {
+                            $messages[] = "⚠ Could not add $columnName to discipline_requests: " . $conn->error;
+                        }
+                    }
+                }
+            } else if (strpos($alterSql, 'ADD INDEX') !== false) {
+                $indexName = preg_match('/`idx_(\w+)`/', $alterSql, $matches) ? 'idx_' . $matches[1] : null;
+                if ($indexName) {
+                    $indexResult = @$conn->query("SHOW INDEX FROM discipline_requests WHERE Key_name = '$indexName'");
+                    if (!$indexResult || $indexResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Added index $indexName to discipline_requests table";
+                        } else {
+                            $messages[] = "⚠ Could not add index $indexName: " . $conn->error;
+                        }
                     }
                 }
             }
@@ -1482,7 +1539,9 @@ switch ($action) {
             "ALTER TABLE `user_profiles` ADD COLUMN `location_lng` DECIMAL(11, 8) COMMENT 'Trainer longitude coordinate'",
             "ALTER TABLE `user_profiles` ADD COLUMN `location_label` VARCHAR(255) COMMENT 'Location name/address'",
             "ALTER TABLE `user_profiles` ADD COLUMN `location_updated_at` TIMESTAMP NULL COMMENT 'When location was last updated'",
-            "ALTER TABLE `user_profiles` ADD COLUMN `auto_service_radius` BOOLEAN DEFAULT FALSE COMMENT 'Whether radius was auto-calculated'"
+            "ALTER TABLE `user_profiles` ADD COLUMN `service_radius` FLOAT DEFAULT 10 COMMENT 'Service radius in kilometers'",
+            "ALTER TABLE `user_profiles` ADD COLUMN `auto_service_radius` BOOLEAN DEFAULT FALSE COMMENT 'Whether radius was auto-calculated'",
+            "ALTER TABLE `user_profiles` ADD INDEX `idx_location_lat_lng` (`location_lat`, `location_lng`)"
         ];
 
         foreach ($userProfileAlterStatements as $alterSql) {
@@ -1495,6 +1554,18 @@ switch ($action) {
                             $messages[] = "✓ Enhanced user_profiles table with $columnName";
                         } else {
                             $messages[] = "⚠ Could not add $columnName to user_profiles: " . $conn->error;
+                        }
+                    }
+                }
+            } else if (strpos($alterSql, 'ADD INDEX') !== false) {
+                $indexName = preg_match('/`idx_(\w+)`/', $alterSql, $matches) ? 'idx_' . $matches[1] : null;
+                if ($indexName) {
+                    $indexResult = @$conn->query("SHOW INDEX FROM user_profiles WHERE Key_name = '$indexName'");
+                    if (!$indexResult || $indexResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Added index $indexName to user_profiles table";
+                        } else {
+                            $messages[] = "⚠ Could not add index $indexName: " . $conn->error;
                         }
                     }
                 }
@@ -2609,18 +2680,30 @@ switch ($action) {
             respond("error", "Missing name.", null, 400);
         }
 
+        // Extract admin ID from authorization header
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $adminId = null;
+        if (!empty($authHeader) && strpos($authHeader, 'Bearer ') === 0) {
+            $token = substr($authHeader, 7);
+            $decodedToken = base64_decode($token, true);
+            $tokenData = json_decode($decodedToken, true);
+            if ($tokenData && isset($tokenData['id'])) {
+                $adminId = $tokenData['id'];
+            }
+        }
+
         $name = $conn->real_escape_string($input['name']);
         $icon = isset($input['icon']) ? $conn->real_escape_string($input['icon']) : '';
         $description = isset($input['description']) ? $conn->real_escape_string($input['description']) : '';
         $now = date('Y-m-d H:i:s');
 
-        $stmt = $conn->prepare("INSERT INTO categories (name, icon, description, status, created_by_admin, created_at, updated_at) VALUES (?, ?, ?, 'active', TRUE, ?, ?)");
-        $stmt->bind_param("sssss", $name, $icon, $description, $now, $now);
+        $stmt = $conn->prepare("INSERT INTO categories (name, icon, description, status, created_by_admin, created_by, created_at, updated_at) VALUES (?, ?, ?, 'active', TRUE, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $name, $icon, $description, $adminId, $now, $now);
 
         if ($stmt->execute()) {
             $categoryId = $conn->insert_id;
             $stmt->close();
-            logEvent('admin_category_created', ['category_id' => $categoryId, 'name' => $name]);
+            logEvent('admin_category_created', ['category_id' => $categoryId, 'name' => $name, 'created_by' => $adminId]);
             respond("success", "Category created successfully by admin.", ["id" => $categoryId, "name" => $name]);
         } else {
             $stmt->close();
@@ -2756,16 +2839,20 @@ switch ($action) {
 
         $whereClause = "";
         if ($status === 'active') {
-            $whereClause = "WHERE status = 'active'";
+            $whereClause = "WHERE c.status = 'active'";
+        } else if ($status === 'pending_approval') {
+            $whereClause = "WHERE c.status = 'pending_approval'";
+        } else if ($status === 'rejected') {
+            $whereClause = "WHERE c.status = 'rejected'";
         } else if ($status === 'archived') {
-            $whereClause = "WHERE status = 'archived'";
+            $whereClause = "WHERE c.status = 'archived'";
         }
 
-        $orderClause = $sortBy === 'name' ? "ORDER BY name ASC" : "ORDER BY created_at DESC";
+        $orderClause = $sortBy === 'name' ? "ORDER BY c.name ASC" : "ORDER BY c.created_at DESC";
 
         $sql = "
             SELECT
-                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_at, c.updated_at,
+                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
                 COUNT(tc.trainer_id) as trainer_count
             FROM categories c
             LEFT JOIN trainer_categories tc ON c.id = tc.category_id
@@ -2785,6 +2872,75 @@ switch ($action) {
         }
 
         respond("success", "Categories fetched successfully.", $categories);
+        break;
+
+    // ADMIN: APPROVE CATEGORY
+    case 'admin_category_approve':
+        validateAdminAuthorization($conn);
+
+        $categoryId = isset($input['category_id']) ? intval($input['category_id']) : null;
+        $reviewedBy = isset($input['reviewed_by']) ? $conn->real_escape_string($input['reviewed_by']) : null;
+
+        if (!$categoryId || !$reviewedBy) {
+            respond("error", "Missing required fields: category_id, reviewed_by", null, 400);
+        }
+
+        // Update category status to active with reviewer info
+        $sql = "
+            UPDATE categories
+            SET status = 'active', reviewed_by = ?, reviewed_at = NOW()
+            WHERE id = ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            respond("error", "Database prepare failed: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("si", $reviewedBy, $categoryId);
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('admin_category_approved', ['category_id' => $categoryId, 'reviewed_by' => $reviewedBy]);
+            respond("success", "Category approved successfully.", ["category_id" => $categoryId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to approve category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: REJECT CATEGORY
+    case 'admin_category_reject':
+        validateAdminAuthorization($conn);
+
+        $categoryId = isset($input['category_id']) ? intval($input['category_id']) : null;
+        $reviewedBy = isset($input['reviewed_by']) ? $conn->real_escape_string($input['reviewed_by']) : null;
+        $rejectionReason = isset($input['rejection_reason']) ? $conn->real_escape_string($input['rejection_reason']) : null;
+
+        if (!$categoryId || !$reviewedBy) {
+            respond("error", "Missing required fields: category_id, reviewed_by", null, 400);
+        }
+
+        // Update category status to rejected with reviewer info and reason
+        $sql = "
+            UPDATE categories
+            SET status = 'rejected', reviewed_by = ?, rejection_reason = ?, reviewed_at = NOW()
+            WHERE id = ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            respond("error", "Database prepare failed: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("ssi", $reviewedBy, $rejectionReason, $categoryId);
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('admin_category_rejected', ['category_id' => $categoryId, 'reviewed_by' => $reviewedBy, 'reason' => $rejectionReason]);
+            respond("success", "Category rejected successfully.", ["category_id" => $categoryId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reject category: " . $conn->error, null, 500);
+        }
         break;
 
     // =============================

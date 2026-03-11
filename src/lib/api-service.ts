@@ -123,6 +123,25 @@ export async function deleteCategory(id: string | number) {
   return apiRequest('delete_category', { id })
 }
 
+export async function approveCategory(categoryId: string | number, reviewedBy: string) {
+  return apiRequest('admin_category_approve', {
+    category_id: categoryId,
+    reviewed_by: reviewedBy,
+  })
+}
+
+export async function rejectCategory(
+  categoryId: string | number,
+  reviewedBy: string,
+  rejectionReason?: string
+) {
+  return apiRequest('admin_category_reject', {
+    category_id: categoryId,
+    reviewed_by: reviewedBy,
+    ...(rejectionReason && { rejection_reason: rejectionReason }),
+  })
+}
+
 // ============================================================================
 // TRAINER CATEGORY SERVICES
 // ============================================================================
