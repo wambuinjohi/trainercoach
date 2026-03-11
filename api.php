@@ -1365,9 +1365,45 @@ switch ($action) {
                   `name` VARCHAR(255) NOT NULL UNIQUE,
                   `icon` VARCHAR(50),
                   `description` TEXT,
+                  `status` ENUM('active', 'archived') DEFAULT 'active' COMMENT 'Category status - active or archived',
+                  `created_by_admin` BOOLEAN DEFAULT FALSE COMMENT 'Tracks if admin-created vs trainer-requested',
                   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  INDEX `idx_name` (`name`)
+                  INDEX `idx_name` (`name`),
+                  INDEX `idx_status` (`status`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ",
+            'discipline_requests' => "
+                CREATE TABLE IF NOT EXISTS `discipline_requests` (
+                  `id` VARCHAR(36) PRIMARY KEY COMMENT 'Unique discipline request ID (UUID)',
+                  `trainer_id` VARCHAR(36) NOT NULL COMMENT 'Trainer who submitted the request',
+                  `category_name` VARCHAR(100) NOT NULL COMMENT 'Requested discipline name',
+                  `category_icon` VARCHAR(50) COMMENT 'Suggested icon for the discipline',
+                  `category_description` TEXT COMMENT 'Description of the discipline',
+                  `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT 'Request status',
+                  `admin_notes` TEXT COMMENT 'Admin notes when approving or rejecting',
+                  `approved_category_id` INT COMMENT 'ID of the created category when approved',
+                  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  `reviewed_at` TIMESTAMP NULL COMMENT 'When the request was reviewed',
+                  `reviewed_by_admin_id` VARCHAR(36) COMMENT 'Which admin reviewed this request',
+
+                  CONSTRAINT `fk_discipline_requests_trainer_id`
+                    FOREIGN KEY (`trainer_id`)
+                    REFERENCES `users`(`id`)
+                    ON DELETE CASCADE,
+                  CONSTRAINT `fk_discipline_requests_category_id`
+                    FOREIGN KEY (`approved_category_id`)
+                    REFERENCES `categories`(`id`)
+                    ON DELETE SET NULL,
+                  CONSTRAINT `fk_discipline_requests_admin_id`
+                    FOREIGN KEY (`reviewed_by_admin_id`)
+                    REFERENCES `users`(`id`)
+                    ON DELETE SET NULL,
+
+                  INDEX `idx_trainer_id` (`trainer_id`),
+                  INDEX `idx_status` (`status`),
+                  INDEX `idx_created_at` (`created_at` DESC),
+                  INDEX `idx_trainer_status` (`trainer_id`, `status`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ",
             'services' => "
@@ -1404,6 +1440,64 @@ switch ($action) {
                 $failureCount++;
                 $messages[] = "✗ $tableName failed: " . $conn->error;
                 logEvent('audit_migration_failed', ['table' => $tableName, 'error' => $conn->error]);
+            }
+        }
+
+        // Enhance existing categories table with new columns if they don't exist
+        $alterStatements = [
+            "ALTER TABLE `categories` ADD COLUMN `status` ENUM('active', 'archived') DEFAULT 'active' COMMENT 'Category status - active or archived'",
+            "ALTER TABLE `categories` ADD COLUMN `created_by_admin` BOOLEAN DEFAULT FALSE COMMENT 'Tracks if admin-created vs trainer-requested'",
+            "ALTER TABLE `categories` ADD INDEX `idx_status` (`status`)"
+        ];
+
+        foreach ($alterStatements as $alterSql) {
+            // Check if column exists before altering
+            if (strpos($alterSql, 'ADD COLUMN') !== false && strpos($alterSql, 'idx_status') === false) {
+                $columnName = preg_match('/`(\w+)`/', $alterSql, $matches) ? $matches[1] : null;
+                if ($columnName) {
+                    $checkResult = @$conn->query("SHOW COLUMNS FROM categories LIKE '$columnName'");
+                    if ($checkResult && $checkResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Enhanced categories table with $columnName";
+                        } else {
+                            $messages[] = "⚠ Could not add $columnName: " . $conn->error;
+                        }
+                    }
+                }
+            } else if (strpos($alterSql, 'ADD INDEX') !== false) {
+                $indexResult = @$conn->query("SHOW INDEX FROM categories WHERE Key_name = 'idx_status'");
+                if (!$indexResult || $indexResult->num_rows === 0) {
+                    if ($conn->query($alterSql)) {
+                        $messages[] = "✓ Added index to categories table";
+                    } else {
+                        $messages[] = "⚠ Could not add index: " . $conn->error;
+                    }
+                }
+            }
+        }
+
+        // Enhance user_profiles table with location columns for distance calculation
+        $userProfileAlterStatements = [
+            "ALTER TABLE `user_profiles` ADD COLUMN `location_lat` DECIMAL(10, 8) COMMENT 'Trainer latitude coordinate'",
+            "ALTER TABLE `user_profiles` ADD COLUMN `location_lng` DECIMAL(11, 8) COMMENT 'Trainer longitude coordinate'",
+            "ALTER TABLE `user_profiles` ADD COLUMN `location_label` VARCHAR(255) COMMENT 'Location name/address'",
+            "ALTER TABLE `user_profiles` ADD COLUMN `location_updated_at` TIMESTAMP NULL COMMENT 'When location was last updated'",
+            "ALTER TABLE `user_profiles` ADD COLUMN `auto_service_radius` BOOLEAN DEFAULT FALSE COMMENT 'Whether radius was auto-calculated'"
+        ];
+
+        foreach ($userProfileAlterStatements as $alterSql) {
+            if (strpos($alterSql, 'ADD COLUMN') !== false) {
+                $columnName = preg_match('/`(\w+)`/', $alterSql, $matches) ? $matches[1] : null;
+                if ($columnName) {
+                    $checkResult = @$conn->query("SHOW COLUMNS FROM user_profiles LIKE '$columnName'");
+                    if ($checkResult && $checkResult->num_rows === 0) {
+                        if ($conn->query($alterSql)) {
+                            $messages[] = "✓ Enhanced user_profiles table with $columnName";
+                        } else {
+                            $messages[] = "⚠ Could not add $columnName to user_profiles: " . $conn->error;
+                        }
+                    }
+                }
             }
         }
 
@@ -2500,6 +2594,411 @@ switch ($action) {
         } else {
             $stmt->close();
             respond("error", "Failed to delete category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // =============================
+    // ADMIN DISCIPLINE MANAGEMENT
+    // =============================
+
+    // ADMIN: CREATE CATEGORY (Admin-created disciplines)
+    case 'admin_category_create':
+        validateAdminAuthorization($conn);
+
+        if (!isset($input['name'])) {
+            respond("error", "Missing name.", null, 400);
+        }
+
+        $name = $conn->real_escape_string($input['name']);
+        $icon = isset($input['icon']) ? $conn->real_escape_string($input['icon']) : '';
+        $description = isset($input['description']) ? $conn->real_escape_string($input['description']) : '';
+        $now = date('Y-m-d H:i:s');
+
+        $stmt = $conn->prepare("INSERT INTO categories (name, icon, description, status, created_by_admin, created_at, updated_at) VALUES (?, ?, ?, 'active', TRUE, ?, ?)");
+        $stmt->bind_param("sssss", $name, $icon, $description, $now, $now);
+
+        if ($stmt->execute()) {
+            $categoryId = $conn->insert_id;
+            $stmt->close();
+            logEvent('admin_category_created', ['category_id' => $categoryId, 'name' => $name]);
+            respond("success", "Category created successfully by admin.", ["id" => $categoryId, "name" => $name]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to create category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: UPDATE CATEGORY
+    case 'admin_category_update':
+        validateAdminAuthorization($conn);
+
+        if (!isset($input['id'])) {
+            respond("error", "Missing id.", null, 400);
+        }
+
+        $categoryId = intval($input['id']);
+        $name = isset($input['name']) ? $conn->real_escape_string($input['name']) : null;
+        $icon = isset($input['icon']) ? $conn->real_escape_string($input['icon']) : null;
+        $description = isset($input['description']) ? $conn->real_escape_string($input['description']) : null;
+
+        $updates = [];
+        $params = [];
+        $types = "";
+
+        if ($name !== null) {
+            $updates[] = "name = ?";
+            $params[] = $name;
+            $types .= "s";
+        }
+        if ($icon !== null) {
+            $updates[] = "icon = ?";
+            $params[] = $icon;
+            $types .= "s";
+        }
+        if ($description !== null) {
+            $updates[] = "description = ?";
+            $params[] = $description;
+            $types .= "s";
+        }
+
+        if (empty($updates)) {
+            respond("error", "No fields to update.", null, 400);
+        }
+
+        $updates[] = "updated_at = NOW()";
+        $params[] = $categoryId;
+        $types .= "i";
+
+        $sql = "UPDATE categories SET " . implode(", ", $updates) . " WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+
+        if (count($params) > 0) {
+            $stmt->bind_param($types, ...$params);
+        }
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('admin_category_updated', ['category_id' => $categoryId]);
+            respond("success", "Category updated successfully.", ["affected_rows" => $conn->affected_rows]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to update category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: ARCHIVE CATEGORY (soft delete)
+    case 'admin_category_archive':
+        validateAdminAuthorization($conn);
+
+        if (!isset($input['id'])) {
+            respond("error", "Missing id.", null, 400);
+        }
+
+        $categoryId = intval($input['id']);
+        $stmt = $conn->prepare("UPDATE categories SET status = 'archived', updated_at = NOW() WHERE id = ?");
+        $stmt->bind_param("i", $categoryId);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('admin_category_archived', ['category_id' => $categoryId]);
+            respond("success", "Category archived successfully.", ["affected_rows" => $conn->affected_rows]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to archive category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: DELETE CATEGORY (hard delete)
+    case 'admin_category_delete':
+        validateAdminAuthorization($conn);
+
+        if (!isset($input['id'])) {
+            respond("error", "Missing id.", null, 400);
+        }
+
+        $categoryId = intval($input['id']);
+
+        // Check if category is used by any trainers
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM trainer_categories WHERE category_id = ?");
+        $stmt->bind_param("i", $categoryId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+
+        if ($row['count'] > 0) {
+            respond("error", "Cannot delete category that is used by trainers. Archive it instead.", null, 400);
+        }
+
+        $stmt = $conn->prepare("DELETE FROM categories WHERE id = ?");
+        $stmt->bind_param("i", $categoryId);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('admin_category_deleted', ['category_id' => $categoryId]);
+            respond("success", "Category deleted successfully.", ["affected_rows" => $conn->affected_rows]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to delete category: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: LIST CATEGORIES (with filtering)
+    case 'admin_category_list':
+        validateAdminAuthorization($conn);
+
+        $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'all';
+        $sortBy = isset($input['sortBy']) ? $conn->real_escape_string($input['sortBy']) : 'created_at';
+
+        if ($sortBy !== 'name' && $sortBy !== 'created_at') {
+            $sortBy = 'created_at';
+        }
+
+        $whereClause = "";
+        if ($status === 'active') {
+            $whereClause = "WHERE status = 'active'";
+        } else if ($status === 'archived') {
+            $whereClause = "WHERE status = 'archived'";
+        }
+
+        $orderClause = $sortBy === 'name' ? "ORDER BY name ASC" : "ORDER BY created_at DESC";
+
+        $sql = "
+            SELECT
+                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_at, c.updated_at,
+                COUNT(tc.trainer_id) as trainer_count
+            FROM categories c
+            LEFT JOIN trainer_categories tc ON c.id = tc.category_id
+            $whereClause
+            GROUP BY c.id
+            $orderClause
+        ";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            respond("error", "Failed to fetch categories: " . $conn->error, null, 500);
+        }
+
+        $categories = [];
+        while ($row = $result->fetch_assoc()) {
+            $categories[] = $row;
+        }
+
+        respond("success", "Categories fetched successfully.", $categories);
+        break;
+
+    // =============================
+    // DISCIPLINE REQUESTS MANAGEMENT
+    // =============================
+
+    // TRAINER: SUBMIT DISCIPLINE REQUEST
+    case 'discipline_request_create':
+        // Get trainer ID from auth token
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (empty($authHeader) || strpos($authHeader, 'Bearer ') !== 0) {
+            respond("error", "Missing or invalid authorization header", null, 401);
+        }
+
+        $token = substr($authHeader, 7);
+        $decodedToken = base64_decode($token, true);
+        $tokenData = json_decode($decodedToken, true);
+
+        if (!$tokenData || !isset($tokenData['id'])) {
+            respond("error", "Invalid token", null, 401);
+        }
+
+        $trainerId = $tokenData['id'];
+
+        if (!isset($input['category_name'])) {
+            respond("error", "Missing category_name.", null, 400);
+        }
+
+        $categoryName = $conn->real_escape_string($input['category_name']);
+        $categoryIcon = isset($input['category_icon']) ? $conn->real_escape_string($input['category_icon']) : '🏋️';
+        $categoryDescription = isset($input['category_description']) ? $conn->real_escape_string($input['category_description']) : '';
+        $requestId = 'req_' . uniqid();
+        $now = date('Y-m-d H:i:s');
+
+        // Check if trainer already has a pending request for this category
+        $checkStmt = $conn->prepare("SELECT id FROM discipline_requests WHERE trainer_id = ? AND category_name = ? AND status = 'pending' LIMIT 1");
+        $checkStmt->bind_param("ss", $trainerId, $categoryName);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $checkStmt->close();
+
+        if ($checkResult->num_rows > 0) {
+            respond("error", "You already have a pending request for this discipline.", null, 400);
+        }
+
+        $stmt = $conn->prepare("
+            INSERT INTO discipline_requests (id, trainer_id, category_name, category_icon, category_description, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)
+        ");
+        $stmt->bind_param("ssssss", $requestId, $trainerId, $categoryName, $categoryIcon, $categoryDescription, $now);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('discipline_request_created', ['request_id' => $requestId, 'trainer_id' => $trainerId, 'category' => $categoryName]);
+            respond("success", "Discipline request submitted for admin approval.", ["id" => $requestId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to submit request: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: LIST DISCIPLINE REQUESTS
+    case 'discipline_request_list':
+        validateAdminAuthorization($conn);
+
+        $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'all';
+        $sortBy = isset($input['sortBy']) ? $conn->real_escape_string($input['sortBy']) : 'created_at';
+
+        if ($sortBy !== 'trainer_name' && $sortBy !== 'created_at') {
+            $sortBy = 'created_at';
+        }
+
+        $whereClause = "";
+        if ($status === 'pending') {
+            $whereClause = "WHERE dr.status = 'pending'";
+        } else if ($status === 'approved') {
+            $whereClause = "WHERE dr.status = 'approved'";
+        } else if ($status === 'rejected') {
+            $whereClause = "WHERE dr.status = 'rejected'";
+        }
+
+        $orderClause = $sortBy === 'trainer_name'
+            ? "ORDER BY u.first_name ASC, u.last_name ASC"
+            : "ORDER BY dr.created_at DESC";
+
+        $sql = "
+            SELECT
+                dr.id, dr.trainer_id, dr.category_name, dr.category_icon, dr.category_description,
+                dr.status, dr.admin_notes, dr.approved_category_id, dr.created_at, dr.reviewed_at,
+                u.email, u.first_name, u.last_name, u.phone,
+                up.full_name, up.rating, up.total_reviews,
+                c.id as category_id, c.name as approved_category_name
+            FROM discipline_requests dr
+            LEFT JOIN users u ON dr.trainer_id = u.id
+            LEFT JOIN user_profiles up ON dr.trainer_id = up.user_id
+            LEFT JOIN categories c ON dr.approved_category_id = c.id
+            $whereClause
+            $orderClause
+        ";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            respond("error", "Failed to fetch requests: " . $conn->error, null, 500);
+        }
+
+        $requests = [];
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = $row;
+        }
+
+        respond("success", "Discipline requests fetched successfully.", $requests);
+        break;
+
+    // ADMIN: APPROVE DISCIPLINE REQUEST
+    case 'discipline_request_approve':
+        $adminId = validateAdminAuthorization($conn);
+
+        if (!isset($input['request_id'])) {
+            respond("error", "Missing request_id.", null, 400);
+        }
+
+        $requestId = $conn->real_escape_string($input['request_id']);
+
+        // Get the request
+        $stmt = $conn->prepare("SELECT * FROM discipline_requests WHERE id = ? LIMIT 1");
+        $stmt->bind_param("s", $requestId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+
+        if ($result->num_rows === 0) {
+            respond("error", "Request not found.", null, 404);
+        }
+
+        $request = $result->fetch_assoc();
+
+        // Use provided values or defaults from request
+        $categoryName = isset($input['category_name']) ? $conn->real_escape_string($input['category_name']) : $request['category_name'];
+        $categoryIcon = isset($input['category_icon']) ? $conn->real_escape_string($input['category_icon']) : $request['category_icon'];
+        $categoryDescription = isset($input['category_description']) ? $conn->real_escape_string($input['category_description']) : $request['category_description'];
+        $now = date('Y-m-d H:i:s');
+
+        // Create new category or get existing one with same name
+        $checkStmt = $conn->prepare("SELECT id FROM categories WHERE name = ? LIMIT 1");
+        $checkStmt->bind_param("s", $categoryName);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $checkStmt->close();
+
+        if ($checkResult->num_rows > 0) {
+            $existing = $checkResult->fetch_assoc();
+            $categoryId = $existing['id'];
+        } else {
+            // Create new category
+            $insertStmt = $conn->prepare("INSERT INTO categories (name, icon, description, status, created_by_admin, created_at, updated_at) VALUES (?, ?, ?, 'active', FALSE, ?, ?)");
+            $insertStmt->bind_param("sssss", $categoryName, $categoryIcon, $categoryDescription, $now, $now);
+
+            if (!$insertStmt->execute()) {
+                $insertStmt->close();
+                respond("error", "Failed to create category: " . $conn->error, null, 500);
+            }
+
+            $categoryId = $conn->insert_id;
+            $insertStmt->close();
+        }
+
+        // Update request
+        $updateStmt = $conn->prepare("
+            UPDATE discipline_requests
+            SET status = 'approved', approved_category_id = ?, reviewed_at = ?, reviewed_by_admin_id = ?
+            WHERE id = ?
+        ");
+        $updateStmt->bind_param("isss", $categoryId, $now, $adminId, $requestId);
+
+        if ($updateStmt->execute()) {
+            $updateStmt->close();
+            logEvent('discipline_request_approved', ['request_id' => $requestId, 'category_id' => $categoryId, 'admin_id' => $adminId]);
+            respond("success", "Discipline request approved. New category created.", [
+                "category_id" => $categoryId,
+                "category_name" => $categoryName,
+                "category_icon" => $categoryIcon
+            ]);
+        } else {
+            $updateStmt->close();
+            respond("error", "Failed to approve request: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ADMIN: REJECT DISCIPLINE REQUEST
+    case 'discipline_request_reject':
+        $adminId = validateAdminAuthorization($conn);
+
+        if (!isset($input['request_id'])) {
+            respond("error", "Missing request_id.", null, 400);
+        }
+
+        $requestId = $conn->real_escape_string($input['request_id']);
+        $adminNotes = isset($input['admin_notes']) ? $conn->real_escape_string($input['admin_notes']) : 'Rejected by admin';
+        $now = date('Y-m-d H:i:s');
+
+        $stmt = $conn->prepare("
+            UPDATE discipline_requests
+            SET status = 'rejected', admin_notes = ?, reviewed_at = ?, reviewed_by_admin_id = ?
+            WHERE id = ?
+        ");
+        $stmt->bind_param("ssss", $adminNotes, $now, $adminId, $requestId);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('discipline_request_rejected', ['request_id' => $requestId, 'admin_id' => $adminId]);
+            respond("success", "Discipline request rejected.", ["status" => "rejected"]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reject request: " . $conn->error, null, 500);
         }
         break;
 
