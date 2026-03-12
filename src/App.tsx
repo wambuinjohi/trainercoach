@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ApiConfigProvider } from "@/contexts/ApiConfigContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AutoSetupWrapper } from "@/components/AutoSetupWrapper";
 import { initializeTimezoneDetection } from "@/lib/timezone";
 import { AuthForm } from "@/components/auth/AuthForm";
@@ -47,6 +48,7 @@ const queryClient = new QueryClient();
 
 const AppContent = () => {
   const { user, userType, loading } = useAuth();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     // Initialize timezone detection on app load
@@ -65,7 +67,8 @@ const AppContent = () => {
   }
 
   if (!user) {
-    return <Explore />;
+    // Mobile users go directly to Explore, desktop users see Home (intro) page
+    return isMobile ? <Explore /> : <Home />;
   }
 
   // Route based on user type
