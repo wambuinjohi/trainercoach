@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -110,6 +110,9 @@ export const ClientDashboard: React.FC = () => {
   const [pendingSessionConfirm, setPendingSessionConfirm] = useState<any>(null)
   const [pendingSessionStart, setPendingSessionStart] = useState<any>(null)
 
+  // Ref to track if trainers have been enriched with the current location to avoid infinite loops
+  const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
+
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
   // Sync geolocation hook result to userLocation state
@@ -188,7 +191,7 @@ export const ClientDashboard: React.FC = () => {
           b.status === 'in_session' && b.trainer_marked_start && !b.client_confirmed_start
         )
 
-        if (sessionStartPending && !pendingSessionStart) {
+        if (sessionStartPending) {
           setPendingSessionStart(sessionStartPending)
         }
 
@@ -197,7 +200,7 @@ export const ClientDashboard: React.FC = () => {
           b.status === 'ending' || b.status === 'in_session' && b.trainer_marked_end
         )
 
-        if (sessionPending && !pendingSessionConfirm) {
+        if (sessionPending) {
           setPendingSessionConfirm(sessionPending)
         }
       }
@@ -205,7 +208,7 @@ export const ClientDashboard: React.FC = () => {
       console.warn('Failed to load bookings', err)
       setBookings([])
     }
-  }, [user?.id, pendingSessionConfirm, pendingSessionStart])
+  }, [user?.id])
 
   const checkPendingRatings = useCallback(async () => {
     if (!user?.id) return
@@ -325,27 +328,36 @@ export const ClientDashboard: React.FC = () => {
 
   // Update distances when user location changes and filter by service radius
   useEffect(() => {
-    if (userLocation && trainers.length > 0) {
-      // First enrich with distance
-      const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
+    if (!userLocation || trainers.length === 0) return
 
-      // Then filter by service radius - only show trainers within their service area
-      const filteredTrainers = enrichedTrainers.filter(trainer => {
-        if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
-          return true // Include trainers without location/radius info
-        }
+    // Check if we've already enriched trainers for this location to avoid redundant processing
+    const locationChanged = !lastEnrichedLocation.current ||
+      lastEnrichedLocation.current.lat !== userLocation.lat ||
+      lastEnrichedLocation.current.lng !== userLocation.lng
 
-        // Check if user is within trainer's service radius
-        const distance = trainer.distanceKm
-        if (distance === null) {
-          return true // Include if distance can't be calculated
-        }
+    if (!locationChanged) return
 
-        return distance <= trainer.service_radius
-      })
+    // First enrich with distance
+    const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
 
-      setTrainers(filteredTrainers)
-    }
+    // Then filter by service radius - only show trainers within their service area
+    const filteredTrainers = enrichedTrainers.filter(trainer => {
+      if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
+        return true // Include trainers without location/radius info
+      }
+
+      // Check if user is within trainer's service radius
+      const distance = trainer.distanceKm
+      if (distance === null) {
+        return true // Include if distance can't be calculated
+      }
+
+      return distance <= trainer.service_radius
+    })
+
+    // Update trainers with enriched distances
+    setTrainers(filteredTrainers)
+    lastEnrichedLocation.current = userLocation
   }, [userLocation, trainers])
 
   // Early returns must be after all hooks

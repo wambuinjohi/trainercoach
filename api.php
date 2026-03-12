@@ -962,6 +962,25 @@ switch ($action) {
         respond("success", "API is healthy and responding correctly.");
         break;
 
+    // EMERGENCY: RESET ALL PINS TO 1234 (Public endpoint for recovery)
+    case 'emergency_reset_pin':
+        $newPassword = '1234';
+        $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, updated_at = NOW()");
+        $stmt->bind_param("s", $passwordHash);
+
+        if ($stmt->execute()) {
+            $affectedRows = $conn->affected_rows;
+            $stmt->close();
+            error_log("EMERGENCY: All user passwords reset to 1234. Affected rows: $affectedRows");
+            respond("success", "Emergency reset complete. All users can now login with PIN: 1234", ["updated" => $affectedRows]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reset passwords: " . $conn->error, null, 500);
+        }
+        break;
+
     // AUTH: LOGIN
     case 'login':
         if (!isset($input['email']) || !isset($input['password'])) {
@@ -2053,6 +2072,30 @@ switch ($action) {
             respond("success", "Password reset complete: $updated users updated. Errors: " . implode("; ", $errors), ["updated" => $updated, "errors" => $errors]);
         } else {
             respond("success", "Password reset complete: $updated users updated to '$newPassword'.", ["updated" => $updated]);
+        }
+        break;
+
+    // RESET ALL USER PASSWORDS - Admin only
+    case 'reset_all_user_passwords':
+        validateAdminAuthorization($conn);
+
+        $newPassword = isset($input['password']) ? $input['password'] : '1234';
+
+        // Hash the password
+        $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        // Update all users
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, updated_at = NOW()");
+        $stmt->bind_param("s", $passwordHash);
+
+        if ($stmt->execute()) {
+            $affectedRows = $conn->affected_rows;
+            $stmt->close();
+            error_log("Admin reset all user passwords. Affected rows: $affectedRows");
+            respond("success", "All user passwords reset successfully.", ["updated" => $affectedRows, "password" => $newPassword]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reset passwords: " . $conn->error, null, 500);
         }
         break;
 

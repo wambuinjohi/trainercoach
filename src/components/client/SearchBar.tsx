@@ -14,6 +14,8 @@ export interface SearchBarProps {
   suggestions?: string[]
   recentSearches?: string[]
   popularSearches?: string[]
+  categories?: Array<{ id: number; name: string; icon?: string }>
+  onCategorySelect?: (categoryName: string) => void
   isLoading?: boolean
   className?: string
 }
@@ -26,6 +28,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   suggestions = [],
   recentSearches = [],
   popularSearches = [],
+  categories = [],
+  onCategorySelect,
   isLoading = false,
   className = '',
 }) => {
@@ -46,12 +50,24 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
   }, [value])
 
-  // Combine all suggestions
+  // Filter categories by search value
+  const matchingCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(value.toLowerCase())
+  )
+
+  // Combine all suggestions with categories
   const allSuggestions = [
     ...suggestions,
     ...recentSearches.filter(s => !suggestions.includes(s)),
     ...popularSearches.filter(s => !suggestions.includes(s) && !recentSearches.includes(s)),
   ]
+
+  // Total count of all suggestion types (for keyboard navigation)
+  const suggestionCount = suggestions.length
+  const recentCount = recentSearches.length
+  const popularCount = popularSearches.length
+  const totalTextSuggestions = suggestionCount + recentCount + popularCount
+  const totalItemsCount = totalTextSuggestions + matchingCategories.length
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isFocused) return
@@ -60,7 +76,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       case 'ArrowDown':
         e.preventDefault()
         setSelectedSuggestionIndex(prev =>
-          prev < allSuggestions.length - 1 ? prev + 1 : prev
+          prev < totalItemsCount - 1 ? prev + 1 : prev
         )
         break
       case 'ArrowUp':
@@ -70,9 +86,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       case 'Enter':
         e.preventDefault()
         if (selectedSuggestionIndex >= 0) {
-          const selectedSuggestion = allSuggestions[selectedSuggestionIndex]
-          onChange(selectedSuggestion)
-          onSubmit?.(selectedSuggestion)
+          // Check if it's a category
+          if (selectedSuggestionIndex >= totalTextSuggestions) {
+            const categoryIndex = selectedSuggestionIndex - totalTextSuggestions
+            const selectedCategory = matchingCategories[categoryIndex]
+            if (selectedCategory) {
+              onChange(selectedCategory.name)
+              onCategorySelect?.(selectedCategory.name)
+            }
+          } else {
+            const selectedSuggestion = allSuggestions[selectedSuggestionIndex]
+            onChange(selectedSuggestion)
+            onSubmit?.(selectedSuggestion)
+          }
         } else {
           onSubmit?.(value)
         }
