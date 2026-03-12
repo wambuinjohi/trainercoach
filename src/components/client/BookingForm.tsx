@@ -462,9 +462,14 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             <option value="mpesa">M-Pesa (STK Push)</option>
             <option value="mock">Mock (for testing)</option>
           </select>
-          <p className="text-xs text-muted-foreground mt-1">
-            If M-Pesa fails, use the Mock payment method for testing. If you need real M-Pesa payments, contact support.
-          </p>
+          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-400">
+            <p className="font-medium mb-1">Payment Method Info:</p>
+            <ul className="text-xs space-y-1 ml-3 list-disc">
+              <li><strong>M-Pesa:</strong> Real payments using M-Pesa STK Push. Requires M-Pesa configuration by admin.</li>
+              <li><strong>Mock:</strong> For testing only. Use this method if M-Pesa isn't configured yet.</li>
+            </ul>
+            <p className="text-xs mt-2 opacity-80">If M-Pesa payments fail, switch to Mock for testing or contact support.</p>
+          </div>
         </div>
         {payMethod === 'mpesa' && (
           <div>
