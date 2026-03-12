@@ -464,7 +464,7 @@ export const ClientDashboard: React.FC = () => {
           <p className="text-muted-foreground">Connect with certified professionals in your area</p>
         </div>
       <SearchBar
-        placeholder="Search trainers or services..."
+        placeholder="Search trainers or categories..."
         value={searchQuery}
         onChange={setSearchQuery}
         onSubmit={(query) => {
@@ -485,6 +485,8 @@ export const ClientDashboard: React.FC = () => {
         suggestions={suggestions}
         recentSearches={recentSearches}
         popularSearches={popularSearches}
+        categories={dbCategories}
+        onCategorySelect={handleCategorySelect}
       />
 
       {userLocation && (
@@ -523,26 +525,21 @@ export const ClientDashboard: React.FC = () => {
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Browse Categories</h2>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {categoriesLoading ? (
             <>
-              <Skeleton className="h-20 w-full rounded-xl bg-muted/40" />
-              <Skeleton className="h-20 w-full rounded-xl bg-muted/40" />
-              <Skeleton className="h-20 w-full rounded-xl bg-muted/40" />
+              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
+              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
+              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
             </>
           ) : dbCategories.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground">No categories available.</div>
+            <div className="col-span-2 sm:col-span-2 lg:col-span-3 text-center text-sm text-muted-foreground py-8">No categories available.</div>
           ) : (
             dbCategories.map((category) => (
-              <Card key={category.id} className="bg-trainer-card border-transparent rounded-xl shadow-card hover:shadow-glow cursor-pointer group" onClick={() => handleCategorySelect(category.name)}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-xl text-white shadow-glow">{category.icon}</div>
-                    <div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{category.name}</h3>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <Card key={category.id} className="bg-trainer-card border-transparent rounded-lg shadow-sm hover:shadow-md hover:border-primary/20 cursor-pointer group transition-all duration-200" onClick={() => handleCategorySelect(category.name)}>
+                <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full gap-2">
+                  <div className="w-14 h-14 rounded-full bg-gradient-primary flex items-center justify-center text-2xl text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">{category.icon}</div>
+                  <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2">{category.name}</h3>
                 </CardContent>
               </Card>
             ))

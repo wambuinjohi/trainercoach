@@ -125,7 +125,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     inputRef.current?.focus()
   }
 
-  const showSuggestions = isFocused && allSuggestions.length > 0
+  const showSuggestions = isFocused && (allSuggestions.length > 0 || matchingCategories.length > 0)
 
   const renderSuggestionText = (text: string) => {
     if (!value) return text
@@ -274,6 +274,40 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="truncate">{renderSuggestionText(search)}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Categories Section */}
+            {matchingCategories.length > 0 && (
+              <div>
+                <div className="px-2 py-1 text-xs font-semibold text-muted-foreground flex items-center gap-1 mt-2">
+                  <Zap className="h-3 w-3" />
+                  Categories
+                </div>
+                {matchingCategories.slice(0, 5).map((category, idx) => {
+                  const absoluteIdx = totalTextSuggestions + idx
+                  return (
+                    <button
+                      key={`category-${category.id}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        onCategorySelect?.(category.name)
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                        selectedSuggestionIndex === absoluteIdx
+                          ? 'bg-primary/10 text-primary'
+                          : 'hover:bg-muted text-foreground'
+                      }`}
+                      role="option"
+                      aria-selected={selectedSuggestionIndex === absoluteIdx}
+                    >
+                      <div className="flex items-center gap-2">
+                        {category.icon && <span className="text-lg flex-shrink-0">{category.icon}</span>}
+                        <span className="truncate">{category.name}</span>
                       </div>
                     </button>
                   )
