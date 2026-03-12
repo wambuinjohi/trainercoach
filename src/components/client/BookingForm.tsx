@@ -234,7 +234,17 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         } catch (e: any) {
           console.error('STK initiate error:', e)
           const errorMsg = e.message || 'Failed to initiate STK push'
-          toast({ title: 'Payment error', description: errorMsg, variant: 'destructive' })
+
+          // Check if M-Pesa is not configured on backend
+          if (errorMsg.includes('access token') || errorMsg.includes('credentials') || errorMsg.includes('not configured')) {
+            toast({
+              title: 'M-Pesa not available',
+              description: 'M-Pesa is not currently configured. Please use the Mock payment method for testing.',
+              variant: 'destructive'
+            })
+          } else {
+            toast({ title: 'Payment error', description: errorMsg, variant: 'destructive' })
+          }
           throw e
         }
 
@@ -330,6 +340,28 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       onDone?.()
     } catch (err) {
       console.error('Booking error', err)
+      const errorMessage = err instanceof Error ? err.message : String(err)
+
+      // Provide user-friendly error message
+      if (errorMessage.includes('access token') || errorMessage.includes('credentials') || errorMessage.includes('not configured')) {
+        toast({
+          title: 'M-Pesa not configured',
+          description: 'Please use the Mock payment method to complete your booking.',
+          variant: 'destructive'
+        })
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        toast({
+          title: 'Connection error',
+          description: 'Please check your internet connection and try again.',
+          variant: 'destructive'
+        })
+      } else {
+        toast({
+          title: 'Booking failed',
+          description: 'Please try again or contact support if the problem persists.',
+          variant: 'destructive'
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -430,6 +462,14 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             <option value="mpesa">M-Pesa (STK Push)</option>
             <option value="mock">Mock (for testing)</option>
           </select>
+          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-400">
+            <p className="font-medium mb-1">Payment Method Info:</p>
+            <ul className="text-xs space-y-1 ml-3 list-disc">
+              <li><strong>M-Pesa:</strong> Real payments using M-Pesa STK Push. Requires M-Pesa configuration by admin.</li>
+              <li><strong>Mock:</strong> For testing only. Use this method if M-Pesa isn't configured yet.</li>
+            </ul>
+            <p className="text-xs mt-2 opacity-80">If M-Pesa payments fail, switch to Mock for testing or contact support.</p>
+          </div>
         </div>
         {payMethod === 'mpesa' && (
           <div>

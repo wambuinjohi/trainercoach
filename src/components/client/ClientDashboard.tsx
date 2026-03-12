@@ -27,6 +27,7 @@ import {
   Sliders
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
+import { BookingModal } from './BookingModal'
 import { ClientProfileEditor } from './ClientProfileEditor'
 import { PaymentMethods } from './PaymentMethods'
 import { NotificationsCenter } from './NotificationsCenter'
@@ -89,6 +90,7 @@ export const ClientDashboard: React.FC = () => {
   const [trainers, setTrainers] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'schedule'>('home')
   const [selectedTrainer, setSelectedTrainer] = useState<any>(null)
+  const [selectedTrainerForBooking, setSelectedTrainerForBooking] = useState<any>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationName, setLocationName] = useState<string | null>(null)
   const [reverseGeocodeLoading, setReverseGeocodeLoading] = useState(false)
@@ -366,7 +368,7 @@ export const ClientDashboard: React.FC = () => {
     return <Navigate to="/" replace />
   }
 
-  const modalOpen = Boolean(selectedTrainer || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
+  const modalOpen = Boolean(selectedTrainer || selectedTrainerForBooking || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
 
   const setReviewByBooking = (bookingId: string) => {
     setReviewsByBooking(prev => ({ ...prev, [bookingId]: true }))
@@ -756,7 +758,7 @@ export const ClientDashboard: React.FC = () => {
                       <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
                         <MessageCircle className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" className="bg-gradient-primary text-white" onClick={() => openTrainer(trainer)}>
+                      <Button size="sm" className="bg-gradient-primary text-white" onClick={() => setSelectedTrainerForBooking(trainer)}>
                         Book Now
                       </Button>
                     </div>
@@ -965,6 +967,7 @@ export const ClientDashboard: React.FC = () => {
       </div>
 
       {selectedTrainer && <TrainerDetails trainer={selectedTrainer} onClose={closeTrainer} />}
+      {selectedTrainerForBooking && <BookingModal trainer={selectedTrainerForBooking} onClose={() => setSelectedTrainerForBooking(null)} />}
       {showEditProfile && <ClientProfileEditor onClose={() => setShowEditProfile(false)} />}
       {showPaymentMethods && <PaymentMethods onClose={() => setShowPaymentMethods(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}

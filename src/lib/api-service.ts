@@ -814,6 +814,22 @@ export async function getContactsWithPagination(options?: {
 }
 
 // ============================================================================
+// M-PESA CREDENTIALS MANAGEMENT
+// ============================================================================
+
+export async function getMpesaCredentials() {
+  return apiRequest('mpesa_credentials_get')
+}
+
+export async function saveMpesaCredentials(credentials: Record<string, any>) {
+  return apiRequest('mpesa_credentials_save', credentials)
+}
+
+export async function deleteMpesaCredentials() {
+  return apiRequest('mpesa_credentials_delete')
+}
+
+// ============================================================================
 // HEALTH CHECK
 // ============================================================================
 

@@ -8,6 +8,7 @@ import AdminSidebar from './AdminSidebar'
 import ThemeToggleAdmin from './ThemeToggleAdmin'
 import { RefundModal } from './RefundModal'
 import { AdminPayoutManager } from './AdminPayoutManager'
+import { AdminMpesaManager } from './AdminMpesaManager'
 import { EmojiPickerComponent } from './EmojiPickerComponent'
 import { CategoryForm } from './CategoryForm'
 import { CategoryList } from './CategoryList'
@@ -2164,6 +2165,15 @@ export const AdminDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground mt-2">Manage Trainer app launch waiting list entries</p>
                     </div>
                     <WaitingListManager />
+                  </div>
+                </TabsContent>
+                <TabsContent value="mpesa">
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-3xl font-bold text-foreground">M-Pesa Configuration</h1>
+                      <p className="text-sm text-muted-foreground mt-2">Manage M-Pesa API credentials and payment settings</p>
+                    </div>
+                    <AdminMpesaManager />
                   </div>
                 </TabsContent>
                 <TabsContent value="settings">{renderSettings()}</TabsContent>
