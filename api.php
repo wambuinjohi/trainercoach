@@ -2056,6 +2056,30 @@ switch ($action) {
         }
         break;
 
+    // RESET ALL USER PASSWORDS - Admin only
+    case 'reset_all_user_passwords':
+        validateAdminAuthorization($conn);
+
+        $newPassword = isset($input['password']) ? $input['password'] : '1234';
+
+        // Hash the password
+        $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        // Update all users
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, updated_at = NOW()");
+        $stmt->bind_param("s", $passwordHash);
+
+        if ($stmt->execute()) {
+            $affectedRows = $conn->affected_rows;
+            $stmt->close();
+            error_log("Admin reset all user passwords. Affected rows: $affectedRows");
+            respond("success", "All user passwords reset successfully.", ["updated" => $affectedRows, "password" => $newPassword]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reset passwords: " . $conn->error, null, 500);
+        }
+        break;
+
     // SEND AUDIT LOG
     case 'audit':
         $action = isset($input['action']) ? $conn->real_escape_string($input['action']) : 'unknown';

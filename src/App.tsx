@@ -43,6 +43,7 @@ import WaitlistPage from "./pages/admin/WaitlistPage";
 import BookingsPage from "./pages/admin/BookingsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import DocumentReviewPage from "./pages/admin/DocumentReviewPage";
+import ResetPasswordsPage from "./pages/admin/ResetPasswordsPage";
 
 const queryClient = new QueryClient();
 
@@ -145,7 +146,7 @@ const AdminRoutes = () => (
     <Route path="waitlist" element={<WaitlistPage />} />
     <Route path="bookings" element={<BookingsPage />} />
     <Route path="settings" element={<SettingsPage />} />
-    <Route path="reset-passwords" element={<ResetPasswords />} />
+    <Route path="reset-passwords" element={<ResetPasswordsPage />} />
     <Route path="mpesamigration" element={<MpesaMigration />} />
     <Route path="*" element={<Navigate to="/admin/overview" replace />} />
   </Routes>
