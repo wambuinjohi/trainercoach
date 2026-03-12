@@ -550,8 +550,47 @@ export const ClientDashboard: React.FC = () => {
     )
   }
 
+  // Helper function to get category names from trainer's categoryIds
+  const getCategoryNamesForTrainer = (categoryIds: number[] | undefined) => {
+    if (!categoryIds || categoryIds.length === 0) return []
+    return categoryIds
+      .map(id => dbCategories.find(c => c.id === id))
+      .filter((c): c is any => c !== undefined)
+  }
+
+  // Helper function to render category icon
+  const getCategoryIcon = (category: any): string => {
+    if (!category) return '🏆'
+    if (category.icon && category.icon.length <= 2) {
+      return category.icon
+    }
+    // Fallback icons based on category name
+    const iconMap: Record<string, string> = {
+      'badminton': '🏸',
+      'tennis': '🎾',
+      'table tennis': '🏓',
+      'basketball': '🏀',
+      'volleyball': '🏐',
+      'soccer': '⚽',
+      'fitness': '💪',
+      'yoga': '🧘',
+      'pilates': '🤸',
+      'running': '🏃',
+      'cycling': '🚴',
+      'swimming': '🏊',
+      'boxing': '🥊',
+      'martial arts': '🥋',
+      'dance': '💃',
+      'baking': '🍰',
+      'cooking': '👨‍🍳',
+      'climbing': '🧗',
+      'hiking': '⛰️'
+    }
+    return iconMap[(category.name || '').toLowerCase()] || '🏆'
+  }
+
   const renderExploreContent = () => {
-    // Filter trainers based on selected category and other criteria
+    // Filter trainers based on selected category, search query, and other criteria
     const filteredTrainers = selectedCategory
       ? trainers.filter(t => {
           const selectedCategoryId = dbCategories.find(c => c.name === selectedCategory)?.id
@@ -571,7 +610,17 @@ export const ClientDashboard: React.FC = () => {
           if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
           if (filters.onlyAvailable && !t.available) return false
           if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
-          if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (t.discipline || '').toLowerCase().includes(searchQuery.toLowerCase()))) return false
+
+          // Enhanced search: check trainer name, discipline, AND category names
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase()
+            const matchesName = (t.name || '').toLowerCase().includes(searchLower)
+            const matchesDiscipline = (t.discipline || '').toLowerCase().includes(searchLower)
+            const categoryNames = getCategoryNamesForTrainer(t.categoryIds)
+            const matchesCategory = categoryNames.some(c => (c.name || '').toLowerCase().includes(searchLower))
+
+            if (!matchesName && !matchesDiscipline && !matchesCategory) return false
+          }
 
           return true
         })
@@ -630,50 +679,91 @@ export const ClientDashboard: React.FC = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredTrainers.map((trainer, idx) => (
+            {filteredTrainers.map((trainer, idx) => {
+              const trainerCategories = getCategoryNamesForTrainer(trainer.categoryIds)
+              const displayCategories = trainerCategories.slice(0, 2)
+              const remainingCategoriesCount = trainerCategories.length - displayCategories.length
+
+              return (
               <Card
                 key={trainer.id}
                 className={`bg-card border-2 transition-all ${idx === 0 && userLocation ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-border'}`}
               >
-                <CardContent className="p-4 flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
-                    {trainer.image}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground">{trainer.name}</h3>
-                      {idx === 0 && userLocation && selectedCategory && (
-                        <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
-                      )}
-                      <Badge variant={trainer.available ? "default" : "secondary"} className="flex-shrink-0">
-                        {trainer.available ? 'Available' : 'Busy'}
-                      </Badge>
+                <CardContent className="p-4 space-y-3">
+                  {/* Header with name, badges */}
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                      {trainer.image}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">{trainer.discipline || 'Training'}</p>
-                    <div className="space-y-1 mb-3 text-sm text-muted-foreground">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold text-foreground">{trainer.name}</h3>
+                        {idx === 0 && userLocation && selectedCategory && (
+                          <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
+                        )}
+                        <Badge variant={trainer.available ? "default" : "secondary"} className="flex-shrink-0">
+                          {trainer.available ? 'Available' : 'Busy'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{trainer.discipline || 'Training'}</p>
+                    </div>
+                  </div>
+
+                  {/* Service Categories */}
+                  {trainerCategories.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {displayCategories.map((category, catIdx) => (
+                        <Badge key={catIdx} variant="outline" className="bg-muted/50">
+                          {getCategoryIcon(category)} <span className="ml-1">{category.name}</span>
+                        </Badge>
+                      ))}
+                      {remainingCategoriesCount > 0 && (
+                        <Badge variant="outline" className="bg-muted/50 text-xs">
+                          +{remainingCategoriesCount} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Rating, Location, Distance */}
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         <span>{trainer.rating.toFixed(1)} ({trainer.reviews})</span>
-                        <MapPin className="h-4 w-4 ml-2" />
-                        <span>{trainer.location_label}</span>
-                        {trainer.distance !== '—' && <span className="font-semibold text-foreground">{trainer.distance}</span>}
                       </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        <span className="truncate">{trainer.location_label}</span>
+                      </div>
+                      {trainer.distance !== '—' && (
+                        <span className="font-semibold text-foreground">{trainer.distance}</span>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between">
+                  </div>
+
+                  {/* Pricing and Availability Info */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-3">
                       <span className="font-semibold text-foreground">Ksh {formatHourlyRate(trainer.hourlyRate)}/hour</span>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" className="bg-gradient-primary text-white" onClick={() => openTrainer(trainer)}>
-                          Book Now
-                        </Button>
-                      </div>
+                      {trainer.pricing_packages && trainer.pricing_packages.length > 0 && (
+                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
+                          📦 Packages
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" className="bg-gradient-primary text-white" onClick={() => openTrainer(trainer)}>
+                        Book Now
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )})}
           </div>
         )}
       </div>
