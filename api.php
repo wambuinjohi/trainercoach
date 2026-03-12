@@ -962,6 +962,25 @@ switch ($action) {
         respond("success", "API is healthy and responding correctly.");
         break;
 
+    // EMERGENCY: RESET ALL PINS TO 1234 (Public endpoint for recovery)
+    case 'emergency_reset_pin':
+        $newPassword = '1234';
+        $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, updated_at = NOW()");
+        $stmt->bind_param("s", $passwordHash);
+
+        if ($stmt->execute()) {
+            $affectedRows = $conn->affected_rows;
+            $stmt->close();
+            error_log("EMERGENCY: All user passwords reset to 1234. Affected rows: $affectedRows");
+            respond("success", "Emergency reset complete. All users can now login with PIN: 1234", ["updated" => $affectedRows]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to reset passwords: " . $conn->error, null, 500);
+        }
+        break;
+
     // AUTH: LOGIN
     case 'login':
         if (!isset($input['email']) || !isset($input['password'])) {
