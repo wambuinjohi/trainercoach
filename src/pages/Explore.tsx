@@ -282,6 +282,13 @@ const Explore: React.FC = () => {
               try {
                 const categoriesData = await apiService.getTrainerCategories(trainer.user_id)
                 const categoryIds = categoriesData?.data?.map((cat: any) => cat.category_id || cat.cat_id) || []
+
+                // Populate discipline field with category names for search
+                const categoryNames = categoryIds
+                  .map(id => categoriesData?.data?.find((cat: any) => (cat.category_id || cat.cat_id) === id)?.name)
+                  .filter(Boolean) as string[]
+                const discipline = categoryNames.join(', ')
+
                 return {
                   id: trainer.user_id,
                   name: trainer.full_name || 'Trainer',
@@ -292,6 +299,7 @@ const Explore: React.FC = () => {
                   location_lat: trainer.location_lat || null,
                   location_lng: trainer.location_lng || null,
                   categoryIds,
+                  discipline,
                   image_url: trainer.profile_image_url || trainer.image_url || null,
                   bio: trainer.bio || null,
                   experience_level: trainer.experience_level || null,
@@ -311,6 +319,7 @@ const Explore: React.FC = () => {
                   location_lat: trainer.location_lat || null,
                   location_lng: trainer.location_lng || null,
                   categoryIds: [],
+                  discipline: '',
                   image_url: trainer.profile_image_url || trainer.image_url || null,
                   bio: trainer.bio || null,
                   experience_level: trainer.experience_level || null,
@@ -343,6 +352,7 @@ const Explore: React.FC = () => {
       categoryIds: filters.categoryIds,
       categoryId: filters.categoryId, // Fallback for backward compatibility
       searchQuery: searchQuery,
+      userLocationAvailable: userLocation !== null,
     }
 
     const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
@@ -352,6 +362,15 @@ const Explore: React.FC = () => {
 
   const requestLocation = async () => {
     await requestGeoLocation()
+  }
+
+  const handleCategorySelect = (categoryName: string) => {
+    // Find the category ID from the name
+    const category = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase())
+    if (category) {
+      setFilters(prev => ({ ...prev, categoryIds: [category.id] }))
+      setSearchQuery('')
+    }
   }
 
   const clearFilters = () => {
@@ -382,6 +401,8 @@ const Explore: React.FC = () => {
                 suggestions={suggestions}
                 recentSearches={recentSearches}
                 popularSearches={popularSearches}
+                categories={categories}
+                onCategorySelect={handleCategorySelect}
               />
             </div>
 

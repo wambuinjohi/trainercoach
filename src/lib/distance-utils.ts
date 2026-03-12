@@ -157,6 +157,7 @@ export interface FilterCriteria {
   categoryId?: number | null
   categoryIds?: number[]
   searchQuery?: string
+  userLocationAvailable?: boolean
 }
 
 export interface TrainerWithCategories {
@@ -204,9 +205,11 @@ export function filterTrainers(
       return false
     }
 
-    // Filter by distance
-    if (criteria.radius && (trainer.distanceKm == null || trainer.distanceKm > criteria.radius)) {
-      return false
+    // Filter by distance (only apply if user location is available)
+    if (criteria.radius && criteria.userLocationAvailable) {
+      if (trainer.distanceKm == null || trainer.distanceKm > criteria.radius) {
+        return false
+      }
     }
 
     // Filter by search query
