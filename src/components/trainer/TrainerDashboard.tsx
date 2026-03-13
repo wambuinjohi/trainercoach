@@ -316,7 +316,28 @@ export const TrainerDashboard: React.FC = () => {
         setWalletBalance(0)
       }
     }
+
+    const loadCategories = async () => {
+      if (!user?.id) return
+      try {
+        // Load all available categories
+        const categoriesData = await apiService.getCategories()
+        const allCategories = categoriesData?.data || []
+        setCategories(allCategories)
+
+        // Load trainer's selected categories
+        const trainerCategoriesData = await apiService.getTrainerCategories(user.id)
+        const trainerCategoryIds = trainerCategoriesData?.data?.map((tc: any) => String(tc.category_id || tc.id)) || []
+        setSelectedCategoryIds(trainerCategoryIds)
+      } catch (err) {
+        console.warn('Failed to load categories', err)
+        setCategories([])
+        setSelectedCategoryIds([])
+      }
+    }
+
     loadTrainerProfile()
+    loadCategories()
   }, [user?.id])
 
   const loadNotifications = async () => {
@@ -403,7 +424,7 @@ export const TrainerDashboard: React.FC = () => {
   }
 
   const renderHomeContent = () => {
-    const selectedCategories = categories.filter(cat => selectedCategoryIds.includes(cat.id))
+    const selectedCategories = (categories || []).filter((cat: any) => selectedCategoryIds.includes(String(cat.id)))
 
     return (
     <div className="space-y-6">

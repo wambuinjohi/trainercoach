@@ -31,8 +31,8 @@ export interface UserProfile {
 }
 
 export interface TrainerProfile extends UserProfile {
-  disciplines?: string[] // Discipline IDs
-  certifications?: string[]
+  disciplines?: string[] // Discipline IDs (DEPRECATED - use categories instead)
+  certifications?: string[] // DEPRECATED - use document uploads instead
   hourly_rate?: number
   service_radius?: number // in km, default 5
   area_of_residence?: string
@@ -42,7 +42,23 @@ export interface TrainerProfile extends UserProfile {
   availability?: Record<string, any> // JSON: day -> time slots
   account_status?: AccountStatus
   is_verified?: boolean
-  sponsor_id?: string | null // Trainer ID if sponsored, null if institution-based
+  sponsor_trainer_id?: string | null // Trainer ID if sponsored by another trainer
+
+  // Document upload fields
+  id_document_url?: string
+  id_document_status?: 'pending' | 'verified' | 'rejected'
+  id_number?: string
+
+  discipline_certificate_url?: string
+  discipline_certificate_status?: 'pending' | 'verified' | 'rejected'
+
+  good_conduct_url?: string
+  good_conduct_status?: 'pending' | 'grace_period' | 'verified' | 'rejected'
+  good_conduct_grace_period_start?: string // ISO timestamp
+  good_conduct_grace_period_end?: string // ISO timestamp (calculated 30 days from start)
+
+  sponsorship_reference_url?: string
+  payout_details?: string | Record<string, any>
 }
 
 export interface ClientProfile extends UserProfile {

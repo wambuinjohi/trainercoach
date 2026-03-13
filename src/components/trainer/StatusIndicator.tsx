@@ -181,14 +181,14 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
         {status !== 'approved' && status !== 'suspended' && (
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
             <p className="text-sm text-gray-700">
-              {status === 'registered' && (() => {
+              {status === 'registered' && profileData && (() => {
                 const missingFields: string[] = []
-                if (!profileData?.profile_image) missingFields.push('photo')
-                if (!profileData?.selectedCategories || profileData.selectedCategories.length === 0) missingFields.push('categories')
-                if (!profileData?.bio) missingFields.push('bio')
-                if (!profileData?.hourly_rate) missingFields.push('hourly rate')
-                if (!profileData?.service_radius || !profileData?.area_of_residence) missingFields.push('service area')
-                if (!profileData?.mpesa_number) missingFields.push('M-Pesa number')
+                if (!profileData.profile_image) missingFields.push('photo')
+                if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) missingFields.push('categories')
+                if (!profileData.bio) missingFields.push('bio')
+                if (!profileData.hourly_rate) missingFields.push('hourly rate')
+                if (!profileData.service_radius || !profileData.area_of_residence) missingFields.push('service area')
+                if (!profileData.mpesa_number) missingFields.push('M-Pesa number')
 
                 if (missingFields.length === 0) {
                   return <>
