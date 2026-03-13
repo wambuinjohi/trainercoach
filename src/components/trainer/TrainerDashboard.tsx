@@ -389,9 +389,22 @@ export const TrainerDashboard: React.FC = () => {
     )
   }
 
-  const renderHomeContent = () => (
+  const renderHomeContent = () => {
+    const selectedCategories = categories.filter(cat => selectedCategoryIds.includes(cat.id))
+
+    return (
     <div className="space-y-6">
-      <StatusIndicator status={accountStatus} onAction={() => setEditingProfile(true)} />
+      <StatusIndicator
+        status={accountStatus}
+        profileData={{
+          hourly_rate: profileData.hourly_rate,
+          service_radius: profileData.service_radius,
+          area_of_residence: profileData.area_of_residence,
+          mpesa_number: profileData.mpesa_number,
+          selectedCategories: selectedCategories
+        }}
+        onAction={() => setEditingProfile(true)}
+      />
       <div className="flex items-center justify-between mb-4">
         <div></div>
         <div className="flex items-center gap-2">
@@ -494,7 +507,8 @@ export const TrainerDashboard: React.FC = () => {
         </div>
       </div>
     </div>
-  )
+    )
+  }
 
   const renderBookingsContent = () => {
     const activeBookings = bookings.filter(b => !isBookingArchived(b))
