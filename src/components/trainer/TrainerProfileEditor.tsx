@@ -362,17 +362,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       }
       cleanedTiers.sort((a,b)=>a.radius_km - b.radius_km)
 
-      // Payout details - if string, attempt parse
-      let payoutDetails: any = profile.payout_details ?? null
-      if (typeof payoutDetails === 'string' && payoutDetails.trim() !== '') {
-        try {
-          payoutDetails = JSON.parse(payoutDetails)
-        } catch (e) {
-          toast({ title: 'Invalid payout JSON', description: 'Payout details must be valid JSON.', variant: 'destructive' })
-          setLoading(false)
-          return
-        }
-      }
+      // Payout is M-Pesa only - default to null
+      const payoutDetails = null
 
       // Availability - if string, attempt parse
       let availabilityVal: any = profile.availability ?? null
@@ -757,19 +748,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="payout_details">Additional Payout Details (JSON)</Label>
-            <textarea id="payout_details" value={profile.payout_details ? JSON.stringify(profile.payout_details) : ''} onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : null
-                handleChange('payout_details', parsed)
-              } catch {
-                // keep raw string until valid
-                handleChange('payout_details', e.target.value)
-              }
-            }} className="w-full p-2 border border-border rounded-md bg-input" rows={3} />
-            <p className="text-xs text-muted-foreground">Example: <code>{"{\"payout_type\":\"instant\",\"bank_account\":\"\"}"}</code></p>
-          </div>
 
           <div>
             <Label>Availability</Label>
