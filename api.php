@@ -2331,13 +2331,19 @@ switch ($action) {
 
     // UPLOAD VERIFICATION DOCUMENT
     case 'verification_document_upload':
+        error_log("[UPLOAD] Starting verification_document_upload endpoint");
+        error_log("[UPLOAD] Input received: " . json_encode(['action' => $input['action'], 'trainer_id' => $input['trainer_id'] ?? 'missing', 'document_type' => $input['document_type'] ?? 'missing']));
+        error_log("[UPLOAD] Files received: " . json_encode(array_keys($_FILES)));
+
         if (!isset($input['trainer_id']) || !isset($input['document_type'])) {
+            error_log("[UPLOAD] ERROR: Missing trainer_id or document_type");
             respond("error", "Missing trainer_id or document_type.", null, 400);
         }
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $documentType = $conn->real_escape_string($input['document_type']);
         $idNumber = isset($input['id_number']) ? $conn->real_escape_string($input['id_number']) : null;
+        error_log("[UPLOAD] Processing upload for trainer_id=$trainerId, document_type=$documentType, has_id_number=" . (isset($input['id_number']) ? 'yes' : 'no'));
 
         // Validate document upload based on registration path
         $stmt = $conn->prepare("SELECT registration_path FROM user_profiles WHERE user_id = ? LIMIT 1");
@@ -2359,6 +2365,7 @@ switch ($action) {
         $filePath = null;
         if (isset($_FILES['file'])) {
             $file = $_FILES['file'];
+            error_log("[UPLOAD] File received: name=" . $file['name'] . ", size=" . $file['size'] . ", type=" . $file['type'] . ", error=" . $file['error'] . ", tmp_name=" . $file['tmp_name']);
 
             // Check for PHP upload errors
             if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -2372,59 +2379,84 @@ switch ($action) {
                     UPLOAD_ERR_EXTENSION => 'File upload blocked by PHP extension.'
                 ];
                 $errorMessage = $uploadErrors[$file['error']] ?? 'Unknown upload error.';
+                error_log("[UPLOAD] PHP Upload error code " . $file['error'] . ": " . $errorMessage);
                 respond("error", $errorMessage, null, 400);
             }
 
             // Validate file size (5MB max)
             $maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
             if ($file['size'] > $maxFileSize) {
-                respond("error", "File exceeds maximum allowed size of 5MB. Uploaded file is " . round($file['size'] / 1024 / 1024, 2) . "MB.", null, 400);
+                $fileSizeMB = round($file['size'] / 1024 / 1024, 2);
+                error_log("[UPLOAD] File too large: {$fileSizeMB}MB exceeds 5MB limit");
+                respond("error", "File exceeds maximum allowed size of 5MB. Uploaded file is " . $fileSizeMB . "MB.", null, 400);
             }
 
             // Validate MIME type
             $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
             if (!in_array($file['type'], $allowedMimes)) {
+                error_log("[UPLOAD] Invalid MIME type: " . $file['type'] . ". Allowed: " . implode(', ', $allowedMimes));
                 respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
             }
 
             // Use absolute path for upload directory
             $uploadDir = __DIR__ . '/uploads/';
+            error_log("[UPLOAD] Upload directory path: " . $uploadDir);
+
             if (!is_dir($uploadDir)) {
+                error_log("[UPLOAD] Directory does not exist, creating...");
                 if (!mkdir($uploadDir, 0755, true)) {
+                    error_log("[UPLOAD] ERROR: Failed to create upload directory at " . $uploadDir);
                     respond("error", "Failed to create upload directory. Server configuration issue.", null, 500);
                 }
+                error_log("[UPLOAD] Directory created successfully");
+            } else {
+                error_log("[UPLOAD] Directory already exists");
             }
 
             // Verify directory is writable
             if (!is_writable($uploadDir)) {
+                error_log("[UPLOAD] ERROR: Upload directory is not writable: " . $uploadDir);
                 respond("error", "Upload directory is not writable. Server configuration issue.", null, 500);
             }
+            error_log("[UPLOAD] Directory is writable");
 
             $fileName = $trainerId . '_' . $documentType . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
             $filePath = $uploadDir . $fileName;
             $uploadBase = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads/';
             $fileUrl = rtrim($uploadBase, '/') . '/' . $fileName;
 
+            error_log("[UPLOAD] Attempting to move file from " . $file['tmp_name'] . " to " . $filePath);
+            error_log("[UPLOAD] Generated fileName: " . $fileName);
+            error_log("[UPLOAD] Generated fileUrl: " . $fileUrl);
+
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+                error_log("[UPLOAD] ERROR: move_uploaded_file failed. tmp_name=" . $file['tmp_name'] . ", destination=" . $filePath);
                 respond("error", "Failed to move uploaded file to storage location. Please try again.", null, 500);
             }
+            error_log("[UPLOAD] File moved successfully to " . $filePath);
+        } else {
+            error_log("[UPLOAD] WARNING: No file in \$_FILES. Available keys: " . implode(', ', array_keys($_FILES)));
         }
 
         // Check if document already exists
+        error_log("[UPLOAD] Checking if document already exists for trainer_id=$trainerId, document_type=$documentType");
         $sql = "SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?";
         $stmt = $conn->prepare($sql);
         if ($stmt === false) {
+            error_log("[UPLOAD] ERROR: Prepare failed: " . $conn->error . " | SQL: " . $sql);
             respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
             break;
         }
 
         if (!$stmt->bind_param("ss", $trainerId, $documentType)) {
+            error_log("[UPLOAD] ERROR: Bind failed: " . $stmt->error);
             $stmt->close();
             respond("error", "Bind failed: " . $stmt->error, null, 500);
             break;
         }
 
         if (!$stmt->execute()) {
+            error_log("[UPLOAD] ERROR: Execute failed: " . $conn->error);
             $stmt->close();
             respond("error", "Execute failed: " . $conn->error, null, 500);
             break;
@@ -2432,11 +2464,14 @@ switch ($action) {
 
         $existingDoc = $stmt->get_result();
         $stmt->close();
+        error_log("[UPLOAD] Found " . $existingDoc->num_rows . " existing document(s)");
 
         if ($existingDoc->num_rows > 0) {
             // Update existing document
+            error_log("[UPLOAD] Updating existing document");
             $doc = $existingDoc->fetch_assoc();
             $docId = $doc['id'];
+            error_log("[UPLOAD] Existing document ID: " . $docId);
 
             $expiresAt = null;
             if ($documentType === 'certificate_of_good_conduct') {
@@ -2452,27 +2487,35 @@ switch ($action) {
 
             $stmt = $conn->prepare($sql);
             if ($stmt === false) {
+                error_log("[UPLOAD] ERROR: Prepare failed: " . $conn->error . " | SQL: " . $sql);
                 respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
                 break;
             }
 
             if (!$stmt->bind_param("sssss", $fileUrl, $filePath, $idNumber, $expiresAt, $docId)) {
+                error_log("[UPLOAD] ERROR: Bind failed: " . $stmt->error);
                 $stmt->close();
                 respond("error", "Bind failed: " . $stmt->error, null, 500);
                 break;
             }
 
+            error_log("[UPLOAD] Executing UPDATE query. docId=$docId, fileUrl=$fileUrl, filePath=$filePath");
             if ($stmt->execute()) {
                 $stmt->close();
+                error_log("[UPLOAD] SUCCESS: Document updated successfully. ID=$docId");
                 logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
+                error_log("[UPLOAD] ERROR: Execute failed: " . $conn->error);
                 $stmt->close();
                 respond("error", "Execute failed: " . $conn->error, null, 500);
             }
         } else {
             // Create new document
+            error_log("[UPLOAD] Creating new document");
             $docId = 'doc_' . uniqid();
+            error_log("[UPLOAD] Generated new document ID: " . $docId);
+
             $expiresAt = null;
             if ($documentType === 'certificate_of_good_conduct') {
                 // Good conduct certificate expires in 30 minutes
@@ -2486,21 +2529,26 @@ switch ($action) {
 
             $stmt = $conn->prepare($sql);
             if ($stmt === false) {
+                error_log("[UPLOAD] ERROR: Prepare failed: " . $conn->error . " | SQL: " . $sql);
                 respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
                 break;
             }
 
             if (!$stmt->bind_param("sssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $expiresAt)) {
+                error_log("[UPLOAD] ERROR: Bind failed: " . $stmt->error);
                 $stmt->close();
                 respond("error", "Bind failed: " . $stmt->error, null, 500);
                 break;
             }
 
+            error_log("[UPLOAD] Executing INSERT query. docId=$docId, trainerId=$trainerId, documentType=$documentType, fileUrl=$fileUrl, filePath=$filePath");
             if ($stmt->execute()) {
                 $stmt->close();
+                error_log("[UPLOAD] SUCCESS: Document created successfully. ID=$docId");
                 logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
+                error_log("[UPLOAD] ERROR: Execute failed: " . $conn->error);
                 $stmt->close();
                 respond("error", "Execute failed: " . $conn->error, null, 500);
             }
