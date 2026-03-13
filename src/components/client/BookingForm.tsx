@@ -368,8 +368,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   }
 
   return (
-    <div className="p-4 border border-border rounded-md bg-card max-h-[60vh] overflow-auto">
-      <div className="grid grid-cols-1 gap-3">
+    <div className="flex flex-col gap-4 h-full">
+      <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto pr-2">
         <div>
           <Label>Session Date</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -506,10 +506,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
-          <Button onClick={submit} disabled={loading || !!availabilityError} className="bg-gradient-primary text-white" title={availabilityError ? 'Please select a valid date and time' : ''}>{loading ? 'Processing...' : 'Confirm & Pay'}</Button>
-        </div>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
+        <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
+        <Button onClick={submit} disabled={loading || !!availabilityError} className="bg-gradient-primary text-white" title={availabilityError ? 'Please select a valid date and time' : ''}>{loading ? 'Processing...' : 'Confirm & Pay'}</Button>
       </div>
     </div>
   )
