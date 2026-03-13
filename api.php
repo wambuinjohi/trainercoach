@@ -2349,16 +2349,45 @@ switch ($action) {
         $filePath = null;
         if (isset($_FILES['file'])) {
             $file = $_FILES['file'];
-            $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
 
+            // Check for PHP upload errors
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $uploadErrors = [
+                    UPLOAD_ERR_INI_SIZE => 'File exceeds php.ini upload_max_filesize limit.',
+                    UPLOAD_ERR_FORM_SIZE => 'File exceeds form MAX_FILE_SIZE limit.',
+                    UPLOAD_ERR_PARTIAL => 'File upload was incomplete. Please try again.',
+                    UPLOAD_ERR_NO_FILE => 'No file selected for upload.',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Server configuration error: missing temporary folder.',
+                    UPLOAD_ERR_CANT_WRITE => 'Server configuration error: cannot write to disk.',
+                    UPLOAD_ERR_EXTENSION => 'File upload blocked by PHP extension.'
+                ];
+                $errorMessage = $uploadErrors[$file['error']] ?? 'Unknown upload error.';
+                respond("error", $errorMessage, null, 400);
+            }
+
+            // Validate file size (5MB max)
+            $maxFileSize = 5 * 1024 * 1024; // 5MB in bytes
+            if ($file['size'] > $maxFileSize) {
+                respond("error", "File exceeds maximum allowed size of 5MB. Uploaded file is " . round($file['size'] / 1024 / 1024, 2) . "MB.", null, 400);
+            }
+
+            // Validate MIME type
+            $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
             if (!in_array($file['type'], $allowedMimes)) {
                 respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
             }
 
-            // Use same uploads directory as profile images
-            $uploadDir = 'uploads/';
+            // Use absolute path for upload directory
+            $uploadDir = __DIR__ . '/uploads/';
             if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+                if (!mkdir($uploadDir, 0755, true)) {
+                    respond("error", "Failed to create upload directory. Server configuration issue.", null, 500);
+                }
+            }
+
+            // Verify directory is writable
+            if (!is_writable($uploadDir)) {
+                respond("error", "Upload directory is not writable. Server configuration issue.", null, 500);
             }
 
             $fileName = $trainerId . '_' . $documentType . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
@@ -2367,7 +2396,7 @@ switch ($action) {
             $fileUrl = rtrim($uploadBase, '/') . '/' . $fileName;
 
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
-                respond("error", "Failed to upload file.", null, 500);
+                respond("error", "Failed to move uploaded file to storage location. Please try again.", null, 500);
             }
         }
 
