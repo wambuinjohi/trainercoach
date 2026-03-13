@@ -2396,9 +2396,25 @@ switch ($action) {
         }
 
         // Check if document already exists
-        $stmt = $conn->prepare("SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?");
-        $stmt->bind_param("ss", $trainerId, $documentType);
-        $stmt->execute();
+        $sql = "SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
+            break;
+        }
+
+        if (!$stmt->bind_param("ss", $trainerId, $documentType)) {
+            $stmt->close();
+            respond("error", "Bind failed: " . $stmt->error, null, 500);
+            break;
+        }
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            respond("error", "Execute failed: " . $conn->error, null, 500);
+            break;
+        }
+
         $existingDoc = $stmt->get_result();
         $stmt->close();
 
@@ -2413,12 +2429,23 @@ switch ($action) {
                 $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
             }
 
-            $stmt = $conn->prepare("
+            $sql = "
                 UPDATE verification_documents
                 SET file_url = ?, file_path = ?, id_number = ?, status = 'pending', expires_at = ?, updated_at = NOW()
                 WHERE id = ?
-            ");
-            $stmt->bind_param("sssss", $fileUrl, $filePath, $idNumber, $expiresAt, $docId);
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if ($stmt === false) {
+                respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
+                break;
+            }
+
+            if (!$stmt->bind_param("sssss", $fileUrl, $filePath, $idNumber, $expiresAt, $docId)) {
+                $stmt->close();
+                respond("error", "Bind failed: " . $stmt->error, null, 500);
+                break;
+            }
 
             if ($stmt->execute()) {
                 $stmt->close();
@@ -2426,7 +2453,7 @@ switch ($action) {
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
                 $stmt->close();
-                respond("error", "Failed to upload document: " . $conn->error, null, 500);
+                respond("error", "Execute failed: " . $conn->error, null, 500);
             }
         } else {
             // Create new document
@@ -2437,11 +2464,22 @@ switch ($action) {
                 $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
             }
 
-            $stmt = $conn->prepare("
+            $sql = "
                 INSERT INTO verification_documents (id, trainer_id, document_type, file_url, file_path, id_number, expires_at, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-            ");
-            $stmt->bind_param("sssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $expiresAt);
+            ";
+
+            $stmt = $conn->prepare($sql);
+            if ($stmt === false) {
+                respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
+                break;
+            }
+
+            if (!$stmt->bind_param("sssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $expiresAt)) {
+                $stmt->close();
+                respond("error", "Bind failed: " . $stmt->error, null, 500);
+                break;
+            }
 
             if ($stmt->execute()) {
                 $stmt->close();
@@ -2449,7 +2487,7 @@ switch ($action) {
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
                 $stmt->close();
-                respond("error", "Failed to upload document: " . $conn->error, null, 500);
+                respond("error", "Execute failed: " . $conn->error, null, 500);
             }
         }
         break;
@@ -2461,13 +2499,24 @@ switch ($action) {
         }
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
-        $stmt = $conn->prepare("
+        $sql = "
             SELECT id, trainer_id, document_type, file_url, file_path, status, rejection_reason, id_number, uploaded_at, reviewed_at, expires_at
             FROM verification_documents
             WHERE trainer_id = ?
             ORDER BY uploaded_at DESC
-        ");
-        $stmt->bind_param("s", $trainerId);
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
+            break;
+        }
+
+        if (!$stmt->bind_param("s", $trainerId)) {
+            $stmt->close();
+            respond("error", "Bind failed: " . $stmt->error, null, 500);
+            break;
+        }
 
         if ($stmt->execute()) {
             $result = $stmt->get_result();
@@ -2484,7 +2533,7 @@ switch ($action) {
             respond("success", "Verification documents fetched.", $documents);
         } else {
             $stmt->close();
-            respond("error", "Query failed: " . $conn->error, null, 500);
+            respond("error", "Execute failed: " . $conn->error, null, 500);
         }
         break;
 
@@ -2545,12 +2594,23 @@ switch ($action) {
             respond("error", "Invalid status value. Must be 'approved' or 'rejected'.", null, 400);
         }
 
-        $stmt = $conn->prepare("
+        $sql = "
             UPDATE verification_documents
             SET status = ?, rejection_reason = ?, reviewed_at = NOW(), reviewed_by = ?, updated_at = NOW()
             WHERE id = ?
-        ");
-        $stmt->bind_param("ssss", $status, $rejectionReason, $adminId, $docId);
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
+            break;
+        }
+
+        if (!$stmt->bind_param("ssss", $status, $rejectionReason, $adminId, $docId)) {
+            $stmt->close();
+            respond("error", "Bind failed: " . $stmt->error, null, 500);
+            break;
+        }
 
         if ($stmt->execute()) {
             $stmt->close();
@@ -2558,7 +2618,7 @@ switch ($action) {
             respond("success", "Document verification completed.", ["status" => $status]);
         } else {
             $stmt->close();
-            respond("error", "Failed to verify document: " . $conn->error, null, 500);
+            respond("error", "Execute failed: " . $conn->error, null, 500);
         }
         break;
 
