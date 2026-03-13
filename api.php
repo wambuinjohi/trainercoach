@@ -525,45 +525,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
 
 // Read input - handle both JSON and FormData (multipart/form-data)
 $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN';
 $input = null;
+
+error_log("[API] Request started - Method: $requestMethod, Content-Type: $contentType");
 
 // Check if this is a FormData/multipart request
 if (strpos($contentType, 'multipart/form-data') !== false) {
+    error_log("[API] Detected FormData/multipart request");
     // For multipart/form-data, use $_POST which PHP auto-populates
     // This is the correct way to handle FormData from fetch/XMLHttpRequest
     $input = $_POST;
+    error_log("[API] \$_POST keys: " . implode(', ', array_keys($_POST)));
 } else {
+    error_log("[API] Detected JSON request");
     // For JSON requests, parse the raw input
     $rawInput = file_get_contents("php://input");
+    error_log("[API] Raw input length: " . strlen($rawInput) . " bytes");
 
     if (!empty($rawInput)) {
+        error_log("[API] Attempting JSON decode. First 200 chars: " . substr($rawInput, 0, 200));
         $input = json_decode($rawInput, true);
         if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
-            respond("error", "Invalid JSON in request body.", null, 400);
+            error_log("[API] JSON decode failed: " . json_last_error_msg());
+            respond("error", "Invalid JSON in request body: " . json_last_error_msg(), null, 400);
         }
+        error_log("[API] JSON decode successful. Input keys: " . implode(', ', array_keys($input ?? [])));
     } else if (!empty($_GET)) {
+        error_log("[API] Using GET parameters");
         $input = $_GET;
     } else {
+        error_log("[API] No input data found, using empty array");
         $input = [];
     }
 }
 
 // Ensure input is an array
 if (!is_array($input)) {
+    error_log("[API] ERROR: Input is not an array, it's a " . gettype($input));
     respond("error", "Request must be JSON object or FormData.", null, 400);
 }
 
 // Verify action parameter
 if (empty($input['action'])) {
+    error_log("[API] ERROR: Missing action parameter. Available keys: " . implode(', ', array_keys($input)));
     respond("error", "Missing action parameter.", null, 400);
 }
 
 $action = strtolower(trim($input['action']));
-
 // =============================
 // ACTION HANDLERS
 // =============================
 switch ($action) {
+
+    // HEALTH CHECK - No database required
+    case 'health_check':
+        error_log("[API] Health check request");
+        respond("success", "API is healthy", [
+            "timestamp" => date('Y-m-d H:i:s'),
+            "php_version" => phpversion(),
+            "memory_usage" => memory_get_usage(true),
+            "uptime_check" => "ok"
+        ]);
+        break;
 
     // CREATE TABLE DYNAMICALLY
     case 'create_table':
