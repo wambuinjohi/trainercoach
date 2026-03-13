@@ -71,14 +71,22 @@ export default function DocumentReviewPage() {
       setLoading(true)
       const token = localStorage.getItem('adminToken')
       const response = await apiService.listVerificationDocuments(undefined, token)
-      
+
       if (response?.data || Array.isArray(response)) {
         const docs = Array.isArray(response) ? response : response.data
-        setDocuments(docs)
+        setDocuments(Array.isArray(docs) ? docs : [])
+      } else {
+        setDocuments([])
       }
     } catch (error) {
       console.error('Failed to load documents:', error)
-      toast({ title: 'Error', description: 'Failed to load verification documents', variant: 'destructive' })
+      // In development, don't show error for missing auth - just show empty state
+      if (!localStorage.getItem('adminToken')) {
+        console.log('[DocumentReviewPage] No admin token found - showing empty state')
+        setDocuments([])
+      } else {
+        toast({ title: 'Error', description: 'Failed to load verification documents', variant: 'destructive' })
+      }
     } finally {
       setLoading(false)
     }

@@ -735,7 +735,7 @@ export async function getVerificationDocuments(trainerId: string) {
 }
 
 export async function listVerificationDocuments(status?: string, token?: string) {
-  const headers = token ? { 'X-Admin-Token': token } : {}
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
   const payload: any = {}
   if (status) {
     payload.status = status
@@ -744,7 +744,7 @@ export async function listVerificationDocuments(status?: string, token?: string)
 }
 
 export async function verifyDocument(documentId: string, status: 'approved' | 'rejected', rejectionReason?: string, token?: string) {
-  const headers = token ? { 'X-Admin-Token': token } : {}
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
   return apiRequest('verification_document_verify', {
     document_id: documentId,
     status,

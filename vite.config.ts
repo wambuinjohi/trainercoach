@@ -471,6 +471,67 @@ function devApiPlugin() {
               }));
               return;
 
+            case "verification_documents_list":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents retrieved",
+                data: [
+                  {
+                    id: "doc_" + Math.random().toString(36).substring(7),
+                    trainer_id: "trainer_123",
+                    document_type: "national_id",
+                    file_url: "https://via.placeholder.com/600x400?text=National+ID",
+                    status: "pending",
+                    uploaded_at: new Date(Date.now() - 2*24*60*60*1000).toISOString(),
+                    full_name: "John Doe",
+                    user_type: "trainer"
+                  },
+                  {
+                    id: "doc_" + Math.random().toString(36).substring(7),
+                    trainer_id: "trainer_456",
+                    document_type: "certificate_of_good_conduct",
+                    file_url: "https://via.placeholder.com/600x400?text=Good+Conduct",
+                    status: "pending",
+                    uploaded_at: new Date(Date.now() - 1*24*60*60*1000).toISOString(),
+                    full_name: "Jane Smith",
+                    user_type: "trainer"
+                  }
+                ]
+              }));
+              return;
+
+            case "verification_documents_get":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents retrieved",
+                data: []
+              }));
+              return;
+
+            case "verification_document_upload":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Document uploaded successfully",
+                data: { id: "doc_" + Math.random().toString(36).substring(7), file_url: "https://via.placeholder.com/600x400" }
+              }));
+              return;
+
+            case "verification_document_verify":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Document verification completed",
+                data: { status: body.status || "approved" }
+              }));
+              return;
+
+            case "validate_sponsor":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Sponsor is valid",
+                data: { user_id: body.sponsor_id, full_name: "Valid Sponsor", is_approved: true }
+              }));
+              return;
+
             case "select":
             case "insert":
             case "update":
