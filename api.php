@@ -539,6 +539,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
     $errors = [];
 
     foreach ($_FILES as $fieldName => $fileData) {
+        // Skip if file data is empty or missing required keys
+        if (!isset($fileData['name']) || !isset($fileData['type']) || !isset($fileData['tmp_name']) || !isset($fileData['error']) || !isset($fileData['size'])) {
+            continue;
+        }
+
         $files = is_array($fileData['name']) ? $fileData : [$fileData];
 
         if (!is_array($files['name'])) {
@@ -2463,16 +2468,16 @@ switch ($action) {
                 respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
             }
 
-            // Create upload directory
-            $uploadDir = 'uploads/verification_documents/';
+            // Use same uploads directory as profile images
+            $uploadDir = 'uploads/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
 
             $fileName = $trainerId . '_' . $documentType . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
             $filePath = $uploadDir . $fileName;
-            $uploadBase = getenv('UPLOAD_BASE_URL') ?: '/uploads/';
-            $fileUrl = $uploadBase . 'verification_documents/' . $fileName;
+            $uploadBase = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads/';
+            $fileUrl = rtrim($uploadBase, '/') . '/' . $fileName;
 
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
                 respond("error", "Failed to upload file.", null, 500);
