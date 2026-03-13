@@ -59,6 +59,21 @@ export interface TrainerProfile extends UserProfile {
 
   sponsorship_reference_url?: string
   payout_details?: string | Record<string, any>
+
+  // New document and sponsorship fields
+  documents?: VerificationDocument[]
+  sponsorship?: {
+    sponsor_trainer_id?: string | null
+    sponsor_name?: string
+    reference_document_url?: string
+    status?: 'pending' | 'approved' | 'rejected'
+  }
+  grace_period?: {
+    start_date?: string // ISO timestamp
+    end_date?: string // ISO timestamp
+    reason?: string
+    status?: 'active' | 'expired'
+  }
 }
 
 export interface ClientProfile extends UserProfile {

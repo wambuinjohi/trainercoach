@@ -22,8 +22,6 @@ interface TrainerProfile {
   user_id?: string
   user_type?: string
   name?: string
-  disciplines?: string[] | string
-  certifications?: string[] | string
   hourly_rate?: number
   hourly_rate_by_radius?: Array<{ radius_km: number; rate: number }>
   service_radius?: number
@@ -320,12 +318,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
-      // Certifications normalization
-      const certifications = cleanAndParseArray(profile.certifications)
-
-      // Disciplines normalization
-      const disciplines = cleanAndParseArray(profile.disciplines)
-
       // Hourly rate validation
       const hourlyRateRaw = profile.hourly_rate == null ? '' : profile.hourly_rate
       const hourlyRateNum = hourlyRateRaw === '' ? 0 : Number(hourlyRateRaw)
@@ -385,8 +377,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         user_id: userId,
         user_type: 'trainer',
         name: name || null,
-        disciplines,
-        certifications,
         hourly_rate: hourlyRateNum,
         hourly_rate_by_radius: cleanedTiers.length ? cleanedTiers : null,
         service_radius: serviceRadiusNum,
@@ -401,8 +391,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         const detectedTimezone = detectDeviceTimezone()
         const updatePayload = {
           full_name: name,
-          disciplines: JSON.stringify(disciplines),
-          certifications: JSON.stringify(certifications),
           hourly_rate: hourlyRateNum,
           // Always include service_radius (auto-calculated or manually set)
           service_radius: serviceRadiusNum,

@@ -5,7 +5,7 @@ import { CheckCircle2, Clock, AlertCircle, XCircle, FileCheck, DollarSign, MapPi
 import { AccountStatus } from '@/types'
 
 interface StatusIndicatorProps {
-  status: AccountStatus
+  status?: AccountStatus
   profileData?: {
     full_name?: string
     profile_image?: string | null
@@ -16,11 +16,17 @@ interface StatusIndicatorProps {
     mpesa_number?: string
     selectedCategories?: any[]
     disciplines?: any[]
+    grace_period?: {
+      status?: 'active' | 'expired'
+      start_date?: string
+      end_date?: string
+      reason?: string
+    }
   }
   onAction?: () => void
 }
 
-export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onAction, profileData }) => {
+export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'registered', onAction, profileData }) => {
   const stages: Record<AccountStatus, { label: string; icon: React.ReactNode; color: string; description: string }> = {
     registered: {
       label: 'Registered',
@@ -38,7 +44,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
       label: 'Pending Approval',
       icon: <FileCheck className="w-5 h-5" />,
       color: 'bg-purple-100 border-purple-300',
-      description: 'Admin is reviewing your application'
+      description: 'Admin is reviewing your application and documents'
     },
     approved: {
       label: 'Approved',
@@ -177,6 +183,39 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
           </div>
         )}
 
+        {/* Required Documents Section */}
+        {status === 'profile_incomplete' && (
+          <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200 space-y-2">
+            <p className="text-sm font-semibold text-yellow-900">Required Documents:</p>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>✓ National ID (government-issued)</li>
+              <li>✓ Proof of Residence (utility bill or lease)</li>
+              <li>✓ Certificate of Good Conduct (government-issued)</li>
+              <li>✓ Discipline Certificate (professional certification)</li>
+              <li className="text-yellow-700">○ Sponsor Reference (optional - if sponsored)</li>
+            </ul>
+            <p className="text-xs text-yellow-700 mt-2 font-medium">All documents will be reviewed within 24-48 hours.</p>
+          </div>
+        )}
+
+        {/* Grace Period Indicator */}
+        {profileData?.grace_period?.status === 'active' && (
+          <div className="mt-4 p-3 bg-orange-50 rounded border border-orange-200 space-y-2">
+            <p className="text-sm font-semibold text-orange-900 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Grace Period Active
+            </p>
+            <p className="text-sm text-orange-800">
+              Your Certificate of Good Conduct is in a 30-day grace period. Please upload a new certificate before the grace period expires.
+            </p>
+            {profileData.grace_period.end_date && (
+              <p className="text-xs text-orange-700">
+                Expires: {new Date(profileData.grace_period.end_date).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Next Steps */}
         {status !== 'approved' && status !== 'suspended' && (
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
@@ -201,7 +240,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
               })()}
               {status === 'profile_incomplete' && (
                 <>
-                  <strong>Next Step:</strong> Upload all required verification documents (National ID, Proof of Residence, Good Conduct Certificate, Discipline Certificate, and Sponsor Reference).
+                  <strong>Next Step:</strong> Upload all required verification documents. Use the "Edit Profile" button to access the document upload section.
                 </>
               )}
               {status === 'pending_approval' && (
