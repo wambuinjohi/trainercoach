@@ -705,15 +705,22 @@ export async function uploadVerificationDocument(trainerId: string, documentType
     }
 
     xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText)
+      try {
+        const response = JSON.parse(xhr.responseText)
+        if (xhr.status >= 200 && xhr.status < 300) {
           resolve(response)
-        } catch (e) {
-          reject(new Error('Failed to parse response'))
+        } else {
+          // Backend returned an error with details
+          const errorMessage = response?.message || 'Failed to upload verification document'
+          reject(new Error(errorMessage))
         }
-      } else {
-        reject(new Error('Failed to upload verification document'))
+      } catch (e) {
+        // Failed to parse JSON response
+        if (xhr.status >= 200 && xhr.status < 300) {
+          reject(new Error('Failed to parse response'))
+        } else {
+          reject(new Error('Failed to upload verification document'))
+        }
       }
     })
 
