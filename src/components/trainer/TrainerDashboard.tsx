@@ -438,7 +438,13 @@ export const TrainerDashboard: React.FC = () => {
           service_radius: profileData.service_radius,
           area_of_residence: profileData.area_of_residence,
           mpesa_number: profileData.mpesa_number,
-          selectedCategories: selectedCategories
+          selectedCategories: selectedCategories,
+          grace_period: profileData.good_conduct_grace_period_end ? {
+            status: new Date(profileData.good_conduct_grace_period_end) > new Date() ? 'active' : 'expired',
+            start_date: profileData.good_conduct_grace_period_start,
+            end_date: profileData.good_conduct_grace_period_end,
+            reason: 'Certificate of Good Conduct renewal'
+          } : undefined
         }}
         onAction={() => setEditingProfile(true)}
       />

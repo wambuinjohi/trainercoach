@@ -830,6 +830,92 @@ export async function deleteMpesaCredentials() {
 }
 
 // ============================================================================
+// COACH/TRAINER SEARCH SERVICES
+// ============================================================================
+
+export async function searchTrainersByName(query: string) {
+  return apiRequest('search_trainers', { query })
+}
+
+export async function searchCoaches(filters?: {
+  name?: string
+  email?: string
+  minRating?: number
+  maxRate?: number
+  verified?: boolean
+}) {
+  return apiRequest('search_coaches', {
+    ...(filters?.name && { name: filters.name }),
+    ...(filters?.email && { email: filters.email }),
+    ...(filters?.minRating && { min_rating: filters.minRating }),
+    ...(filters?.maxRate && { max_rate: filters.maxRate }),
+    ...(filters?.verified && { verified: true }),
+  })
+}
+
+// ============================================================================
+// SPONSORSHIP SERVICES
+// ============================================================================
+
+export async function searchAvailableSponsors(query?: string) {
+  let where = `account_status = 'approved' AND is_verified = 1`
+  if (query && query.trim()) {
+    const escapedQuery = query.replace(/'/g, "''")
+    where += ` AND (full_name LIKE '%${escapedQuery}%' OR email LIKE '%${escapedQuery}%')`
+  }
+  return apiRequest('select', {
+    table: 'user_profiles',
+    where,
+    order: 'rating DESC',
+  })
+}
+
+export async function getSponsorCommissionRate() {
+  const settings = await apiRequest('get_system_settings')
+  return settings?.data?.sponsor_commission_percentage || 10
+}
+
+// ============================================================================
+// GRACE PERIOD SERVICES
+// ============================================================================
+
+export async function setGracePeriod(
+  trainerId: string,
+  reason: string,
+  durationDays: number = 30
+) {
+  const startDate = new Date().toISOString()
+  const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString()
+
+  return apiRequest('update', {
+    table: 'user_profiles',
+    data: {
+      good_conduct_grace_period_start: startDate,
+      good_conduct_grace_period_end: endDate,
+    },
+    where: `user_id = '${trainerId}'`,
+  })
+}
+
+export async function getGracePeriod(trainerId: string) {
+  return apiRequest('select', {
+    table: 'user_profiles',
+    where: `user_id = '${trainerId}' AND good_conduct_grace_period_end IS NOT NULL`,
+  })
+}
+
+export async function expireGracePeriod(trainerId: string) {
+  return apiRequest('update', {
+    table: 'user_profiles',
+    data: {
+      good_conduct_grace_period_start: null,
+      good_conduct_grace_period_end: null,
+    },
+    where: `user_id = '${trainerId}'`,
+  })
+}
+
+// ============================================================================
 // HEALTH CHECK
 // ============================================================================
 
