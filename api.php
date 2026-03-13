@@ -523,24 +523,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
 }
 */
 
-// Read input JSON
-$rawInput = file_get_contents("php://input");
+// Read input - handle both JSON and FormData (multipart/form-data)
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 $input = null;
 
-if (!empty($rawInput)) {
-    $input = json_decode($rawInput, true);
-    if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
-        respond("error", "Invalid JSON in request body.", null, 400);
-    }
-} else if (!empty($_GET)) {
-    $input = $_GET;
+// Check if this is a FormData/multipart request
+if (strpos($contentType, 'multipart/form-data') !== false) {
+    // For multipart/form-data, use $_POST which PHP auto-populates
+    // This is the correct way to handle FormData from fetch/XMLHttpRequest
+    $input = $_POST;
 } else {
-    $input = [];
+    // For JSON requests, parse the raw input
+    $rawInput = file_get_contents("php://input");
+
+    if (!empty($rawInput)) {
+        $input = json_decode($rawInput, true);
+        if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
+            respond("error", "Invalid JSON in request body.", null, 400);
+        }
+    } else if (!empty($_GET)) {
+        $input = $_GET;
+    } else {
+        $input = [];
+    }
 }
 
 // Ensure input is an array
 if (!is_array($input)) {
-    respond("error", "Request must be JSON object.", null, 400);
+    respond("error", "Request must be JSON object or FormData.", null, 400);
 }
 
 // Verify action parameter
