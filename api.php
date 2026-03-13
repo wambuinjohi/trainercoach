@@ -510,8 +510,10 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
 
 // =============================
 // HANDLE FILE UPLOADS (MULTIPART)
+// NOTE: Generic file upload processing is disabled.
+// File uploads are handled by specific action handlers (e.g., verification_document_upload, profile_update)
 // =============================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
+if (false && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
     $uploadDir = __DIR__ . '/uploads/';
     $maxFileSize = 50 * 1024 * 1024;
     $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'avi', 'mov', 'webm', 'zip', 'rar'];
