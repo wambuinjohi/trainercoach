@@ -2286,8 +2286,7 @@ switch ($action) {
 
     // SET TRAINER ACCOUNT STATUS (Admin only)
     case 'trainer_set_account_status':
-        $adminId = verifyAdminToken();
-        if (!$adminId) exit; // verifyAdminToken handles the response
+        $adminId = validateAdminAuthorization($conn);
 
         if (!isset($input['user_id']) || !isset($input['status'])) {
             respond("error", "Missing user_id or status.", null, 400);
@@ -2515,8 +2514,7 @@ switch ($action) {
 
     // LIST ALL VERIFICATION DOCUMENTS (Admin only)
     case 'verification_documents_list':
-        $adminId = verifyAdminToken();
-        if (!$adminId) exit;
+        $adminId = validateAdminAuthorization($conn);
 
         $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : null;
 
@@ -2554,8 +2552,7 @@ switch ($action) {
 
     // VERIFY/APPROVE/REJECT VERIFICATION DOCUMENT (Admin only)
     case 'verification_document_verify':
-        $adminId = verifyAdminToken();
-        if (!$adminId) exit;
+        $adminId = validateAdminAuthorization($conn);
 
         if (!isset($input['document_id']) || !isset($input['status'])) {
             respond("error", "Missing document_id or status.", null, 400);
