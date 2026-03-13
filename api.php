@@ -871,6 +871,24 @@ switch ($action) {
             $data['auto_service_radius'] = true;
         }
 
+        // Validate registration_path changes - prevent if path_locked is true
+        if ($isUserProfilesUpdate && isset($data['registration_path'])) {
+            // Extract user_id from WHERE clause to check path_locked status
+            if (preg_match('/user_id\s*=\s*["\']?([a-zA-Z0-9_]+)["\']?/i', $input['where'], $matches)) {
+                $userId = $matches[1];
+                $stmt = $conn->prepare("SELECT path_locked FROM user_profiles WHERE user_id = ? LIMIT 1");
+                $stmt->bind_param("s", $userId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $row = $result->fetch_assoc();
+                $stmt->close();
+
+                if ($row && $row['path_locked']) {
+                    respond("error", "Cannot change registration path after documents submitted.", null, 403);
+                }
+            }
+        }
+
         foreach ($data as $key => $value) {
             $escapedKey = "`" . $conn->real_escape_string($key) . "`";
             if ($value === null || $value === 'null') {
@@ -1070,6 +1088,7 @@ switch ($action) {
         $phone = isset($input['phone']) ? $conn->real_escape_string($input['phone']) : NULL;
         $country = isset($input['country']) ? $conn->real_escape_string($input['country']) : NULL;
         $userType = isset($input['user_type']) ? $conn->real_escape_string($input['user_type']) : 'client';
+        $registrationPath = isset($input['registration_path']) ? $conn->real_escape_string($input['registration_path']) : 'direct';
 
         logEvent('signup_attempt', ['email' => $email, 'user_type' => $userType]);
 
@@ -1108,10 +1127,10 @@ switch ($action) {
         $fullName = trim($firstName . ' ' . $lastName);
 
         $stmt = $conn->prepare("
-            INSERT INTO user_profiles (id, user_id, user_type, full_name, phone_number, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO user_profiles (id, user_id, user_type, full_name, phone_number, registration_path, path_locked, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?)
         ");
-        $stmt->bind_param("ssssss", $profileId, $userId, $userType, $fullName, $phone, $now);
+        $stmt->bind_param("sssssss", $profileId, $userId, $userType, $fullName, $phone, $registrationPath, $now);
         $stmt->execute();
         $stmt->close();
 
@@ -1738,6 +1757,8 @@ switch ($action) {
                 `total_reviews` INT DEFAULT 0,
                 `is_approved` BOOLEAN DEFAULT FALSE,
                 `account_status` ENUM('registered', 'profile_incomplete', 'pending_approval', 'approved', 'suspended') DEFAULT 'registered',
+                `registration_path` ENUM('direct', 'sponsored') DEFAULT 'direct' NOT NULL,
+                `path_locked` BOOLEAN DEFAULT 0,
                 `area_of_residence` VARCHAR(255),
                 `area_coordinates` JSON,
                 `mpesa_number` VARCHAR(20),
@@ -1749,6 +1770,8 @@ switch ($action) {
                 INDEX idx_user_id (user_id),
                 INDEX idx_user_type (user_type),
                 INDEX idx_account_status (account_status),
+                INDEX idx_registration_path (registration_path),
+                INDEX idx_path_locked (path_locked),
                 INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ";
@@ -2272,6 +2295,52 @@ switch ($action) {
         }
 
         $userId = $conn->real_escape_string($input['user_id']);
+
+        // Get trainer's registration path and sponsor info
+        $stmt = $conn->prepare("
+            SELECT registration_path, sponsor_trainer_id, path_locked
+            FROM user_profiles
+            WHERE user_id = ?
+        ");
+        $stmt->bind_param("s", $userId);
+        $stmt->execute();
+        $profileResult = $stmt->get_result();
+        $profile = $profileResult->fetch_assoc();
+        $stmt->close();
+
+        if (!$profile) {
+            respond("error", "User profile not found.", null, 404);
+        }
+
+        $registrationPath = $profile['registration_path'];
+        $sponsorTrainerId = $profile['sponsor_trainer_id'];
+
+        // Determine required docs based on registration path
+        if ($registrationPath === 'sponsored') {
+            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct'];
+
+            // For sponsored path, sponsor_trainer_id must be set and valid
+            if (!$sponsorTrainerId) {
+                respond("error", "Sponsored trainers must select a sponsor trainer.", null, 400);
+            }
+
+            // Verify sponsor exists and is approved
+            $stmt = $conn->prepare("SELECT is_approved FROM user_profiles WHERE user_id = ? LIMIT 1");
+            $stmt->bind_param("s", $sponsorTrainerId);
+            $stmt->execute();
+            $sponsorResult = $stmt->get_result();
+            $sponsor = $sponsorResult->fetch_assoc();
+            $stmt->close();
+
+            if (!$sponsor || !$sponsor['is_approved']) {
+                respond("error", "Selected sponsor trainer is not approved.", null, 400);
+            }
+        } else {
+            // Direct registration requires all 5 documents
+            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference'];
+        }
+
+        // Get submitted documents
         $stmt = $conn->prepare("
             SELECT
                 document_type,
@@ -2285,7 +2354,6 @@ switch ($action) {
         if ($stmt->execute()) {
             $result = $stmt->get_result();
             $documents = [];
-            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference'];
             $submittedDocs = [];
 
             while ($row = $result->fetch_assoc()) {
@@ -2299,11 +2367,11 @@ switch ($action) {
             // Check if all required docs are submitted (at least pending)
             $allSubmitted = count(array_intersect($requiredDocs, $submittedDocs)) === count($requiredDocs);
 
-            // Auto-update status if all docs submitted and not already updated
+            // Auto-update status and lock path if all docs submitted and not already updated
             if ($allSubmitted) {
                 $updateStmt = $conn->prepare("
                     UPDATE user_profiles
-                    SET account_status = 'pending_approval'
+                    SET account_status = 'pending_approval', path_locked = 1
                     WHERE user_id = ? AND account_status = 'profile_incomplete'
                 ");
                 $updateStmt->bind_param("s", $userId);
@@ -2313,6 +2381,7 @@ switch ($action) {
 
             respond("success", "Documents submission check done.", [
                 "all_submitted" => $allSubmitted,
+                "registration_path" => $registrationPath,
                 "required_docs" => $requiredDocs,
                 "submitted_docs" => $submittedDocs,
                 "documents" => $documents
@@ -2367,6 +2436,21 @@ switch ($action) {
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $documentType = $conn->real_escape_string($input['document_type']);
         $idNumber = isset($input['id_number']) ? $conn->real_escape_string($input['id_number']) : null;
+
+        // Validate document upload based on registration path
+        $stmt = $conn->prepare("SELECT registration_path FROM user_profiles WHERE user_id = ? LIMIT 1");
+        $stmt->bind_param("s", $trainerId);
+        $stmt->execute();
+        $profileResult = $stmt->get_result();
+        $profile = $profileResult->fetch_assoc();
+        $stmt->close();
+
+        if ($profile && $profile['registration_path'] === 'sponsored') {
+            // Sponsored trainers cannot upload discipline_certificate or sponsor_reference
+            if ($documentType === 'discipline_certificate' || $documentType === 'sponsor_reference') {
+                respond("error", "Sponsored trainers do not need to upload this document type.", null, 403);
+            }
+        }
 
         // Handle file upload
         $fileUrl = null;

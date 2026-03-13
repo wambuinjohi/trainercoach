@@ -4,6 +4,7 @@
 
 export type UserType = 'client' | 'trainer' | 'admin'
 export type AccountStatus = 'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'
+export type RegistrationPath = 'direct' | 'sponsored'
 
 export interface User {
   id: string
@@ -43,6 +44,8 @@ export interface TrainerProfile extends UserProfile {
   account_status?: AccountStatus
   is_verified?: boolean
   sponsor_trainer_id?: string | null // Trainer ID if sponsored by another trainer
+  registration_path?: RegistrationPath // 'direct' or 'sponsored'
+  path_locked?: boolean // Prevents changing path after documents submitted
 
   // Document upload fields
   id_document_url?: string

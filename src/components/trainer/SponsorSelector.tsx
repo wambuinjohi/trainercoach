@@ -24,6 +24,8 @@ interface SponsorSelectorProps {
   currentSponsorName?: string | null
   onSponsorSelected: (sponsorId: string, sponsorName: string) => void
   onSponsorRemoved?: () => void
+  required?: boolean
+  registrationPath?: 'direct' | 'sponsored'
 }
 
 export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
@@ -31,6 +33,8 @@ export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
   currentSponsorName,
   onSponsorSelected,
   onSponsorRemoved,
+  required = false,
+  registrationPath = 'direct',
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Trainer[]>([])
@@ -121,7 +125,10 @@ export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-blue-600" />
-          Sponsor/Reference Selection
+          {registrationPath === 'sponsored' ? 'Select Your Sponsor' : 'Sponsor/Reference Selection'}
+          {required && registrationPath === 'sponsored' && (
+            <span className="text-red-600 ml-1">*</span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
