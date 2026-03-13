@@ -74,6 +74,9 @@ export const TrainerDashboard: React.FC = () => {
 
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
+  const openPromote = () => {
+    toast({ title: 'Promote', description: 'Promotion features coming soon!', variant: 'default' })
+  }
 
   const handleLogout = async () => {
     await signOut()
