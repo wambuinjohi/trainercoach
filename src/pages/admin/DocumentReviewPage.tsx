@@ -71,11 +71,21 @@ export default function DocumentReviewPage() {
       setLoading(true)
       const token = localStorage.getItem('adminToken')
       const response = await apiService.listVerificationDocuments(undefined, token)
-      
-      if (response?.data || Array.isArray(response)) {
-        const docs = Array.isArray(response) ? response : response.data
-        setDocuments(docs)
+
+      console.log('Document review response:', response)
+
+      // Handle various response formats
+      let docs: Document[] = []
+      if (Array.isArray(response)) {
+        docs = response
+      } else if (response?.data && Array.isArray(response.data)) {
+        docs = response.data
+      } else if (response && typeof response === 'object' && !Array.isArray(response)) {
+        // If response is an object but not an array, it might be a single document wrapped in an object
+        docs = []
       }
+
+      setDocuments(docs)
     } catch (error) {
       console.error('Failed to load documents:', error)
       toast({ title: 'Error', description: 'Failed to load verification documents', variant: 'destructive' })

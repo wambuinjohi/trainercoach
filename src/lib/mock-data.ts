@@ -91,6 +91,41 @@ export const mockData = {
       location: "Nairobi",
       disciplines: "Cardio, Boxing"
     }
+  ],
+
+  verificationDocuments: [
+    {
+      id: "doc-1",
+      trainer_id: "user-1",
+      full_name: "John Doe",
+      document_type: "national_id",
+      file_url: "https://via.placeholder.com/600x400?text=National+ID",
+      status: "pending",
+      uploaded_at: new Date(Date.now() - 3600000).toISOString(),
+      user_type: "trainer"
+    },
+    {
+      id: "doc-2",
+      trainer_id: "user-2",
+      full_name: "Sarah Johnson",
+      document_type: "proof_of_residence",
+      file_url: "https://via.placeholder.com/600x400?text=Proof+of+Residence",
+      status: "pending",
+      uploaded_at: new Date(Date.now() - 7200000).toISOString(),
+      user_type: "trainer"
+    },
+    {
+      id: "doc-3",
+      trainer_id: "user-1",
+      full_name: "John Doe",
+      document_type: "certificate_of_good_conduct",
+      file_url: "https://via.placeholder.com/600x400?text=Certificate",
+      status: "approved",
+      uploaded_at: new Date(Date.now() - 86400000).toISOString(),
+      reviewed_at: new Date(Date.now() - 43200000).toISOString(),
+      reviewed_by: "admin-1",
+      user_type: "trainer"
+    }
   ]
 }
 
@@ -124,6 +159,12 @@ export function getMockResponse(action: string, payload?: Record<string, any>): 
       return {
         status: 'success',
         message: 'Server is running (mock)'
+      }
+
+    case 'verification_documents_list':
+      return {
+        status: 'success',
+        data: mockData.verificationDocuments
       }
 
     default:
