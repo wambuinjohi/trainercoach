@@ -17,7 +17,7 @@ interface StatusIndicatorProps {
   onAction?: () => void
 }
 
-export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onAction }) => {
+export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onAction, profileData }) => {
   const stages: Record<AccountStatus, { label: string; icon: React.ReactNode; color: string; description: string }> = {
     registered: {
       label: 'Registered',
