@@ -1,11 +1,19 @@
 import React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Clock, AlertCircle, XCircle, FileCheck } from 'lucide-react'
+import { CheckCircle2, Clock, AlertCircle, XCircle, FileCheck, DollarSign, MapPin, Smartphone } from 'lucide-react'
 import { AccountStatus } from '@/types'
 
 interface StatusIndicatorProps {
   status: AccountStatus
+  profileData?: {
+    hourly_rate?: number
+    service_radius?: number
+    area_of_residence?: string
+    mpesa_number?: string
+    selectedCategories?: any[]
+    disciplines?: any[]
+  }
   onAction?: () => void
 }
 
@@ -104,13 +112,75 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
           </Badge>
         </div>
 
+        {/* Profile Summary */}
+        {profileData && (
+          <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 space-y-3">
+            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Profile Summary</div>
+
+            {profileData.selectedCategories && profileData.selectedCategories.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-600 font-medium mb-1">Categories</p>
+                <div className="flex flex-wrap gap-1">
+                  {profileData.selectedCategories.map((cat: any) => (
+                    <Badge key={cat.id} variant="outline" className="text-xs">
+                      {cat.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              {profileData.hourly_rate && (
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <div>
+                    <p className="text-xs text-gray-600">Hourly Rate</p>
+                    <p className="text-sm font-semibold">Ksh {profileData.hourly_rate}</p>
+                  </div>
+                </div>
+              )}
+
+              {profileData.service_radius && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <p className="text-xs text-gray-600">Service Radius</p>
+                    <p className="text-sm font-semibold">{profileData.service_radius} km</p>
+                  </div>
+                </div>
+              )}
+
+              {profileData.area_of_residence && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <MapPin className="w-4 h-4 text-purple-600" />
+                  <div>
+                    <p className="text-xs text-gray-600">Location</p>
+                    <p className="text-sm font-semibold">{profileData.area_of_residence}</p>
+                  </div>
+                </div>
+              )}
+
+              {profileData.mpesa_number && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <Smartphone className="w-4 h-4 text-orange-600" />
+                  <div>
+                    <p className="text-xs text-gray-600">M-Pesa Number</p>
+                    <p className="text-sm font-semibold font-mono">{profileData.mpesa_number}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Next Steps */}
         {status !== 'approved' && status !== 'suspended' && (
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
             <p className="text-sm text-gray-700">
               {status === 'registered' && (
                 <>
-                  <strong>Next Step:</strong> Complete your profile with your photo, discipline, bio, hourly rate, service area, and M-Pesa number.
+                  <strong>Next Step:</strong> Complete your profile with your photo, categories, bio, hourly rate, service area, and M-Pesa number.
                 </>
               )}
               {status === 'profile_incomplete' && (

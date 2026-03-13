@@ -56,6 +56,7 @@ export const TrainerDashboard: React.FC = () => {
   const [showPayouts, setShowPayouts] = useState(false)
   const [showTopUp, setShowTopUp] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showArchivedBookings, setShowArchivedBookings] = useState(false)
   const [unreadNotificationsTrainer, setUnreadNotificationsTrainer] = useState(0)
   const [profileData, setProfileData] = useState<any>({
     name: user?.email,
@@ -91,6 +92,14 @@ export const TrainerDashboard: React.FC = () => {
   const declineBooking = (id: string) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b))
     toast({ title: 'Booking declined', description: 'You declined the booking.', variant: 'destructive' })
+  }
+
+  const isBookingArchived = (booking: any) => {
+    if (!booking.session_date) return false
+    const sessionDate = new Date(booking.session_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return sessionDate < today
   }
 
   const startSession = async (id: string) => {
@@ -380,9 +389,22 @@ export const TrainerDashboard: React.FC = () => {
     )
   }
 
-  const renderHomeContent = () => (
+  const renderHomeContent = () => {
+    const selectedCategories = categories.filter(cat => selectedCategoryIds.includes(cat.id))
+
+    return (
     <div className="space-y-6">
-      <StatusIndicator status={accountStatus} onAction={() => setEditingProfile(true)} />
+      <StatusIndicator
+        status={accountStatus}
+        profileData={{
+          hourly_rate: profileData.hourly_rate,
+          service_radius: profileData.service_radius,
+          area_of_residence: profileData.area_of_residence,
+          mpesa_number: profileData.mpesa_number,
+          selectedCategories: selectedCategories
+        }}
+        onAction={() => setEditingProfile(true)}
+      />
       <div className="flex items-center justify-between mb-4">
         <div></div>
         <div className="flex items-center gap-2">
@@ -485,65 +507,125 @@ export const TrainerDashboard: React.FC = () => {
         </div>
       </div>
     </div>
-  )
+    )
+  }
 
-  const renderBookingsContent = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
-      </div>
-      {bookings && bookings.length > 0 ? (
-        bookings.map(b => (
-          <Card key={b.id || b.user_id} className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-semibold text-foreground">{b.client_name || 'Client'}</div>
-                  {b.is_group_training && (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 text-xs">
-                        <Users className="h-3 w-3 mr-1" />
-                        Group Training
-                      </Badge>
-                      {b.group_size_tier_name && (
-                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
-                          {b.group_size_tier_name}
-                        </Badge>
-                      )}
-                      {b.pricing_model_used && (
-                        <Badge variant="outline" className="text-xs bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800">
-                          {b.pricing_model_used === 'per_person' ? 'Per Person' : 'Fixed Rate'}
-                        </Badge>
-                      )}
-                    </div>
+  const renderBookingsContent = () => {
+    const activeBookings = bookings.filter(b => !isBookingArchived(b))
+    const archivedBookings = bookings.filter(b => isBookingArchived(b))
+
+    const renderBookingCard = (b: any, isArchived: boolean = false) => (
+      <Card key={b.id || b.user_id} className={`bg-card border-border ${isArchived ? 'opacity-60' : ''}`}>
+        <CardContent className="p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className={`font-semibold ${isArchived ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                {b.client_name || 'Client'}
+              </div>
+              {isArchived && (
+                <Badge variant="outline" className="mt-2 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 text-xs">
+                  Archived
+                </Badge>
+              )}
+              {b.is_group_training && (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 text-xs">
+                    <Users className="h-3 w-3 mr-1" />
+                    Group Training
+                  </Badge>
+                  {b.group_size_tier_name && (
+                    <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
+                      {b.group_size_tier_name}
+                    </Badge>
+                  )}
+                  {b.pricing_model_used && (
+                    <Badge variant="outline" className="text-xs bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800">
+                      {b.pricing_model_used === 'per_person' ? 'Per Person' : 'Fixed Rate'}
+                    </Badge>
                   )}
                 </div>
-                <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'}>{b.status || 'pending'}</Badge>
+              )}
+            </div>
+            <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'}>{b.status || 'pending'}</Badge>
+          </div>
+          <div className={`text-sm mt-2 ${isArchived ? 'text-muted-foreground line-through' : 'text-muted-foreground'}`}>
+            {b.session_date || 'TBD'} at {b.session_time || ''}
+          </div>
+          {!isArchived && (
+            <div className="flex gap-2 mt-3">
+              <Button size="sm" onClick={() => openChat(b)}>Chat</Button>
+              {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => acceptBooking(b.id)}>Accept</Button>}
+              {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => declineBooking(b.id)}>Decline</Button>}
+              {(b.status === 'confirmed' || b.status === 'in_session') && <Button size="sm" onClick={() => startSession(b.id)}>Start/End</Button>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground">My Bookings</h1>
+        </div>
+
+        {bookings && bookings.length > 0 ? (
+          <>
+            {/* Active Bookings */}
+            <div className="space-y-4">
+              {activeBookings.length > 0 && (
+                <>
+                  <h2 className="text-lg font-semibold text-foreground">Active Bookings ({activeBookings.length})</h2>
+                  {activeBookings.map(b => renderBookingCard(b, false))}
+                </>
+              )}
+              {activeBookings.length === 0 && archivedBookings.length > 0 && (
+                <Card className="bg-card border-border">
+                  <CardContent className="p-8 text-center">
+                    <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No active bookings</p>
+                    <p className="text-sm text-muted-foreground mt-1">You have {archivedBookings.length} archived booking(s)</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Archived Bookings */}
+            {archivedBookings.length > 0 && (
+              <div className="space-y-4 pt-6 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-foreground">Archived Bookings ({archivedBookings.length})</h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowArchivedBookings(!showArchivedBookings)}
+                  >
+                    {showArchivedBookings ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+                {showArchivedBookings && (
+                  <div className="space-y-4">
+                    {archivedBookings.map(b => renderBookingCard(b, true))}
+                  </div>
+                )}
               </div>
-              <div className="text-sm text-muted-foreground mt-2">{b.session_date || 'TBD'} at {b.session_time || ''}</div>
-              <div className="flex gap-2 mt-3">
-                <Button size="sm" onClick={() => openChat(b)}>Chat</Button>
-                {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => acceptBooking(b.id)}>Accept</Button>}
-                {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => declineBooking(b.id)}>Decline</Button>}
-                {(b.status === 'confirmed' || b.status === 'in_session') && <Button size="sm" onClick={() => startSession(b.id)}>Start/End</Button>}
-              </div>
+            )}
+          </>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardContent className="p-8 text-center">
+              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No bookings yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Your bookings will appear here</p>
             </CardContent>
           </Card>
-        ))
-      ) : (
-        <Card className="bg-card border-border">
-          <CardContent className="p-8 text-center">
-            <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No bookings yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Your bookings will appear here</p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
+        )}
+      </div>
+    )
+  }
 
   const renderProfileContent = () => (
     <div className="space-y-6">
