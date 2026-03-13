@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
 import { MapLocationSelector } from './MapLocationSelector'
+import { AvailabilitySelector } from './AvailabilitySelector'
 import { useFileUpload } from '@/hooks/use-file-upload'
 import { Upload, X } from 'lucide-react'
 import { detectDeviceTimezone } from '@/lib/timezone'
@@ -771,16 +772,11 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           </div>
 
           <div>
-            <Label htmlFor="availability">Availability (JSON)</Label>
-            <textarea id="availability" value={profile.availability ? JSON.stringify(profile.availability) : ''} onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : null
-                handleChange('availability', parsed)
-              } catch {
-                handleChange('availability', e.target.value)
-              }
-            }} className="w-full p-2 border border-border rounded-md bg-input" rows={4} />
-            <p className="text-xs text-muted-foreground">Provide a simple JSON schedule, e.g. <code>{"{\"monday\":[\"09:00-12:00\",\"14:00-18:00\"]}"}</code></p>
+            <Label>Availability</Label>
+            <AvailabilitySelector
+              value={profile.availability}
+              onChange={(availability) => handleChange('availability', availability)}
+            />
           </div>
 
           <div className="flex gap-2 justify-end">
