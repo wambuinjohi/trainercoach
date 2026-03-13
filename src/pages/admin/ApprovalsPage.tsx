@@ -150,6 +150,20 @@ export default function ApprovalsPage() {
                     <p className="text-sm font-medium text-foreground">Experience (years)</p>
                     <p className="text-sm text-muted-foreground">{trainer.experience_years ?? '-'}</p>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Registration Path</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={trainer.registration_path === 'sponsored' ? 'default' : 'secondary'}>
+                        {trainer.registration_path === 'sponsored' ? 'Sponsored' : 'Independent'}
+                      </Badge>
+                    </div>
+                  </div>
+                  {trainer.registration_path === 'sponsored' && trainer.sponsor_name && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Sponsor</p>
+                      <p className="text-sm text-muted-foreground">{trainer.sponsor_name}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-4">
