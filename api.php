@@ -293,6 +293,71 @@ function validateAdminAuthorization($conn) {
     return $userId;
 }
 
+// Verify admin token from X-Admin-Token header
+function verifyAdminToken() {
+    global $conn, $corsOrigin;
+
+    // Get the X-Admin-Token header
+    $adminToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? null;
+
+    if (empty($adminToken)) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Missing X-Admin-Token header",
+            "data" => null
+        ]);
+        return false;
+    }
+
+    // The token should be the admin user ID for now
+    // In a more secure implementation, this would be a JWT or similar
+    $adminId = $adminToken;
+
+    // Verify the user exists and is an admin
+    $stmt = $conn->prepare("SELECT user_type FROM user_profiles WHERE user_id = ? LIMIT 1");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Database error",
+            "data" => null
+        ]);
+        return false;
+    }
+
+    $stmt->bind_param("s", $adminId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+
+    if ($result->num_rows === 0) {
+        http_response_code(401);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Admin user not found",
+            "data" => null
+        ]);
+        return false;
+    }
+
+    $profile = $result->fetch_assoc();
+
+    // Check if user is an admin
+    if ($profile['user_type'] !== 'admin') {
+        http_response_code(403);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Insufficient permissions. Admin access required.",
+            "data" => null
+        ]);
+        return false;
+    }
+
+    // Return the admin ID for use in the API endpoint
+    return $adminId;
+}
+
 // Get trainer group pricing for a specific category
 function getTrainerGroupPricing($conn, $trainerId, $categoryId) {
     $trainerId = $conn->real_escape_string($trainerId);
