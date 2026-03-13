@@ -7,6 +7,9 @@ import { AccountStatus } from '@/types'
 interface StatusIndicatorProps {
   status: AccountStatus
   profileData?: {
+    full_name?: string
+    profile_image?: string | null
+    bio?: string
     hourly_rate?: number
     service_radius?: number
     area_of_residence?: string
@@ -17,7 +20,7 @@ interface StatusIndicatorProps {
   onAction?: () => void
 }
 
-export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onAction }) => {
+export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onAction, profileData }) => {
   const stages: Record<AccountStatus, { label: string; icon: React.ReactNode; color: string; description: string }> = {
     registered: {
       label: 'Registered',
@@ -178,11 +181,24 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onActi
         {status !== 'approved' && status !== 'suspended' && (
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
             <p className="text-sm text-gray-700">
-              {status === 'registered' && (
-                <>
-                  <strong>Next Step:</strong> Complete your profile with your photo, categories, bio, hourly rate, service area, and M-Pesa number.
+              {status === 'registered' && profileData && (() => {
+                const missingFields: string[] = []
+                if (!profileData.profile_image) missingFields.push('photo')
+                if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) missingFields.push('categories')
+                if (!profileData.bio) missingFields.push('bio')
+                if (!profileData.hourly_rate) missingFields.push('hourly rate')
+                if (!profileData.service_radius || !profileData.area_of_residence) missingFields.push('service area')
+                if (!profileData.mpesa_number) missingFields.push('M-Pesa number')
+
+                if (missingFields.length === 0) {
+                  return <>
+                    <strong>Next Step:</strong> Your profile is complete. Click "Edit Profile" to submit verification documents for approval.
+                  </>
+                }
+                return <>
+                  <strong>Next Step:</strong> Complete your profile with your {missingFields.join(', ')}.
                 </>
-              )}
+              })()}
               {status === 'profile_incomplete' && (
                 <>
                   <strong>Next Step:</strong> Upload all required verification documents (National ID, Proof of Residence, Good Conduct Certificate, Discipline Certificate, and Sponsor Reference).

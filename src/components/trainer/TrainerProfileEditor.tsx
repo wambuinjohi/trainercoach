@@ -9,6 +9,8 @@ import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
 import { MapLocationSelector } from './MapLocationSelector'
 import { AvailabilitySelector } from './AvailabilitySelector'
+import { VerificationDocumentsForm } from './VerificationDocumentsForm'
+import { SponsorSelector } from './SponsorSelector'
 import { useFileUpload } from '@/hooks/use-file-upload'
 import { Upload, X } from 'lucide-react'
 import { detectDeviceTimezone } from '@/lib/timezone'
@@ -92,6 +94,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, number>>({})
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [sponsorId, setSponsorId] = useState<string | null>(null)
+  const [sponsorName, setSponsorName] = useState<string | null>(null)
   const [areaLocation, setAreaLocation] = useState<{ lat: number; lng: number; label: string }>({
     lat: -1.2921,
     lng: 36.8219, // Default to Nairobi, Kenya
@@ -695,16 +699,33 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             )}
           </div>
 
-          <div>
-            <Label htmlFor="disciplines">Disciplines (comma separated)</Label>
-            <Input id="disciplines" value={cleanAndParseArray(profile.disciplines).join(', ')} onChange={(e) => handleChange('disciplines', e.target.value)} />
-          </div>
 
-          <div>
-            <Label htmlFor="certifications">Certifications (comma separated)</Label>
-            <Input id="certifications" value={cleanAndParseArray(profile.certifications).join(', ')} onChange={(e) => handleChange('certifications', e.target.value)} />
-          </div>
 
+          {/* Sponsorship Section */}
+          <SponsorSelector
+            currentSponsorId={sponsorId}
+            currentSponsorName={sponsorName}
+            onSponsorSelected={(id, name) => {
+              setSponsorId(id)
+              setSponsorName(name)
+              handleChange('sponsor_trainer_id', id)
+            }}
+            onSponsorRemoved={() => {
+              setSponsorId(null)
+              setSponsorName(null)
+              handleChange('sponsor_trainer_id', null)
+            }}
+          />
+
+          {/* Verification Documents Section */}
+          <VerificationDocumentsForm
+            onComplete={() => {
+              toast({
+                title: 'Success',
+                description: 'Your verification documents have been submitted for review.',
+              })
+            }}
+          />
 
           <div className="space-y-2">
             <Label>Pricing by Service Radius</Label>

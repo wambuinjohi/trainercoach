@@ -72,6 +72,8 @@ export const TrainerDashboard: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([])
   const [avgRating, setAvgRating] = useState<number>(0)
   const [accountStatus, setAccountStatus] = useState<'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'>('registered')
+  const [categories, setCategories] = useState<any[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
@@ -263,10 +265,21 @@ export const TrainerDashboard: React.FC = () => {
             setAccountStatus('approved')
           } else if (profileData.pending_approval) {
             setAccountStatus('pending_approval')
-          } else if (profileData.full_name && profileData.hourly_rate && profileData.bio) {
-            setAccountStatus('profile_incomplete') // Profile complete, awaiting approval
           } else {
-            setAccountStatus('registered') // Just registered, incomplete profile
+            // Check if profile is complete: has name, rate, bio, categories, service area, mpesa, and photo
+            const hasName = !!profileData.full_name
+            const hasRate = !!profileData.hourly_rate
+            const hasBio = !!profileData.bio
+            const hasPhoto = !!profileData.profile_image
+            const hasCategories = profileData.specialties && profileData.specialties.length > 0
+            const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
+            const hasMpesa = !!profileData.payout_details
+
+            if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
+              setAccountStatus('profile_incomplete') // All profile fields complete, awaiting approval
+            } else {
+              setAccountStatus('registered') // Incomplete profile
+            }
           }
         } else {
           setProfileData({
@@ -303,7 +316,28 @@ export const TrainerDashboard: React.FC = () => {
         setWalletBalance(0)
       }
     }
+
+    const loadCategories = async () => {
+      if (!user?.id) return
+      try {
+        // Load all available categories
+        const categoriesData = await apiService.getCategories()
+        const allCategories = categoriesData?.data || []
+        setCategories(allCategories)
+
+        // Load trainer's selected categories
+        const trainerCategoriesData = await apiService.getTrainerCategories(user.id)
+        const trainerCategoryIds = trainerCategoriesData?.data?.map((tc: any) => String(tc.category_id || tc.id)) || []
+        setSelectedCategoryIds(trainerCategoryIds)
+      } catch (err) {
+        console.warn('Failed to load categories', err)
+        setCategories([])
+        setSelectedCategoryIds([])
+      }
+    }
+
     loadTrainerProfile()
+    loadCategories()
   }, [user?.id])
 
   const loadNotifications = async () => {
@@ -390,13 +424,16 @@ export const TrainerDashboard: React.FC = () => {
   }
 
   const renderHomeContent = () => {
-    const selectedCategories = categories.filter(cat => selectedCategoryIds.includes(cat.id))
+    const selectedCategories = (categories || []).filter((cat: any) => selectedCategoryIds.includes(String(cat.id)))
 
     return (
     <div className="space-y-6">
       <StatusIndicator
         status={accountStatus}
         profileData={{
+          full_name: profileData.name,
+          profile_image: profileData.profile_image,
+          bio: profileData.bio,
           hourly_rate: profileData.hourly_rate,
           service_radius: profileData.service_radius,
           area_of_residence: profileData.area_of_residence,
