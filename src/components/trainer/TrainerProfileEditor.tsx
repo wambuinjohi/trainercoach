@@ -32,6 +32,8 @@ interface TrainerProfile {
   area_of_residence?: string
   area_coordinates?: { lat: number; lng: number }
   mpesa_number?: string
+  registration_path?: 'direct' | 'sponsored'
+  path_locked?: boolean
 }
 
 interface Category {
@@ -94,6 +96,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [sponsorId, setSponsorId] = useState<string | null>(null)
   const [sponsorName, setSponsorName] = useState<string | null>(null)
+  const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
+  const [pathLocked, setPathLocked] = useState(false)
   const [areaLocation, setAreaLocation] = useState<{ lat: number; lng: number; label: string }>({
     lat: -1.2921,
     lng: 36.8219, // Default to Nairobi, Kenya
@@ -169,6 +173,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           console.log('[Profile Load] Loaded profile_image from API:', profileData.profile_image)
           setProfile(profileData)
           setName(String(profileData.full_name || profileData.name || ''))
+          setRegistrationPath(profileData.registration_path || 'direct')
+          setPathLocked(profileData.path_locked || false)
 
           // Load area coordinates if available
           if (profileData.area_coordinates) {
@@ -318,6 +324,13 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
+      // Validate sponsor for sponsored trainers
+      if (registrationPath === 'sponsored' && !sponsorId) {
+        toast({ title: 'Sponsor required', description: 'Please select a sponsor trainer for your sponsored registration.', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
       // Hourly rate validation
       const hourlyRateRaw = profile.hourly_rate == null ? '' : profile.hourly_rate
       const hourlyRateNum = hourlyRateRaw === '' ? 0 : Number(hourlyRateRaw)
@@ -408,6 +421,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           location_label: areaLocation.label || null,
           location_updated_at: new Date().toISOString(),
           mpesa_number: profile.mpesa_number || null,
+          registration_path: !pathLocked ? registrationPath : undefined,
         }
         console.log('[Profile Save] ========== SAVING PROFILE ==========')
         console.log('[Profile Save] User ID:', userId)
@@ -687,9 +701,42 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             )}
           </div>
 
+          {/* Registration Path Section */}
+          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-border">
+            <Label className="font-semibold">Registration Path</Label>
+            <div className="space-y-2">
+              {!pathLocked ? (
+                <>
+                  <p className="text-sm text-muted-foreground">How are you registered with the platform?</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: registrationPath === 'direct' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => setRegistrationPath('direct')}>
+                      <input type="radio" name="registration-path" value="direct" checked={registrationPath === 'direct'} onChange={() => setRegistrationPath('direct')} />
+                      <div>
+                        <p className="font-medium text-sm">Direct Registration</p>
+                        <p className="text-xs text-muted-foreground">Registered independently with full documentation</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: registrationPath === 'sponsored' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => setRegistrationPath('sponsored')}>
+                      <input type="radio" name="registration-path" value="sponsored" checked={registrationPath === 'sponsored'} onChange={() => setRegistrationPath('sponsored')} />
+                      <div>
+                        <p className="font-medium text-sm">Sponsored Registration</p>
+                        <p className="text-xs text-muted-foreground">Registered under an approved sponsor (10% commission)</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-3 bg-background rounded border border-border">
+                  <p className="text-sm font-medium text-foreground">
+                    Registration Path: <span className="capitalize text-trainer-primary">{registrationPath}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">🔒 Your registration path is locked after document submission.</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-
-          {/* Sponsorship Section */}
+          {/* Sponsorship Section - Show for all trainers, but required for sponsored path */}
           <SponsorSelector
             currentSponsorId={sponsorId}
             currentSponsorName={sponsorName}
@@ -703,6 +750,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
               setSponsorName(null)
               handleChange('sponsor_trainer_id', null)
             }}
+            required={registrationPath === 'sponsored'}
+            registrationPath={registrationPath}
           />
 
           {/* Verification Documents Section */}

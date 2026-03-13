@@ -69,12 +69,29 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null)
   const [idNumber, setIdNumber] = useState('')
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
+  const [profileLoading, setProfileLoading] = useState(true)
 
-  // Load existing documents on mount
+  // Load registration path and existing documents on mount
   useEffect(() => {
     if (!userId) return
-    loadDocuments()
+    loadProfileAndDocuments()
   }, [userId])
+
+  const loadProfileAndDocuments = async () => {
+    try {
+      // Load profile to get registration path
+      const profileResponse = await apiService.getUserProfile(userId)
+      if (profileResponse?.data && profileResponse.data.length > 0) {
+        const profile = profileResponse.data[0]
+        setRegistrationPath(profile.registration_path || 'direct')
+      }
+      // Load documents
+      loadDocuments()
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   // Timer for Good Conduct cert
   useEffect(() => {
@@ -106,18 +123,27 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     try {
       const response = await apiService.getVerificationDocuments(userId!)
       if (response?.data && Array.isArray(response.data)) {
-        const loadedDocs: Document[] = requiredDocuments.map(reqDoc => {
-          const uploaded = response.data.find(d => d.document_type === reqDoc.type)
-          return {
-            ...reqDoc,
-            status: uploaded?.status || 'pending',
-            fileUrl: uploaded?.file_url,
-            rejectionReason: uploaded?.rejection_reason,
-            uploadedAt: uploaded?.uploaded_at,
-            expiresAt: uploaded?.expires_at,
-            idNumber: uploaded?.id_number
-          }
-        })
+        const loadedDocs: Document[] = requiredDocuments
+          .filter(reqDoc => {
+            // For sponsored trainers, filter out discipline_certificate and sponsor_reference
+            if (registrationPath === 'sponsored' &&
+                (reqDoc.type === 'discipline_certificate' || reqDoc.type === 'sponsor_reference')) {
+              return false
+            }
+            return true
+          })
+          .map(reqDoc => {
+            const uploaded = response.data.find(d => d.document_type === reqDoc.type)
+            return {
+              ...reqDoc,
+              status: uploaded?.status || 'pending',
+              fileUrl: uploaded?.file_url,
+              rejectionReason: uploaded?.rejection_reason,
+              uploadedAt: uploaded?.uploaded_at,
+              expiresAt: uploaded?.expires_at,
+              idNumber: uploaded?.id_number
+            }
+          })
         setDocuments(loadedDocs)
       }
     } catch (error) {
@@ -212,6 +238,19 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
+  // Show loading state while profile is being loaded
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-4 text-center text-muted-foreground">
+            Loading verification documents...
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -219,6 +258,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Trainer Verification Documents
+            {registrationPath === 'sponsored' && (
+              <Badge variant="outline" className="ml-2">
+                Sponsored Path
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
