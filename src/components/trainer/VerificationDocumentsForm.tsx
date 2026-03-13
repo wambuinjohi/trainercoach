@@ -21,6 +21,8 @@ interface Document {
   uploadedAt?: string
   expiresAt?: string
   idNumber?: string
+  preview?: string // Data URL for image preview
+  uploadProgress?: number // 0-100
 }
 
 const requiredDocuments: Document[] = [
@@ -170,10 +172,49 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       return
     }
 
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setDocuments(prev =>
+          prev.map(d =>
+            d.type === docType ? { ...d, preview: e.target?.result as string } : d
+          )
+        )
+      }
+      reader.readAsDataURL(file)
+    } else {
+      // For PDFs, show file name as preview
+      setDocuments(prev =>
+        prev.map(d =>
+          d.type === docType ? { ...d, preview: `📄 ${file.name}` } : d
+        )
+      )
+    }
+
     setUploadingDocType(docType)
+    setDocuments(prev =>
+      prev.map(d =>
+        d.type === docType ? { ...d, uploadProgress: 0 } : d
+      )
+    )
+
     try {
       const idNum = docType === 'national_id' ? idNumber : undefined
-      const response = await apiService.uploadVerificationDocument(userId, docType, file, idNum)
+      const response = await apiService.uploadVerificationDocument(
+        userId,
+        docType,
+        file,
+        idNum,
+        (progress) => {
+          // Update upload progress
+          setDocuments(prev =>
+            prev.map(d =>
+              d.type === docType ? { ...d, uploadProgress: progress } : d
+            )
+          )
+        }
+      )
 
       if (response?.status === 'success') {
         toast({ title: 'Success', description: `${requiredDocuments.find(d => d.type === docType)?.label} uploaded successfully` })
@@ -187,6 +228,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         description: error instanceof Error ? error.message : 'Could not upload document',
         variant: 'destructive'
       })
+      // Clear preview on error
+      setDocuments(prev =>
+        prev.map(d =>
+          d.type === docType ? { ...d, preview: undefined, uploadProgress: undefined } : d
+        )
+      )
     } finally {
       setUploadingDocType(null)
     }
@@ -354,42 +401,84 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
                   {/* File Upload */}
                   {doc.status !== 'approved' && (
-                    <div className="mb-3">
-                      <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition">
-                        <div className="flex flex-col items-center gap-2">
-                          {uploadingDocType === doc.type ? (
-                            <>
-                              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                              <span className="text-sm text-gray-600">Uploading...</span>
-                            </>
+                    <div className="mb-3 space-y-3">
+                      {/* Preview Section */}
+                      {doc.preview && (
+                        <div className="border rounded-lg p-3 bg-gray-50">
+                          {doc.preview.startsWith('data:') ? (
+                            <img src={doc.preview} alt="Preview" className="max-w-full max-h-64 rounded object-contain mx-auto" />
                           ) : (
-                            <>
-                              <Upload className="h-5 w-5 text-gray-400" />
-                              <span className="text-sm text-gray-600">Click to upload or drag and drop</span>
-                            </>
+                            <div className="flex items-center justify-center py-4">
+                              <span className="text-lg">{doc.preview}</span>
+                            </div>
                           )}
                         </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/jpeg,image/png,application/pdf"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              if (doc.type === 'national_id' && !idNumber) {
-                                toast({
-                                  title: 'ID Number required',
-                                  description: 'Please enter your ID number before uploading',
-                                  variant: 'destructive'
-                                })
-                                return
+                      )}
+
+                      {/* Upload Progress */}
+                      {uploadingDocType === doc.type && doc.uploadProgress !== undefined && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Uploading...</span>
+                            <span className="text-gray-600 font-medium">{doc.uploadProgress}%</span>
+                          </div>
+                          <Progress value={doc.uploadProgress} className="h-2" />
+                        </div>
+                      )}
+
+                      {/* Upload Area */}
+                      {!doc.preview || uploadingDocType === doc.type ? (
+                        <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition">
+                          <div className="flex flex-col items-center gap-2">
+                            {uploadingDocType === doc.type ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                                <span className="text-sm text-gray-600">Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-5 w-5 text-gray-400" />
+                                <span className="text-sm text-gray-600">Click to upload or drag and drop</span>
+                              </>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/jpeg,image/png,application/pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                if (doc.type === 'national_id' && !idNumber) {
+                                  toast({
+                                    title: 'ID Number required',
+                                    description: 'Please enter your ID number before uploading',
+                                    variant: 'destructive'
+                                  })
+                                  return
+                                }
+                                handleFileUpload(doc.type, file)
                               }
-                              handleFileUpload(doc.type, file)
-                            }
-                          }}
-                          disabled={uploadingDocType === doc.type}
-                        />
-                      </label>
+                            }}
+                            disabled={uploadingDocType === doc.type}
+                          />
+                        </label>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setDocuments(prev =>
+                                prev.map(d =>
+                                  d.type === doc.type ? { ...d, preview: undefined, uploadProgress: undefined } : d
+                                )
+                              )
+                            }}
+                            className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                          >
+                            Change File
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

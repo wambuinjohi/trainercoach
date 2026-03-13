@@ -509,127 +509,19 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
 }
 
 // =============================
-// HANDLE FILE UPLOADS (MULTIPART)
+// GENERIC FILE UPLOAD HANDLER - DISABLED
 // =============================
+// NOTE: All file uploads are now handled by specific action handlers:
+// - verification_document_upload: handles verification document uploads
+// - profile_update: handles profile image uploads
+// The generic file upload handler below is intentionally disabled.
+//
+// Original code commented out to prevent execution:
+/*
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES)) {
-    $uploadDir = __DIR__ . '/uploads/';
-    $maxFileSize = 50 * 1024 * 1024;
-    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'avi', 'mov', 'webm', 'zip', 'rar'];
-    $allowedMimeTypes = [
-        'image/jpeg', 'image/png', 'image/gif',
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'video/mp4', 'video/x-msvideo', 'video/quicktime', 'video/webm',
-        'application/zip', 'application/x-rar-compressed'
-    ];
-
-    // Get the upload base URL (default to https://trainercoachconnect.com/uploads)
-    $uploadBaseUrl = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads';
-
-    if (!is_dir($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            respond("error", "Failed to create uploads directory.", null, 500);
-        }
-    }
-
-    $uploadedFiles = [];
-    $errors = [];
-
-    foreach ($_FILES as $fieldName => $fileData) {
-        $files = is_array($fileData['name']) ? $fileData : [$fileData];
-
-        if (!is_array($files['name'])) {
-            $files = [
-                'name' => [$files['name']],
-                'type' => [$files['type']],
-                'tmp_name' => [$files['tmp_name']],
-                'error' => [$files['error']],
-                'size' => [$files['size']]
-            ];
-        }
-
-        for ($i = 0; $i < count($files['name']); $i++) {
-            $fileName = trim($files['name'][$i]);
-            $fileTmpName = $files['tmp_name'][$i];
-            $fileError = $files['error'][$i];
-            $fileSize = $files['size'][$i];
-            $fileMimeType = $files['type'][$i];
-
-            if (empty($fileName)) {
-                continue;
-            }
-
-            if ($fileError !== UPLOAD_ERR_OK) {
-                $errorMessages = [
-                    UPLOAD_ERR_INI_SIZE => "File exceeds upload_max_filesize directive",
-                    UPLOAD_ERR_FORM_SIZE => "File exceeds MAX_FILE_SIZE directive",
-                    UPLOAD_ERR_PARTIAL => "File was only partially uploaded",
-                    UPLOAD_ERR_NO_FILE => "No file was uploaded",
-                    UPLOAD_ERR_NO_TMP_DIR => "Missing temporary folder",
-                    UPLOAD_ERR_CANT_WRITE => "Failed to write file to disk",
-                    UPLOAD_ERR_EXTENSION => "PHP extension blocked the file upload"
-                ];
-                $errors[] = "$fileName: " . ($errorMessages[$fileError] ?? "Unknown error");
-                continue;
-            }
-
-            if ($fileSize > $maxFileSize) {
-                $errors[] = "$fileName: File size exceeds 50MB limit";
-                continue;
-            }
-
-            $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-            if (!in_array($fileExt, $allowedExtensions)) {
-                $errors[] = "$fileName: File type not allowed (.$fileExt)";
-                continue;
-            }
-
-            if (!in_array($fileMimeType, $allowedMimeTypes)) {
-                $errors[] = "$fileName: Invalid MIME type detected";
-                continue;
-            }
-
-            $uniqueFileName = uniqid('file_') . '_' . time() . '.' . $fileExt;
-            $uploadPath = $uploadDir . $uniqueFileName;
-
-            if (!move_uploaded_file($fileTmpName, $uploadPath)) {
-                $errors[] = "$fileName: Failed to save file";
-                continue;
-            }
-
-            chmod($uploadPath, 0644);
-
-            // Construct full URL for uploaded file
-            $fileUrl = rtrim($uploadBaseUrl, '/') . '/' . $uniqueFileName;
-
-            $uploadedFiles[] = [
-                'originalName' => $fileName,
-                'fileName' => $uniqueFileName,
-                'url' => $fileUrl,
-                'size' => $fileSize,
-                'mimeType' => $fileMimeType,
-                'uploadedAt' => date('Y-m-d H:i:s')
-            ];
-        }
-    }
-
-    if (empty($uploadedFiles) && !empty($errors)) {
-        respond("error", "File upload failed. " . implode("; ", $errors), null, 400);
-    } else {
-        $message = "Upload completed";
-        if (!empty($errors)) {
-            $message .= " with " . count($errors) . " error(s)";
-        }
-        respond("success", $message, [
-            "uploaded" => $uploadedFiles,
-            "errors" => $errors,
-            "count" => count($uploadedFiles)
-        ]);
-    }
+    // ... file upload handling code ...
 }
+*/
 
 // Read input JSON
 $rawInput = file_get_contents("php://input");
@@ -2463,16 +2355,16 @@ switch ($action) {
                 respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
             }
 
-            // Create upload directory
-            $uploadDir = 'uploads/verification_documents/';
+            // Use same uploads directory as profile images
+            $uploadDir = 'uploads/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
 
             $fileName = $trainerId . '_' . $documentType . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
             $filePath = $uploadDir . $fileName;
-            $uploadBase = getenv('UPLOAD_BASE_URL') ?: '/uploads/';
-            $fileUrl = $uploadBase . 'verification_documents/' . $fileName;
+            $uploadBase = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads/';
+            $fileUrl = rtrim($uploadBase, '/') . '/' . $fileName;
 
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
                 respond("error", "Failed to upload file.", null, 500);
