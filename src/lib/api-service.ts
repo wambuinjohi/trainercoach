@@ -679,7 +679,7 @@ export async function setTrainerAccountStatus(userId: string, status: string, to
   return apiRequest('trainer_set_account_status', { user_id: userId, status }, { headers })
 }
 
-export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string) {
+export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string, onProgress?: (progress: number) => void) {
   const formData = new FormData()
   formData.append('action', 'verification_document_upload')
   formData.append('trainer_id', trainerId)
@@ -690,16 +690,40 @@ export async function uploadVerificationDocument(trainerId: string, documentType
   }
 
   const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
-  const response = await fetch(apiBaseUrl, {
-    method: 'POST',
-    body: formData,
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    // Track upload progress
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100)
+          onProgress(progress)
+        }
+      })
+    }
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          resolve(response)
+        } catch (e) {
+          reject(new Error('Failed to parse response'))
+        }
+      } else {
+        reject(new Error('Failed to upload verification document'))
+      }
+    })
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload'))
+    })
+
+    xhr.open('POST', apiBaseUrl, true)
+    xhr.send(formData)
   })
-
-  if (!response.ok) {
-    throw new Error('Failed to upload verification document')
-  }
-
-  return response.json()
 }
 
 export async function getVerificationDocuments(trainerId: string) {
