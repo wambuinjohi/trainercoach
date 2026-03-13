@@ -72,6 +72,8 @@ export const TrainerDashboard: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([])
   const [avgRating, setAvgRating] = useState<number>(0)
   const [accountStatus, setAccountStatus] = useState<'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'>('registered')
+  const [categories, setCategories] = useState<any[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
