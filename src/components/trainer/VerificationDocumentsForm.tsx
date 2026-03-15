@@ -370,15 +370,33 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
 
                   {/* File Upload - Skip for proof_of_residence (GPS location only) and already approved documents */}
-                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && !doc.fileUrl && (
+                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && (
                     <div className="mb-3 space-y-3">
-                      {/* Preview Section */}
-                      {doc.preview && (
-                        <div className="border rounded-lg p-3 bg-gray-50">
-                          {doc.preview.startsWith('data:') ? (
-                            <img src={doc.preview} alt="Preview" className="max-w-full max-h-64 rounded object-contain mx-auto" />
+                      {/* Show existing document preview if fileUrl exists */}
+                      {doc.fileUrl && !doc.preview && (
+                        <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                          <p className="text-xs font-medium text-blue-700 mb-3">Current Document</p>
+                          {doc.fileUrl.startsWith('http') ? (
+                            <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
                           ) : (
-                            <div className="flex items-center justify-center py-4">
+                            <div className="flex items-center justify-center py-6">
+                              <span className="text-lg">📄 {doc.label}</span>
+                            </div>
+                          )}
+                          <p className="text-xs text-blue-600 mt-3">
+                            Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Preview Section for new upload being prepared */}
+                      {doc.preview && (
+                        <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                          <p className="text-xs font-medium text-green-700 mb-3">Preview - Ready to Upload</p>
+                          {doc.preview.startsWith('data:') ? (
+                            <img src={doc.preview} alt="Preview" className="max-w-full max-h-72 rounded object-contain mx-auto" />
+                          ) : (
+                            <div className="flex items-center justify-center py-6">
                               <span className="text-lg">{doc.preview}</span>
                             </div>
                           )}
@@ -404,6 +422,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                               <>
                                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                                 <span className="text-sm text-gray-600">Uploading...</span>
+                              </>
+                            ) : doc.fileUrl ? (
+                              <>
+                                <Upload className="h-5 w-5 text-gray-400" />
+                                <span className="text-sm text-gray-600">Click to replace with new file</span>
                               </>
                             ) : (
                               <>
@@ -467,26 +490,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   )}
 
-                  {/* Existing Document Preview */}
-                  {doc.fileUrl && doc.type !== 'proof_of_residence' && (
-                    <div className="border rounded-lg p-3 bg-gray-50">
-                      {doc.fileUrl.startsWith('http') ? (
-                        <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-64 rounded object-contain mx-auto" />
-                      ) : doc.fileUrl.startsWith('{') ? (
-                        // GPS location data for proof of residence
-                        <div className="flex items-center justify-center py-4">
-                          <span className="text-sm text-gray-600">GPS Location Verified</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center py-4">
-                          <span className="text-lg">📄 {doc.label}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Uploaded Status */}
-                  {doc.fileUrl && (
+                  {/* Uploaded Status - Only show if not pending (already uploaded and status is not pending) */}
+                  {doc.fileUrl && doc.status !== 'pending' && (
                     <div className="flex items-center gap-2 text-sm text-green-700">
                       <CheckCircle2 className="h-4 w-4" />
                       <span>File uploaded {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : ''}</span>
