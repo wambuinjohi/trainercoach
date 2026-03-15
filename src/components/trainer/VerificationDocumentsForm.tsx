@@ -12,7 +12,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Document {
-  type: 'national_id_front' | 'national_id_back' | 'proof_of_residence' | 'certificate_of_good_conduct'
+  type: 'national_id' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -27,15 +27,9 @@ interface Document {
 
 const requiredDocuments: Document[] = [
   {
-    type: 'national_id_front',
-    label: 'National ID - Front',
-    description: 'Upload a clear photo of the front of your national ID',
-    status: 'pending'
-  },
-  {
-    type: 'national_id_back',
-    label: 'National ID - Back',
-    description: 'Upload a clear photo of the back of your national ID',
+    type: 'national_id',
+    label: 'National ID',
+    description: 'Upload a clear photo of both sides of your national ID',
     status: 'pending'
   },
   {
