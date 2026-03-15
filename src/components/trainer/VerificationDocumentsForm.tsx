@@ -114,10 +114,14 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       console.log('[VerificationDocuments] Loading documents for userId:', userId)
       const response = await apiService.getVerificationDocuments(userId!)
       console.log('[VerificationDocuments] API Response:', response)
-      if (response?.data && Array.isArray(response.data)) {
+
+      // Handle both direct array response and wrapped response with .data property
+      let docs = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+
+      if (Array.isArray(docs)) {
         const loadedDocs: Document[] = requiredDocuments
           .map(reqDoc => {
-            const uploaded = response.data.find(d => d.document_type === reqDoc.type)
+            const uploaded = docs.find(d => d.document_type === reqDoc.type)
             console.log('[VerificationDocuments] Document:', reqDoc.type, '| Uploaded:', uploaded)
             return {
               ...reqDoc,

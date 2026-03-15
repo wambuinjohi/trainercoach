@@ -74,15 +74,12 @@ export default function DocumentReviewPage() {
 
       console.log('Document review response:', response)
 
-      // Handle various response formats
+      // Handle various response formats - apiRequest returns data directly or wrapped
       let docs: Document[] = []
       if (Array.isArray(response)) {
         docs = response
       } else if (response?.data && Array.isArray(response.data)) {
         docs = response.data
-      } else if (response && typeof response === 'object' && !Array.isArray(response)) {
-        // If response is an object but not an array, it might be a single document wrapped in an object
-        docs = []
       }
 
       setDocuments(docs)
