@@ -157,7 +157,11 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   }, [])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      console.warn('[Profile Load] userId is not available yet')
+      return
+    }
+    console.log('[Profile Load] Starting profile load for userId:', userId)
     setLoading(true)
     setSelectedCategoryIds([])
     setCategoryPricing({})
@@ -179,7 +183,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
 
         if (profileList.length > 0) {
           profileData = profileList[0]
-          console.log('[Profile Load] Loaded profile_image from API:', profileData.profile_image)
+          console.log('[Profile Load] Profile data loaded successfully:', profileData)
+          console.log('[Profile Load] Profile fields - name:', profileData.full_name || profileData.name, 'rate:', profileData.hourly_rate, 'image:', profileData.profile_image)
           setProfile(profileData)
           setName(String(profileData.full_name || profileData.name || ''))
           setRegistrationPath(profileData.registration_path || 'direct')
