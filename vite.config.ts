@@ -256,24 +256,51 @@ function devApiPlugin() {
               return;
 
             case "get_users":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Users retrieved",
-                data: []
-              }));
+              // Proxy to real API to get users from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const usersResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'get_users', user_type: body.user_type, status: body.status, search: body.search })
+                });
+                const usersData = await usersResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(usersData));
+              } catch (e) {
+                console.error('Failed to fetch users:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Users retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "get_categories":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Categories retrieved",
-                data: [
-                  { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
-                  { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
-                  { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
-                  { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
-                ]
-              }));
+              // Proxy to real API to get all categories from database
+              try {
+                const categoryResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'get_categories' })
+                });
+                const categoryData = await categoryResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(categoryData));
+              } catch (e) {
+                console.error('Failed to fetch categories from real API, using mock:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Categories retrieved",
+                  data: [
+                    { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
+                    { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
+                    { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
+                    { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
+                  ]
+                }));
+              }
               return;
 
             case "notifications_get":
@@ -285,23 +312,48 @@ function devApiPlugin() {
               return;
 
             case "trainer_categories_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Trainer categories retrieved",
-                data: [
-                  { category_id: 1, name: "Strength Training" },
-                  { category_id: 3, name: "Yoga" }
-                ]
-              }));
+              // Proxy to real API to get trainer's categories from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const catResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'trainer_categories_get', trainer_id: body.trainer_id })
+                });
+                const catData = await catResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(catData));
+              } catch (e) {
+                console.error('Failed to fetch trainer categories:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Trainer categories retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "get_trainers":
             case "get_trainer_details":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Trainers retrieved",
-                data: []
-              }));
+              // Proxy to real API to get trainers from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const trainersResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: action, trainer_id: body.trainer_id, status: body.status, search: body.search })
+                });
+                const trainersData = await trainersResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(trainersData));
+              } catch (e) {
+                console.error('Failed to fetch trainers:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Trainers retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "create_booking":
@@ -313,11 +365,25 @@ function devApiPlugin() {
               return;
 
             case "get_bookings":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Bookings retrieved",
-                data: []
-              }));
+              // Proxy to real API to get bookings from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const bookingsResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'get_bookings', status: body.status, trainer_id: body.trainer_id, client_id: body.client_id })
+                });
+                const bookingsData = await bookingsResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(bookingsData));
+              } catch (e) {
+                console.error('Failed to fetch bookings:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Bookings retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "profile_get":
@@ -345,19 +411,47 @@ function devApiPlugin() {
               return;
 
             case "payout_requests_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Payout requests retrieved",
-                data: []
-              }));
+              // Proxy to real API to get payout requests from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const payoutResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'payout_requests_get', status: body.status, trainer_id: body.trainer_id })
+                });
+                const payoutData = await payoutResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(payoutData));
+              } catch (e) {
+                console.error('Failed to fetch payout requests:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Payout requests retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "b2c_payments_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "B2C payments retrieved",
-                data: []
-              }));
+              // Proxy to real API to get B2C payments from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const b2cResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'b2c_payments_get', status: body.status })
+                });
+                const b2cData = await b2cResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(b2cData));
+              } catch (e) {
+                console.error('Failed to fetch B2C payments:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "B2C payments retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "announcement_create":
@@ -369,35 +463,91 @@ function devApiPlugin() {
               return;
 
             case "promotion_requests_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Promotion requests retrieved",
-                data: []
-              }));
+              // Proxy to real API to get promotion requests from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const promoResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'promotion_requests_get', status: body.status })
+                });
+                const promoData = await promoResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(promoData));
+              } catch (e) {
+                console.error('Failed to fetch promotion requests:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Promotion requests retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "promotion_request_approve":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Promotion request approved",
-                data: null
-              }));
+              // Proxy to real API to approve promotion requests
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const approveResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'promotion_request_approve', request_id: body.request_id })
+                });
+                const approveData = await approveResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(approveData));
+              } catch (e) {
+                console.error('Failed to approve promotion request:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to approve promotion request"
+                }));
+              }
               return;
 
             case "promotion_request_reject":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Promotion request rejected",
-                data: null
-              }));
+              // Proxy to real API to reject promotion requests
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const rejectResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'promotion_request_reject', request_id: body.request_id })
+                });
+                const rejectData = await rejectResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(rejectData));
+              } catch (e) {
+                console.error('Failed to reject promotion request:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to reject promotion request"
+                }));
+              }
               return;
 
             case "payments_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Payments retrieved",
-                data: []
-              }));
+              // Proxy to real API to get payments from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const paymentsResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'payments_get', status: body.status, trainer_id: body.trainer_id, client_id: body.client_id })
+                });
+                const paymentsData = await paymentsResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(paymentsData));
+              } catch (e) {
+                console.error('Failed to fetch payments:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Payments retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "payout_insert":
@@ -405,6 +555,89 @@ function devApiPlugin() {
                 status: "success",
                 message: "Payout request created",
                 data: { id: "payout_" + Math.random().toString(36).substring(7) }
+              }));
+              return;
+
+            case "verification_documents_get":
+              // Proxy to real API to get trainer's documents from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const docGetResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'verification_documents_get', trainer_id: body.trainer_id })
+                });
+                const docGetData = await docGetResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(docGetData));
+              } catch (e) {
+                console.error('Failed to fetch verification documents, using empty response:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Verification documents retrieved",
+                  data: []
+                }));
+              }
+              return;
+
+            case "verification_documents_list":
+              // Proxy to real API to get all pending documents for admin review
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : {};
+                const docListResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader, ...adminTokenHeader },
+                  body: JSON.stringify({ action: 'verification_documents_list', status: body.status })
+                });
+                const docListData = await docListResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(docListData));
+              } catch (e) {
+                console.error('Failed to list verification documents, using empty response:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Verification documents listed",
+                  data: []
+                }));
+              }
+              return;
+
+            case "verification_document_upload":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Document uploaded successfully",
+                data: { file_url: "/uploads/doc_" + Math.random().toString(36).substring(7) }
+              }));
+              return;
+
+            case "verification_document_verify":
+              // Proxy to real API to approve/reject documents
+              try {
+                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : req.headers['x-admin-token'] ? { 'X-Admin-Token': req.headers['x-admin-token'] } : {};
+                const verifyResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...adminTokenHeader },
+                  body: JSON.stringify({ action: 'verification_document_verify', document_id: body.document_id, status: body.status, rejection_reason: body.rejection_reason })
+                });
+                const verifyData = await verifyResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(verifyData));
+              } catch (e) {
+                console.error('Failed to verify document:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to verify document"
+                }));
+              }
+              return;
+
+            case "check_documents_submission":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Documents submission checked",
+                data: { all_submitted: false }
               }));
               return;
 
@@ -742,7 +975,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development (commented to use real API)
+    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),

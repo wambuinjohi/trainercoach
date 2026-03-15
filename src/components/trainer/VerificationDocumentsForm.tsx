@@ -12,7 +12,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Document {
-  type: 'national_id_front' | 'national_id_back' | 'proof_of_residence' | 'certificate_of_good_conduct'
+  type: 'national_id' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -27,15 +27,9 @@ interface Document {
 
 const requiredDocuments: Document[] = [
   {
-    type: 'national_id_front',
-    label: 'National ID - Front',
-    description: 'Upload a clear photo of the front of your national ID',
-    status: 'pending'
-  },
-  {
-    type: 'national_id_back',
-    label: 'National ID - Back',
-    description: 'Upload a clear photo of the back of your national ID',
+    type: 'national_id',
+    label: 'National ID',
+    description: 'Upload a clear photo of both sides of your national ID',
     status: 'pending'
   },
   {
@@ -364,8 +358,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
                   {/* Show existing document preview - Always visible */}
                   {doc.fileUrl && doc.type !== 'proof_of_residence' && (
-                    <div className="mb-3 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                      <p className="text-xs font-medium text-blue-700 mb-3">📄 Current Document</p>
+                    <div className={`mb-3 border-2 rounded-lg p-4 ${
+                      doc.status === 'approved'
+                        ? 'border-green-200 bg-green-50'
+                        : doc.status === 'rejected'
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-blue-200 bg-blue-50'
+                    }`}>
+                      <p className={`text-xs font-medium mb-3 ${
+                        doc.status === 'approved'
+                          ? 'text-green-700'
+                          : doc.status === 'rejected'
+                          ? 'text-red-700'
+                          : 'text-blue-700'
+                      }`}>
+                        📄 {doc.status === 'approved' ? 'Approved Document' : doc.status === 'rejected' ? 'Document (Rejected)' : 'Current Document'}
+                      </p>
                       {doc.fileUrl.startsWith('http') ? (
                         <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
                       ) : (
@@ -374,9 +382,21 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                         </div>
                       )}
                       <div className="flex items-center gap-2 mt-3">
-                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                        <p className="text-xs text-blue-600">
-                          Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
+                        <CheckCircle2 className={`h-4 w-4 ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`} />
+                        <p className={`text-xs ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`}>
+                          {doc.status === 'pending' ? 'Awaiting review' : doc.status === 'approved' ? 'Approved' : 'Rejected'} - {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
                         </p>
                       </div>
                     </div>
