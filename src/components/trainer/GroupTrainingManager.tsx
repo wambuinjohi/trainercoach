@@ -44,9 +44,11 @@ export const GroupTrainingManager: React.FC<GroupTrainingManagerProps> = ({
       try {
         setLoading(true)
         const response = await apiService.getTrainerGroupPricing(trainerId, categoryId)
-        
-        if (response?.data && response.data.length > 0) {
-          const pricing = response.data[0]
+
+        // Handle both direct array response and wrapped response with .data property
+        const pricingList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+        if (pricingList.length > 0) {
+          const pricing = pricingList[0]
           setGroupPricing(pricing)
           setIsEnabled(true)
           setPricingModel(pricing.pricing_model as 'fixed' | 'per_person')

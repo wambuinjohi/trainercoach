@@ -48,8 +48,10 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
         const profileData = await apiService.getUserProfile(userId).catch(() => ({ data: [] }))
         if (!active) return
 
-        if (profileData?.data && profileData.data.length > 0) {
-          const profile = profileData.data[0]
+        // Handle both direct array response and wrapped response with .data property
+        const profileList = Array.isArray(profileData) ? profileData : (profileData?.data && Array.isArray(profileData.data) ? profileData.data : [])
+        if (profileList.length > 0) {
+          const profile = profileList[0]
 
           // Set base rate
           setBaseRate(profile?.hourly_rate != null ? String(profile.hourly_rate) : '')
@@ -58,8 +60,10 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
         // Load selected service categories
         const selectedCats = await apiService.getTrainerCategories(userId).catch(() => ({ data: [] }))
 
-        if (active && selectedCats?.data && Array.isArray(selectedCats.data)) {
-          const catIds = selectedCats.data.map((sc: any) => Number(sc.category_id || sc.cat_id))
+        // Handle both direct array response and wrapped response with .data property
+        const selectedCatsList = Array.isArray(selectedCats) ? selectedCats : (selectedCats?.data && Array.isArray(selectedCats.data) ? selectedCats.data : [])
+        if (active && selectedCatsList.length > 0) {
+          const catIds = selectedCatsList.map((sc: any) => Number(sc.category_id || sc.cat_id))
           setSelectedCategoryIds(catIds)
 
           const pricing: Record<number, string> = {}

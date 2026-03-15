@@ -70,7 +70,9 @@ export const RegistrationTypeSelector: React.FC<RegistrationTypeSelectorProps> =
         path_locked: true
       })
 
-      if (response?.data) {
+      // Response could be direct data or wrapped in .data property
+      const responseData = Array.isArray(response) ? response : (response?.data ?? response)
+      if (responseData) {
         toast({
           title: 'Success',
           description: `You have been registered as a ${selectedType === 'direct' ? 'direct' : 'sponsored'} trainer`
