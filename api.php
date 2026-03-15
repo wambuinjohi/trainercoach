@@ -2983,20 +2983,20 @@ switch ($action) {
 
         $whereClause = "";
         if ($status === 'active') {
-            $whereClause = "WHERE c.status = 'active'";
+            $whereClause = "WHERE c.approval_status = 'active'";
         } else if ($status === 'pending_approval') {
-            $whereClause = "WHERE c.status = 'pending_approval'";
+            $whereClause = "WHERE c.approval_status = 'pending_approval'";
         } else if ($status === 'rejected') {
-            $whereClause = "WHERE c.status = 'rejected'";
+            $whereClause = "WHERE c.approval_status = 'rejected'";
         } else if ($status === 'archived') {
-            $whereClause = "WHERE c.status = 'archived'";
+            $whereClause = "WHERE c.approval_status = 'archived'";
         }
 
         $orderClause = $sortBy === 'name' ? "ORDER BY c.name ASC" : "ORDER BY c.created_at DESC";
 
         $sql = "
             SELECT
-                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
+                c.id, c.name, c.icon, c.description, c.approval_status as status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
                 COUNT(tc.trainer_id) as trainer_count
             FROM categories c
             LEFT JOIN trainer_categories tc ON c.id = tc.category_id
