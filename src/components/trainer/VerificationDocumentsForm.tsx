@@ -369,8 +369,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
 
-                  {/* File Upload - Skip for proof_of_residence (GPS location only) */}
-                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && (
+                  {/* File Upload - Skip for proof_of_residence (GPS location only) and already approved documents */}
+                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && !doc.fileUrl && (
                     <div className="mb-3 space-y-3">
                       {/* Preview Section */}
                       {doc.preview && (
@@ -444,14 +444,45 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   )}
 
-                  {/* Proof of Residence - GPS Location Info */}
-                  {doc.type === 'proof_of_residence' && (
+                  {/* Proof of Residence - GPS Location Info or Preview */}
+                  {doc.type === 'proof_of_residence' && !doc.fileUrl && (
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
                       <AlertCircle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
                         Your GPS location will be captured from your profile location. Make sure to set your location in the trainer profile section.
                       </AlertDescription>
                     </Alert>
+                  )}
+
+                  {/* Proof of Residence - GPS Location Verified */}
+                  {doc.type === 'proof_of_residence' && doc.fileUrl && (
+                    <div className="border rounded-lg p-3 bg-green-50 border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <span className="font-medium text-green-700">GPS Location Verified</span>
+                      </div>
+                      <p className="text-sm text-green-700">
+                        {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Location confirmed'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Existing Document Preview */}
+                  {doc.fileUrl && doc.type !== 'proof_of_residence' && (
+                    <div className="border rounded-lg p-3 bg-gray-50">
+                      {doc.fileUrl.startsWith('http') ? (
+                        <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-64 rounded object-contain mx-auto" />
+                      ) : doc.fileUrl.startsWith('{') ? (
+                        // GPS location data for proof of residence
+                        <div className="flex items-center justify-center py-4">
+                          <span className="text-sm text-gray-600">GPS Location Verified</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-4">
+                          <span className="text-lg">📄 {doc.label}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Uploaded Status */}
