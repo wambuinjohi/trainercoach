@@ -244,8 +244,10 @@ export const TrainerDashboard: React.FC = () => {
       if (!user?.id) return
       try {
         const profile = await apiService.getTrainerProfile(user.id)
-        if (profile?.data && profile.data.length > 0) {
-          const profileData = profile.data[0]
+        // Handle both direct array response and wrapped response with .data property
+        const profileList = Array.isArray(profile) ? profile : (profile?.data && Array.isArray(profile.data) ? profile.data : [])
+        if (profileList.length > 0) {
+          const profileData = profileList[0]
           setProfileData({
             name: profileData.full_name || user.email,
             bio: profileData.bio || 'Professional Trainer',
@@ -308,8 +310,10 @@ export const TrainerDashboard: React.FC = () => {
       // Load wallet balance - handle gracefully if table doesn't exist
       try {
         const walletData = await apiService.getWalletBalance(user.id)
-        if (walletData?.data && walletData.data.length > 0) {
-          setWalletBalance(walletData.data[0].balance || 0)
+        // Handle both direct array response and wrapped response with .data property
+        const walletList = Array.isArray(walletData) ? walletData : (walletData?.data && Array.isArray(walletData.data) ? walletData.data : [])
+        if (walletList.length > 0) {
+          setWalletBalance(walletList[0].balance || 0)
         }
       } catch (err) {
         console.warn('Failed to load wallet balance', err)

@@ -168,8 +168,17 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         console.log('[Profile Load] Fetching profile for userId:', userId)
         const response = await apiService.getUserProfile(userId)
         console.log('[Profile Load] API response:', response)
-        if (response?.data && response.data.length > 0) {
-          profileData = response.data[0]
+
+        // Handle both direct array response and wrapped response with .data property
+        let profileList: any[] = []
+        if (Array.isArray(response)) {
+          profileList = response
+        } else if (response?.data && Array.isArray(response.data)) {
+          profileList = response.data
+        }
+
+        if (profileList.length > 0) {
+          profileData = profileList[0]
           console.log('[Profile Load] Loaded profile_image from API:', profileData.profile_image)
           setProfile(profileData)
           setName(String(profileData.full_name || profileData.name || ''))
@@ -428,7 +437,9 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
 
       // Get previous categories to determine what changed
       const previousCategoriesData = await apiService.getTrainerCategories(userId)
-      const previousCategoryIds = previousCategoriesData?.data?.map((cat: any) => cat.category_id || cat.cat_id) || []
+      // Handle both direct array response and wrapped response with .data property
+      const previousCategoryList = Array.isArray(previousCategoriesData) ? previousCategoriesData : (previousCategoriesData?.data && Array.isArray(previousCategoriesData.data) ? previousCategoriesData.data : [])
+      const previousCategoryIds = previousCategoryList.map((cat: any) => cat.category_id || cat.cat_id) || []
 
       // Determine which categories to add and remove
       const categoriesToAdd = selectedCategoryIds.filter(id => !previousCategoryIds.includes(id))

@@ -111,8 +111,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       if (!trainer?.id) return
       try {
         const response = await apiService.getTrainerGroupPricing(trainer.id)
-        if (response?.data && response.data.length > 0) {
-          const firstGroupPricing = response.data[0]
+        // Handle both direct array response and wrapped response with .data property
+        const pricingList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+        if (pricingList.length > 0) {
+          const firstGroupPricing = pricingList[0]
           setGroupTrainingData(firstGroupPricing)
           setTrainerCategoryId(firstGroupPricing.category_id)
           // Auto-select first tier for convenience

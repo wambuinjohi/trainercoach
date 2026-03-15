@@ -72,8 +72,10 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     try {
       // Load profile to get registration path
       const profileResponse = await apiService.getUserProfile(userId)
-      if (profileResponse?.data && profileResponse.data.length > 0) {
-        const profile = profileResponse.data[0]
+      // Handle both direct array response and wrapped response with .data property
+      const profileList = Array.isArray(profileResponse) ? profileResponse : (profileResponse?.data && Array.isArray(profileResponse.data) ? profileResponse.data : [])
+      if (profileList.length > 0) {
+        const profile = profileList[0]
         setRegistrationPath(profile.registration_path || 'direct')
       }
       // Load documents
