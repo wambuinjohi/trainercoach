@@ -7,16 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
-import { Loader2, Plus, Save, Trash2, Users } from 'lucide-react'
+import { Loader2, Save, Users } from 'lucide-react'
 import * as apiService from '@/lib/api-service'
 import { GroupTrainingManager } from './GroupTrainingManager'
 
-type TierRow = { id: string; radius: string; rate: string }
 type ServiceCategory = { id: number; name: string; icon?: string; description?: string }
 
 interface ServicesManagerProps { onClose?: () => void }
-
-const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
 const ServicesManager = ({ onClose }: ServicesManagerProps) => {
   const { user } = useAuth()
@@ -28,7 +25,6 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
   const [allCategories, setAllCategories] = useState<ServiceCategory[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, string>>({})
-  const [tiers, setTiers] = useState<TierRow[]>([])
   const [groupTrainingModalOpen, setGroupTrainingModalOpen] = useState(false)
   const [selectedCategoryForGroupTraining, setSelectedCategoryForGroupTraining] = useState<{ id: number; name: string } | null>(null)
   const [groupTrainingEnabledByCategory, setGroupTrainingEnabledByCategory] = useState<Record<number, boolean>>({})
@@ -57,29 +53,6 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
 
           // Set base rate
           setBaseRate(profile?.hourly_rate != null ? String(profile.hourly_rate) : '')
-
-          // Load distance-based tiers - handle both JSON string and object formats
-          let tiers = profile?.hourly_rate_by_radius
-          if (typeof tiers === 'string') {
-            try {
-              tiers = JSON.parse(tiers)
-            } catch {
-              tiers = null
-            }
-          }
-
-          const profileTiers = Array.isArray(tiers)
-            ? (tiers as any[])
-                .map((t) => ({ r: Number(t.radius_km || t.radius), p: Number(t.rate) }))
-                .filter(x => Number.isFinite(x.r) && Number.isFinite(x.p))
-                .sort((a,b) => a.r - b.r)
-                .map((t, idx) => ({
-                  id: createId(`tier-${idx}`),
-                  radius: String(t.r),
-                  rate: String(t.p)
-                }))
-            : []
-          setTiers(profileTiers)
         }
 
         // Load selected service categories
@@ -128,18 +101,6 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
         ? prev.filter(id => id !== categoryId)
         : [...prev, categoryId]
     )
-  }
-
-  const updateTier = (id: string, patch: Partial<TierRow>) => {
-    setTiers(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)))
-  }
-
-  const removeTier = (id: string) => {
-    setTiers(prev => prev.filter(t => t.id !== id))
-  }
-
-  const addTier = () => {
-    setTiers(prev => [...prev, { id: createId('tier'), radius: '', rate: '' }])
   }
 
   const updateCategoryPrice = (categoryId: number, price: string) => {
@@ -191,23 +152,9 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
         return
       }
 
-      // Validate tiers
-      for (const tier of tiers) {
-        if (!tier.radius || !tier.rate || isNaN(Number(tier.radius)) || isNaN(Number(tier.rate))) {
-          toast({ title: 'Invalid distance tier - fill all fields', variant: 'destructive' })
-          setSaving(false)
-          return
-        }
-      }
-
-      // Save base rate and tiers to profile
-      const cleanedTiers = tiers.length > 0
-        ? tiers.map(t => ({ radius_km: Number(t.radius), rate: Number(t.rate) }))
-        : null
-
+      // Save base rate to profile
       await apiService.updateUserProfile(userId, {
-        hourly_rate: Number(baseRate),
-        hourly_rate_by_radius: cleanedTiers ? JSON.stringify(cleanedTiers) : null
+        hourly_rate: Number(baseRate)
       })
 
       // Get previous categories to determine what changed

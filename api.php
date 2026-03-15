@@ -4625,7 +4625,7 @@ switch ($action) {
         $clientLocationLng = isset($input['client_location_lng']) ? floatval($input['client_location_lng']) : NULL;
 
         // Get trainer profile for location and rates
-        $trainerProfileSql = "SELECT location_lat, location_lng, hourly_rate_by_radius, timezone, availability FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
+        $trainerProfileSql = "SELECT location_lat, location_lng, timezone, availability FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
         $trainerProfileResult = $conn->query($trainerProfileSql);
         if (!$trainerProfileResult || $trainerProfileResult->num_rows === 0) {
             respond("error", "Trainer not found.", null, 404);
@@ -4634,8 +4634,6 @@ switch ($action) {
         $trainerProfile = $trainerProfileResult->fetch_assoc();
         $trainerLat = floatval($trainerProfile['location_lat'] ?? 0);
         $trainerLng = floatval($trainerProfile['location_lng'] ?? 0);
-        $hourlyRateByRadius = !empty($trainerProfile['hourly_rate_by_radius']) ?
-            json_decode($trainerProfile['hourly_rate_by_radius'], true) : [];
 
         // Validate availability
         if (!$skipValidation && !empty($trainerProfile['availability'])) {
