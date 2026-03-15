@@ -117,11 +117,14 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
   const loadDocuments = async () => {
     try {
+      console.log('[VerificationDocuments] Loading documents for userId:', userId)
       const response = await apiService.getVerificationDocuments(userId!)
+      console.log('[VerificationDocuments] API Response:', response)
       if (response?.data && Array.isArray(response.data)) {
         const loadedDocs: Document[] = requiredDocuments
           .map(reqDoc => {
             const uploaded = response.data.find(d => d.document_type === reqDoc.type)
+            console.log('[VerificationDocuments] Document:', reqDoc.type, '| Uploaded:', uploaded)
             return {
               ...reqDoc,
               status: uploaded?.status || 'pending',
@@ -132,7 +135,10 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
               idNumber: uploaded?.id_number
             }
           })
+        console.log('[VerificationDocuments] Final loaded documents:', loadedDocs)
         setDocuments(loadedDocs)
+      } else {
+        console.log('[VerificationDocuments] No document data in response')
       }
     } catch (error) {
       console.warn('Failed to load verification documents:', error)
@@ -348,6 +354,34 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   </div>
 
+                  {/* Show existing document preview - Always visible */}
+                  {doc.fileUrl && doc.type !== 'proof_of_residence' && (
+                    <div className="mb-3 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                      <p className="text-xs font-medium text-blue-700 mb-3">📄 Current Document</p>
+                      {doc.fileUrl.startsWith('http') ? (
+                        <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
+                      ) : (
+                        <div className="flex items-center justify-center py-6">
+                          <span className="text-lg">📄 {doc.label}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-3">
+                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                        <p className="text-xs text-blue-600">
+                          Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show pending status when no document uploaded yet */}
+                  {!doc.fileUrl && doc.type !== 'proof_of_residence' && doc.status === 'pending' && (
+                    <div className="mb-3 border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
+                      <p className="text-xs font-medium text-amber-700 mb-2">⏳ Waiting for Upload</p>
+                      <p className="text-xs text-amber-600">No document uploaded yet. Please add {doc.label.toLowerCase()} below.</p>
+                    </div>
+                  )}
+
                   {/* Good Conduct Validity */}
                   {doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && (
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
@@ -372,22 +406,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   {/* File Upload - Skip for proof_of_residence (GPS location only) and already approved documents */}
                   {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && (
                     <div className="mb-3 space-y-3">
-                      {/* Show existing document preview if fileUrl exists */}
-                      {doc.fileUrl && !doc.preview && (
-                        <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                          <p className="text-xs font-medium text-blue-700 mb-3">Current Document</p>
-                          {doc.fileUrl.startsWith('http') ? (
-                            <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
-                          ) : (
-                            <div className="flex items-center justify-center py-6">
-                              <span className="text-lg">📄 {doc.label}</span>
-                            </div>
-                          )}
-                          <p className="text-xs text-blue-600 mt-3">
-                            Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
-                          </p>
-                        </div>
-                      )}
 
                       {/* Preview Section for new upload being prepared */}
                       {doc.preview && (
