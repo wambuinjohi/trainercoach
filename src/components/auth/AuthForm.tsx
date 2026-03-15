@@ -196,28 +196,6 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                   </Select>
                 </div>
 
-                {/* Registration Path (Trainers only) */}
-                {formData.userType === 'trainer' && (
-                  <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border">
-                    <Label className="font-semibold">How do you want to register?</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: formData.registrationPath === 'direct' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => handleInputChange('registrationPath', 'direct')}>
-                        <input type="radio" name="registration-path" value="direct" checked={formData.registrationPath === 'direct'} onChange={() => handleInputChange('registrationPath', 'direct')} className="mt-1" />
-                        <div className="flex-1">
-                          <p className="font-medium">Direct Registration</p>
-                          <p className="text-sm text-muted-foreground">Register independently and await approval. You'll need to provide verification documents including a reference letter.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: formData.registrationPath === 'sponsored' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => handleInputChange('registrationPath', 'sponsored')}>
-                        <input type="radio" name="registration-path" value="sponsored" checked={formData.registrationPath === 'sponsored'} onChange={() => handleInputChange('registrationPath', 'sponsored')} className="mt-1" />
-                        <div className="flex-1">
-                          <p className="font-medium">Sponsored Registration</p>
-                          <p className="text-sm text-muted-foreground">Register under an approved trainer who will sponsor you. You'll earn 90% from bookings; your sponsor earns 10%.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="full-name">Full name</Label>

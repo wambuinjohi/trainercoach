@@ -94,6 +94,7 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
 
       // Create FormData
       const formData = new FormData();
+      formData.append('action', 'file_upload');
       validFiles.forEach((file) => {
         formData.append('files[]', file);
       });

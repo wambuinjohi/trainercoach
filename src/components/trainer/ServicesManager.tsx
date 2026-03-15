@@ -32,6 +32,7 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
   const [groupTrainingModalOpen, setGroupTrainingModalOpen] = useState(false)
   const [selectedCategoryForGroupTraining, setSelectedCategoryForGroupTraining] = useState<{ id: number; name: string } | null>(null)
   const [groupTrainingEnabledByCategory, setGroupTrainingEnabledByCategory] = useState<Record<number, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // Load available data
   useEffect(() => {
@@ -258,6 +259,11 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
 
   const selectedCategories = allCategories.filter(c => selectedCategoryIds.includes(c.id))
 
+  const filteredCategories = allCategories.filter(category =>
+    category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (category.description && category.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => onClose?.()} />
@@ -301,12 +307,24 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
               <section className="space-y-4">
                 <h3 className="text-lg font-semibold text-foreground">Service Categories</h3>
                 <p className="text-sm text-muted-foreground">Select one or more service categories you offer.</p>
-                
+
+                <div className="space-y-3">
+                  <Input
+                    type="text"
+                    placeholder="Search categories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-input border-border"
+                  />
+                </div>
+
                 <div className="space-y-3 max-h-[300px] overflow-y-auto border border-border rounded-lg p-4">
                   {allCategories.length === 0 ? (
                     <div className="text-sm text-muted-foreground text-center py-8">No categories available</div>
+                  ) : filteredCategories.length === 0 ? (
+                    <div className="text-sm text-muted-foreground text-center py-8">No categories match your search</div>
                   ) : (
-                    allCategories.map(category => (
+                    filteredCategories.map(category => (
                       <label key={category.id} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted rounded">
                         <Checkbox
                           checked={selectedCategoryIds.includes(category.id)}
@@ -384,56 +402,6 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
                   </div>
                 </section>
               )}
-
-              {/* Distance-Based Tiers Section */}
-              <section className="space-y-4">
-                <h3 className="text-lg font-semibold text-foreground">Distance-Based Pricing Tiers</h3>
-                <p className="text-sm text-muted-foreground">
-                  Optionally adjust prices based on travel distance. The first matching tier is used.
-                </p>
-                
-                <div className="space-y-3">
-                  {tiers.length === 0 && (
-                    <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-                      No distance tiers added yet. Your base rate applies to all distances.
-                    </div>
-                  )}
-                  {tiers.map(tier => (
-                    <div key={tier.id} className="grid gap-3 rounded-md border border-border bg-card p-3 md:grid-cols-[1fr_1fr_auto]">
-                      <div>
-                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Max distance (km)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={tier.radius}
-                          onChange={event => updateTier(tier.id, { radius: event.target.value })}
-                          placeholder="e.g., 5"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Hourly rate (Ksh)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={tier.rate}
-                          onChange={event => updateTier(tier.id, { rate: event.target.value })}
-                          placeholder="e.g., 1500"
-                        />
-                      </div>
-                      <div className="flex items-end justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => removeTier(tier.id)} className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" /> Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" size="sm" className="gap-2" onClick={addTier}>
-                    <Plus className="h-4 w-4" /> Add distance tier
-                  </Button>
-                </div>
-              </section>
             </CardContent>
           )}
           <CardFooter className="flex justify-end gap-2">
