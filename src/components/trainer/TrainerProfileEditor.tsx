@@ -412,7 +412,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           profile_image: profile.profile_image || null,
           bio: profile.bio || null,
           payout_details: payoutDetails ? JSON.stringify(payoutDetails) : null,
-          hourly_rate_by_radius: cleanedTiers.length ? JSON.stringify(cleanedTiers) : null,
           area_of_residence: areaLocation.label || null,
           area_coordinates: JSON.stringify({ lat: areaLocation.lat, lng: areaLocation.lng }),
           // Send location_lat and location_lng for auto service radius calculation
