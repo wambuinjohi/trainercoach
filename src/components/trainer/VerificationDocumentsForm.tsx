@@ -358,8 +358,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
                   {/* Show existing document preview - Always visible */}
                   {doc.fileUrl && doc.type !== 'proof_of_residence' && (
-                    <div className="mb-3 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                      <p className="text-xs font-medium text-blue-700 mb-3">📄 Current Document</p>
+                    <div className={`mb-3 border-2 rounded-lg p-4 ${
+                      doc.status === 'approved'
+                        ? 'border-green-200 bg-green-50'
+                        : doc.status === 'rejected'
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-blue-200 bg-blue-50'
+                    }`}>
+                      <p className={`text-xs font-medium mb-3 ${
+                        doc.status === 'approved'
+                          ? 'text-green-700'
+                          : doc.status === 'rejected'
+                          ? 'text-red-700'
+                          : 'text-blue-700'
+                      }`}>
+                        📄 {doc.status === 'approved' ? 'Approved Document' : doc.status === 'rejected' ? 'Document (Rejected)' : 'Current Document'}
+                      </p>
                       {doc.fileUrl.startsWith('http') ? (
                         <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
                       ) : (
@@ -368,9 +382,21 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                         </div>
                       )}
                       <div className="flex items-center gap-2 mt-3">
-                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                        <p className="text-xs text-blue-600">
-                          Uploaded: {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
+                        <CheckCircle2 className={`h-4 w-4 ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`} />
+                        <p className={`text-xs ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`}>
+                          {doc.status === 'pending' ? 'Awaiting review' : doc.status === 'approved' ? 'Approved' : 'Rejected'} - {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
                         </p>
                       </div>
                     </div>
