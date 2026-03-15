@@ -597,6 +597,9 @@ if (!empty($rawInput)) {
     if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
         respond("error", "Invalid JSON in request body.", null, 400);
     }
+} else if (!empty($_POST)) {
+    // Handle FormData requests (multipart/form-data)
+    $input = $_POST;
 } else if (!empty($_GET)) {
     $input = $_GET;
 } else {
