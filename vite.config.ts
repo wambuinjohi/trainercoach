@@ -422,19 +422,48 @@ function devApiPlugin() {
               return;
 
             case "verification_documents_get":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Verification documents retrieved",
-                data: []
-              }));
+              // Proxy to real API to get trainer's documents from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const docGetResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'verification_documents_get', trainer_id: body.trainer_id })
+                });
+                const docGetData = await docGetResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(docGetData));
+              } catch (e) {
+                console.error('Failed to fetch verification documents, using empty response:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Verification documents retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "verification_documents_list":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Verification documents listed",
-                data: []
-              }));
+              // Proxy to real API to get all pending documents for admin review
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : {};
+                const docListResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader, ...adminTokenHeader },
+                  body: JSON.stringify({ action: 'verification_documents_list', status: body.status })
+                });
+                const docListData = await docListResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(docListData));
+              } catch (e) {
+                console.error('Failed to list verification documents, using empty response:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Verification documents listed",
+                  data: []
+                }));
+              }
               return;
 
             case "verification_document_upload":
@@ -443,6 +472,28 @@ function devApiPlugin() {
                 message: "Document uploaded successfully",
                 data: { file_url: "/uploads/doc_" + Math.random().toString(36).substring(7) }
               }));
+              return;
+
+            case "verification_document_verify":
+              // Proxy to real API to approve/reject documents
+              try {
+                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : req.headers['x-admin-token'] ? { 'X-Admin-Token': req.headers['x-admin-token'] } : {};
+                const verifyResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...adminTokenHeader },
+                  body: JSON.stringify({ action: 'verification_document_verify', document_id: body.document_id, status: body.status, rejection_reason: body.rejection_reason })
+                });
+                const verifyData = await verifyResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(verifyData));
+              } catch (e) {
+                console.error('Failed to verify document:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to verify document"
+                }));
+              }
               return;
 
             case "check_documents_submission":
