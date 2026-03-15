@@ -37,26 +37,14 @@ const DOCUMENT_TYPES: Array<{
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'Utility bill or lease agreement showing your address',
+    description: 'GPS location confirmation of your address',
     required: true
   },
   {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
-    description: 'Government-issued certificate of good conduct',
+    description: 'Government-issued certificate of good conduct (within 90 days)',
     required: true
-  },
-  {
-    type: 'discipline_certificate',
-    label: 'Discipline Certificate',
-    description: 'Professional certificate or diploma in your discipline',
-    required: true
-  },
-  {
-    type: 'sponsor_reference',
-    label: 'Sponsor Reference (if applicable)',
-    description: 'Document from your sponsor trainer confirming sponsorship',
-    required: false
   }
 ]
 

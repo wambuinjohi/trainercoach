@@ -2476,19 +2476,126 @@ switch ($action) {
         $profile = $profileResult->fetch_assoc();
         $stmt->close();
 
-        if ($profile && $profile['registration_path'] === 'sponsored') {
-            // Sponsored trainers cannot upload discipline_certificate or sponsor_reference
-            if ($documentType === 'discipline_certificate' || $documentType === 'sponsor_reference') {
-                respond("error", "Sponsored trainers do not need to upload this document type.", null, 403);
-            }
+        // Validate document type - only these are allowed
+        $allowedDocTypes = ['national_id_front', 'national_id_back', 'proof_of_residence', 'certificate_of_good_conduct'];
+        if (!in_array($documentType, $allowedDocTypes)) {
+            respond("error", "Invalid document type. Document uploads are not allowed.", null, 403);
         }
 
-        // Handle file upload
+        // Special handling for proof_of_residence - it uses GPS location from profile, not file upload
+        if ($documentType === 'proof_of_residence') {
+            // Get the trainer's location coordinates from profile
+            $stmt = $conn->prepare("SELECT location_lat, location_lng, area_of_residence FROM user_profiles WHERE user_id = ? LIMIT 1");
+            $stmt->bind_param("s", $trainerId);
+            $stmt->execute();
+            $profileResult = $stmt->get_result();
+            $profileData = $profileResult->fetch_assoc();
+            $stmt->close();
+
+            if (!$profileData || !$profileData['location_lat'] || !$profileData['location_lng']) {
+                respond("error", "GPS location not found in profile. Please set your location in profile settings.", null, 400);
+            }
+
+            // Check if proof_of_residence document already exists
+            $sql = "SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("ss", $trainerId, $documentType);
+            $stmt->execute();
+            $existingDoc = $stmt->get_result();
+            $stmt->close();
+
+            if ($existingDoc->num_rows > 0) {
+                // Update existing document
+                $doc = $existingDoc->fetch_assoc();
+                $docId = $doc['id'];
+
+                $sql = "
+                    UPDATE verification_documents
+                    SET file_url = ?, id_number = ?, status = 'approved', updated_at = NOW()
+                    WHERE id = ?
+                ";
+
+                $stmt = $conn->prepare($sql);
+                if ($stmt === false) {
+                    respond("error", "Prepare failed: " . $conn->error, null, 500);
+                    break;
+                }
+
+                $fileUrl = json_encode(['lat' => $profileData['location_lat'], 'lng' => $profileData['location_lng'], 'area' => $profileData['area_of_residence']]);
+                if (!$stmt->bind_param("sss", $fileUrl, $idNumber, $docId)) {
+                    $stmt->close();
+                    respond("error", "Bind failed: " . $stmt->error, null, 500);
+                    break;
+                }
+
+                if ($stmt->execute()) {
+                    $stmt->close();
+                    logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
+                    respond("success", "Proof of residence confirmed from GPS location.", ["id" => $docId, "file_url" => $fileUrl]);
+                } else {
+                    $stmt->close();
+                    respond("error", "Execute failed: " . $conn->error, null, 500);
+                }
+            } else {
+                // Create new document
+                $docId = 'doc_' . uniqid();
+                $fileUrl = json_encode(['lat' => $profileData['location_lat'], 'lng' => $profileData['location_lng'], 'area' => $profileData['area_of_residence']]);
+
+                $sql = "
+                    INSERT INTO verification_documents (id, trainer_id, document_type, file_url, id_number, status)
+                    VALUES (?, ?, ?, ?, ?, 'approved')
+                ";
+
+                $stmt = $conn->prepare($sql);
+                if ($stmt === false) {
+                    respond("error", "Prepare failed: " . $conn->error, null, 500);
+                    break;
+                }
+
+                if (!$stmt->bind_param("sssss", $docId, $trainerId, $documentType, $fileUrl, $idNumber)) {
+                    $stmt->close();
+                    respond("error", "Bind failed: " . $stmt->error, null, 500);
+                    break;
+                }
+
+                if ($stmt->execute()) {
+                    $stmt->close();
+                    logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
+                    respond("success", "Proof of residence confirmed from GPS location.", ["id" => $docId, "file_url" => $fileUrl]);
+                } else {
+                    $stmt->close();
+                    respond("error", "Execute failed: " . $conn->error, null, 500);
+                }
+            }
+            break;
+        }
+
+        // Handle file upload for other documents
         $fileUrl = null;
         $filePath = null;
         if (isset($_FILES['file'])) {
             $file = $_FILES['file'];
             $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
+
+            // Check for upload errors
+            if ($file['error'] !== 0) {
+                $errorMessages = [
+                    UPLOAD_ERR_INI_SIZE => 'File exceeds php.ini upload_max_filesize',
+                    UPLOAD_ERR_FORM_SIZE => 'File exceeds form MAX_FILE_SIZE',
+                    UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                    UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+                    UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                    UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
+                ];
+                $errorMsg = $errorMessages[$file['error']] ?? 'Unknown upload error';
+                respond("error", $errorMsg, null, 400);
+            }
+
+            // Check file size (5MB max)
+            if ($file['size'] > 5 * 1024 * 1024) {
+                respond("error", "File too large (max 5MB).", null, 400);
+            }
 
             if (!in_array($file['type'], $allowedMimes)) {
                 respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
@@ -2540,8 +2647,8 @@ switch ($action) {
 
             $expiresAt = null;
             if ($documentType === 'certificate_of_good_conduct') {
-                // Good conduct certificate expires in 30 minutes
-                $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
+                // Good conduct certificate expires in 90 days
+                $expiresAt = date('Y-m-d H:i:s', time() + (90 * 24 * 60 * 60));
             }
 
             $sql = "
@@ -2575,8 +2682,8 @@ switch ($action) {
             $docId = 'doc_' . uniqid();
             $expiresAt = null;
             if ($documentType === 'certificate_of_good_conduct') {
-                // Good conduct certificate expires in 30 minutes
-                $expiresAt = date('Y-m-d H:i:s', time() + (30 * 60));
+                // Good conduct certificate expires in 90 days
+                $expiresAt = date('Y-m-d H:i:s', time() + (90 * 24 * 60 * 60));
             }
 
             $sql = "

@@ -12,7 +12,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Document {
-  type: 'national_id_front' | 'national_id_back' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate'
+  type: 'national_id_front' | 'national_id_back' | 'proof_of_residence' | 'certificate_of_good_conduct'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -50,12 +50,6 @@ const requiredDocuments: Document[] = [
     description: 'Must be uploaded within 90 days of issuance',
     status: 'pending',
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    type: 'discipline_certificate',
-    label: 'Discipline Certificate',
-    description: 'Certificate from a registered training school or company',
-    status: 'pending'
   }
 ]
 
@@ -126,13 +120,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       const response = await apiService.getVerificationDocuments(userId!)
       if (response?.data && Array.isArray(response.data)) {
         const loadedDocs: Document[] = requiredDocuments
-          .filter(reqDoc => {
-            // For sponsored trainers, filter out discipline_certificate
-            if (registrationPath === 'sponsored' && reqDoc.type === 'discipline_certificate') {
-              return false
-            }
-            return true
-          })
           .map(reqDoc => {
             const uploaded = response.data.find(d => d.document_type === reqDoc.type)
             return {
@@ -382,8 +369,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
 
-                  {/* File Upload */}
-                  {doc.status !== 'approved' && (
+                  {/* File Upload - Skip for proof_of_residence (GPS location only) */}
+                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && (
                     <div className="mb-3 space-y-3">
                       {/* Preview Section */}
                       {doc.preview && (
@@ -455,6 +442,16 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Proof of Residence - GPS Location Info */}
+                  {doc.type === 'proof_of_residence' && (
+                    <Alert className="mb-3 bg-blue-50 border-blue-200">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        Your GPS location will be captured from your profile location. Make sure to set your location in the trainer profile section.
+                      </AlertDescription>
+                    </Alert>
                   )}
 
                   {/* Uploaded Status */}
