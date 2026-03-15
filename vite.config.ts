@@ -264,16 +264,29 @@ function devApiPlugin() {
               return;
 
             case "get_categories":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Categories retrieved",
-                data: [
-                  { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
-                  { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
-                  { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
-                  { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
-                ]
-              }));
+              // Proxy to real API to get all categories from database
+              try {
+                const categoryResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'get_categories' })
+                });
+                const categoryData = await categoryResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(categoryData));
+              } catch (e) {
+                console.error('Failed to fetch categories from real API, using mock:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Categories retrieved",
+                  data: [
+                    { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
+                    { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
+                    { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
+                    { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
+                  ]
+                }));
+              }
               return;
 
             case "notifications_get":
