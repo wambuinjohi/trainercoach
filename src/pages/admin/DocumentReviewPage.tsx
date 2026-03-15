@@ -166,10 +166,10 @@ export default function DocumentReviewPage() {
   const getDocumentTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       national_id: 'National ID',
+      national_id_front: 'National ID - Front',
+      national_id_back: 'National ID - Back',
       proof_of_residence: 'Proof of Residence',
       certificate_of_good_conduct: 'Certificate of Good Conduct',
-      discipline_certificate: 'Discipline Certificate',
-      sponsor_reference: 'Sponsor/Reference Letter',
     }
     return labels[type] || type.replace(/_/g, ' ')
   }

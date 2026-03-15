@@ -28,7 +28,6 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     password: '',
     confirmPassword: '',
     userType: 'client' as 'client' | 'trainer',
-    registrationPath: 'direct' as 'direct' | 'sponsored',
     fullName: '',
     phone: '',
     locationLabel: '',
@@ -97,7 +96,6 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_label: formData.locationLabel.trim() || undefined,
         location_lat: formData.locationLat ?? undefined,
         location_lng: formData.locationLng ?? undefined,
-        registration_path: formData.userType === 'trainer' ? formData.registrationPath : undefined,
       })
       onSuccess?.(formData.userType)
     } catch (error) {
@@ -181,10 +179,6 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                   <Label htmlFor="user-type">I am a</Label>
                   <Select value={formData.userType} onValueChange={(value: 'client' | 'trainer') => {
                     handleInputChange('userType', value)
-                    // Reset registration path when switching user type
-                    if (value !== 'trainer') {
-                      handleInputChange('registrationPath', 'direct')
-                    }
                   }}>
                     <SelectTrigger className="bg-input border-border">
                       <SelectValue />

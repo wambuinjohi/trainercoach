@@ -23,7 +23,6 @@ interface TrainerProfile {
   user_type?: string
   name?: string
   hourly_rate?: number
-  hourly_rate_by_radius?: Array<{ radius_km: number; rate: number }>
   service_radius?: number
   availability?: any
   payout_details?: any
@@ -94,6 +93,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, number>>({})
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categorySearchTerm, setCategorySearchTerm] = useState('')
   const [sponsorId, setSponsorId] = useState<string | null>(null)
   const [sponsorName, setSponsorName] = useState<string | null>(null)
   const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
@@ -354,22 +354,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         serviceRadiusNum = getDefaultServiceRadius()
       }
 
-      // Hourly rate by radius - sanitize and sort
-      const rawTiers = Array.isArray(profile.hourly_rate_by_radius) ? profile.hourly_rate_by_radius : []
-      const cleanedTiers: Array<{ radius_km: number; rate: number }> = []
-      for (let i = 0; i < rawTiers.length; i += 1) {
-        const item: any = rawTiers[i]
-        if (!item) continue
-        const r = Number(item.radius_km ?? item.radius ?? item.radius_km)
-        const rate = Number(item.rate ?? item.rate_per_hour ?? item.price ?? item.rate)
-        if (!Number.isFinite(r) || r < 0 || !Number.isFinite(rate) || rate < 0) {
-          toast({ title: 'Invalid travel tier', description: 'Each tier must have non-negative numeric radius and rate.', variant: 'destructive' })
-          setLoading(false)
-          return
-        }
-        cleanedTiers.push({ radius_km: r, rate })
-      }
-      cleanedTiers.sort((a,b)=>a.radius_km - b.radius_km)
 
       // Payout is M-Pesa only - default to null
       const payoutDetails = null
@@ -391,8 +375,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         user_type: 'trainer',
         name: name || null,
         hourly_rate: hourlyRateNum,
-        hourly_rate_by_radius: cleanedTiers.length ? cleanedTiers : null,
-        service_radius: serviceRadiusNum,
+        service_radius: calculatedServiceRadius,
         availability: availabilityVal ?? null,
         payout_details: payoutDetails ?? null,
         profile_image: profile.profile_image || null,
@@ -614,16 +597,13 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 <Input
                   id="service_radius"
                   type="number"
-                  value={profile.service_radius ?? ''}
-                  onChange={(e) => handleChange('service_radius', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder={`Leave empty for auto-calculated value (${calculatedServiceRadius} km)`}
+                  value={calculatedServiceRadius}
+                  readOnly
+                  disabled
+                  className="bg-muted cursor-not-allowed"
                 />
                 <div className="text-xs text-muted-foreground">
-                  {profile.service_radius !== undefined && profile.service_radius !== null ? (
-                    <p>🎯 Custom value: {profile.service_radius} km (overriding auto-calculated {calculatedServiceRadius} km)</p>
-                  ) : (
-                    <p>💡 Auto-calculated: {calculatedServiceRadius} km (based on your location). Enter a value to override.</p>
-                  )}
+                  <p>💡 Auto-calculated: {calculatedServiceRadius} km (based on your location)</p>
                 </div>
               </div>
             </div>
@@ -648,51 +628,71 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             ) : categories.length === 0 ? (
               <div className="text-sm text-muted-foreground">No categories available. Please ask the administrator to create some.</div>
             ) : (
-              <div className="space-y-3 border border-border rounded-md p-4">
-                {categories.map((category) => (
-                  <div key={category.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-b-0">
-                    <input
-                      type="checkbox"
-                      id={`category_${category.id}`}
-                      checked={selectedCategoryIds.includes(category.id)}
-                      onChange={(e) => handleCategoryChange(category.id, e.target.checked)}
-                      disabled={loading}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <label htmlFor={`category_${category.id}`} className="flex-1 cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          {category.icon && <span className="text-xl">{category.icon}</span>}
-                          <span className="font-medium text-foreground">{category.name}</span>
-                        </div>
-                        {category.description && (
-                          <p className="text-xs text-muted-foreground mt-1">{category.description}</p>
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  placeholder="Search categories..."
+                  value={categorySearchTerm}
+                  onChange={(e) => setCategorySearchTerm(e.target.value)}
+                  className="bg-input border-border"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {categories.filter(cat =>
+                    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+                    (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                  ).length} of {categories.length} categories
+                </p>
+                <div className="space-y-3 border border-border rounded-md p-4">
+                  {categories
+                    .filter(cat =>
+                      cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+                      (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                    )
+                    .map((category) => (
+                    <div key={category.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-b-0">
+                      <input
+                        type="checkbox"
+                        id={`category_${category.id}`}
+                        checked={selectedCategoryIds.includes(category.id)}
+                        onChange={(e) => handleCategoryChange(category.id, e.target.checked)}
+                        disabled={loading}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor={`category_${category.id}`} className="flex-1 cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            {category.icon && <span className="text-xl">{category.icon}</span>}
+                            <span className="font-medium text-foreground">{category.name}</span>
+                          </div>
+                          {category.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{category.description}</p>
+                          )}
+                        </label>
+                        {selectedCategoryIds.includes(category.id) && (
+                          <div className="mt-2 ml-6">
+                            <label htmlFor={`price_${category.id}`} className="text-xs font-medium text-foreground">
+                              Hourly Rate (Ksh)
+                            </label>
+                            <input
+                              id={`price_${category.id}`}
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={categoryPricing[category.id] || ''}
+                              onChange={(e) => setCategoryPricing(prev => ({
+                                ...prev,
+                                [category.id]: Number(e.target.value)
+                              }))}
+                              disabled={loading}
+                              placeholder="e.g., 1500"
+                              className="w-full mt-1 px-2 py-1 border border-border rounded text-sm bg-input"
+                            />
+                          </div>
                         )}
-                      </label>
-                      {selectedCategoryIds.includes(category.id) && (
-                        <div className="mt-2 ml-6">
-                          <label htmlFor={`price_${category.id}`} className="text-xs font-medium text-foreground">
-                            Hourly Rate (Ksh)
-                          </label>
-                          <input
-                            id={`price_${category.id}`}
-                            type="number"
-                            min="0"
-                            step="100"
-                            value={categoryPricing[category.id] || ''}
-                            onChange={(e) => setCategoryPricing(prev => ({
-                              ...prev,
-                              [category.id]: Number(e.target.value)
-                            }))}
-                            disabled={loading}
-                            placeholder="e.g., 1500"
-                            className="w-full mt-1 px-2 py-1 border border-border rounded text-sm bg-input"
-                          />
-                        </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
             {selectedCategoryIds.length === 0 && (
