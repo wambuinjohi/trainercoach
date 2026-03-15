@@ -192,12 +192,16 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     )
 
     try {
+      console.log('[VerificationDocuments] Starting upload for docType:', docType)
+      console.log('[VerificationDocuments] File details:', { name: file.name, size: file.size, type: file.type })
+
       const response = await apiService.uploadVerificationDocument(
         userId,
         docType,
         file,
         undefined,
         (progress) => {
+          console.log('[VerificationDocuments] Upload progress:', progress, '%')
           // Update upload progress
           setDocuments(prev =>
             prev.map(d =>
@@ -207,13 +211,17 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         }
       )
 
+      console.log('[VerificationDocuments] Upload response:', response)
+
       if (response?.status === 'success') {
+        console.log('[VerificationDocuments] Upload successful, file_url:', response.file_url)
         toast({ title: 'Success', description: `${requiredDocuments.find(d => d.type === docType)?.label} uploaded successfully` })
         loadDocuments()
       } else {
         throw new Error(response?.message || 'Upload failed')
       }
     } catch (error) {
+      console.error('[VerificationDocuments] Upload error:', error)
       toast({
         title: 'Upload failed',
         description: error instanceof Error ? error.message : 'Could not upload document',

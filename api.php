@@ -2463,6 +2463,13 @@ switch ($action) {
 
     // UPLOAD VERIFICATION DOCUMENT
     case 'verification_document_upload':
+        // Debug logging
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] REQUEST RECEIVED');
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] $_FILES keys: ' . json_encode(array_keys($_FILES)));
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] $_POST keys: ' . json_encode(array_keys($_POST)));
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] $input keys: ' . json_encode(array_keys($input)));
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] Full $_FILES: ' . json_encode($_FILES, JSON_PARTIAL_OUTPUT_ON_ERROR));
+
         if (!isset($input['trainer_id']) || !isset($input['document_type'])) {
             respond("error", "Missing trainer_id or document_type.", null, 400);
         }
@@ -2470,6 +2477,8 @@ switch ($action) {
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $documentType = $conn->real_escape_string($input['document_type']);
         $idNumber = isset($input['id_number']) ? $conn->real_escape_string($input['id_number']) : null;
+
+        error_log("[VERIFICATION_DOCUMENT_UPLOAD] trainerId: $trainerId, documentType: $documentType");
 
         // Validate document upload based on registration path
         $stmt = $conn->prepare("SELECT registration_path FROM user_profiles WHERE user_id = ? LIMIT 1");
@@ -2576,7 +2585,10 @@ switch ($action) {
         // Handle file upload for other documents
         $fileUrl = null;
         $filePath = null;
+
+        error_log('[VERIFICATION_DOCUMENT_UPLOAD] Checking for $_FILES["file"]: ' . (isset($_FILES['file']) ? 'YES' : 'NO'));
         if (isset($_FILES['file'])) {
+            error_log('[VERIFICATION_DOCUMENT_UPLOAD] File received: ' . json_encode($_FILES['file'], JSON_PARTIAL_OUTPUT_ON_ERROR));
             $file = $_FILES['file'];
             $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
 
@@ -2674,6 +2686,7 @@ switch ($action) {
 
             if ($stmt->execute()) {
                 $stmt->close();
+                error_log("[VERIFICATION_DOCUMENT_UPLOAD] UPDATE successful. docId: $docId, fileUrl: " . (is_null($fileUrl) ? 'NULL' : $fileUrl));
                 logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
@@ -2708,6 +2721,7 @@ switch ($action) {
 
             if ($stmt->execute()) {
                 $stmt->close();
+                error_log("[VERIFICATION_DOCUMENT_UPLOAD] INSERT successful. docId: $docId, fileUrl: " . (is_null($fileUrl) ? 'NULL' : $fileUrl));
                 logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
                 respond("success", "Document uploaded successfully.", ["id" => $docId, "file_url" => $fileUrl]);
             } else {
