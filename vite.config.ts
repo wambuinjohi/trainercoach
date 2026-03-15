@@ -408,6 +408,38 @@ function devApiPlugin() {
               }));
               return;
 
+            case "verification_documents_get":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents retrieved",
+                data: []
+              }));
+              return;
+
+            case "verification_documents_list":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents listed",
+                data: []
+              }));
+              return;
+
+            case "verification_document_upload":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Document uploaded successfully",
+                data: { file_url: "/uploads/doc_" + Math.random().toString(36).substring(7) }
+              }));
+              return;
+
+            case "check_documents_submission":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Documents submission checked",
+                data: { all_submitted: false }
+              }));
+              return;
+
             case "message_insert":
               res.end(JSON.stringify({
                 status: "success",
@@ -742,7 +774,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development (commented to use real API)
+    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
