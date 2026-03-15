@@ -2384,6 +2384,80 @@ switch ($action) {
         }
         break;
 
+    // GENERIC FILE UPLOAD (for profile images and other files)
+    case 'file_upload':
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $uploadDir = 'uploads/';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $uploaded = [];
+        $errors = [];
+
+        if (isset($_FILES['files'])) {
+            // Handle both single and multiple file uploads
+            $fileCount = is_array($_FILES['files']['name']) ? count($_FILES['files']['name']) : 1;
+
+            for ($i = 0; $i < $fileCount; $i++) {
+                $file = [];
+                if (is_array($_FILES['files']['name'])) {
+                    $file = [
+                        'name' => $_FILES['files']['name'][$i],
+                        'tmp_name' => $_FILES['files']['tmp_name'][$i],
+                        'size' => $_FILES['files']['size'][$i],
+                        'type' => $_FILES['files']['type'][$i],
+                        'error' => $_FILES['files']['error'][$i]
+                    ];
+                } else {
+                    $file = $_FILES['files'];
+                }
+
+                if ($file['error'] !== 0) {
+                    $errors[] = $file['name'] . ': Upload error';
+                    continue;
+                }
+
+                if ($file['size'] > 5 * 1024 * 1024) {
+                    $errors[] = $file['name'] . ': File too large (max 5MB)';
+                    continue;
+                }
+
+                if (!in_array($file['type'], $allowedMimes)) {
+                    $errors[] = $file['name'] . ': Invalid file type. Only JPG, PNG, GIF allowed';
+                    continue;
+                }
+
+                $fileName = uniqid() . '_' . basename($file['name']);
+                $filePath = $uploadDir . $fileName;
+                $uploadBase = getenv('UPLOAD_BASE_URL') ?: 'https://trainercoachconnect.com/uploads/';
+                $fileUrl = rtrim($uploadBase, '/') . '/' . $fileName;
+
+                if (move_uploaded_file($file['tmp_name'], $filePath)) {
+                    $uploaded[] = [
+                        'originalName' => $file['name'],
+                        'fileName' => $fileName,
+                        'url' => $fileUrl,
+                        'size' => $file['size'],
+                        'mimeType' => $file['type'],
+                        'uploadedAt' => date('Y-m-d H:i:s')
+                    ];
+                } else {
+                    $errors[] = $file['name'] . ': Failed to save file';
+                }
+            }
+        } else {
+            $errors[] = 'No files provided';
+        }
+
+        respond("success", "File upload completed", [
+            'uploaded' => $uploaded,
+            'errors' => $errors,
+            'count' => count($uploaded)
+        ]);
+        break;
+
     // UPLOAD VERIFICATION DOCUMENT
     case 'verification_document_upload':
         if (!isset($input['trainer_id']) || !isset($input['document_type'])) {

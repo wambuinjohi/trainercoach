@@ -12,7 +12,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface Document {
-  type: 'national_id' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
+  type: 'national_id_front' | 'national_id_back' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -27,34 +27,34 @@ interface Document {
 
 const requiredDocuments: Document[] = [
   {
-    type: 'national_id',
-    label: 'National ID',
-    description: 'Upload a clear photo of your national ID (front and back)',
+    type: 'national_id_front',
+    label: 'National ID - Front',
+    description: 'Upload a clear photo of the front of your national ID',
+    status: 'pending'
+  },
+  {
+    type: 'national_id_back',
+    label: 'National ID - Back',
+    description: 'Upload a clear photo of the back of your national ID',
     status: 'pending'
   },
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'Upload utility bill, lease agreement, or GPS confirmation of your address',
+    description: 'GPS location confirmation of your address will be captured separately',
     status: 'pending'
   },
   {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
-    description: 'Must be uploaded within 30 minutes of registration',
+    description: 'Must be uploaded within 90 days of issuance',
     status: 'pending',
-    expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
     type: 'discipline_certificate',
     label: 'Discipline Certificate',
     description: 'Certificate from a registered training school or company',
-    status: 'pending'
-  },
-  {
-    type: 'sponsor_reference',
-    label: 'Sponsor/Reference Letter',
-    description: 'Reference from a registered person willing to take responsibility',
     status: 'pending'
   }
 ]
@@ -127,9 +127,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       if (response?.data && Array.isArray(response.data)) {
         const loadedDocs: Document[] = requiredDocuments
           .filter(reqDoc => {
-            // For sponsored trainers, filter out discipline_certificate and sponsor_reference
-            if (registrationPath === 'sponsored' &&
-                (reqDoc.type === 'discipline_certificate' || reqDoc.type === 'sponsor_reference')) {
+            // For sponsored trainers, filter out discipline_certificate
+            if (registrationPath === 'sponsored' && reqDoc.type === 'discipline_certificate') {
               return false
             }
             return true
@@ -200,12 +199,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     )
 
     try {
-      const idNum = docType === 'national_id' ? idNumber : undefined
       const response = await apiService.uploadVerificationDocument(
         userId,
         docType,
         file,
-        idNum,
+        undefined,
         (progress) => {
           // Update upload progress
           setDocuments(prev =>
@@ -363,12 +361,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   </div>
 
-                  {/* Good Conduct Timer */}
-                  {doc.type === 'certificate_of_good_conduct' && timeRemaining && doc.status === 'pending' && (
-                    <Alert className="mb-3 bg-yellow-50 border-yellow-200">
-                      <Clock className="h-4 w-4 text-yellow-600" />
-                      <AlertDescription className="text-yellow-800">
-                        Upload within: {formatTimeRemaining(timeRemaining)}
+                  {/* Good Conduct Validity */}
+                  {doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && (
+                    <Alert className="mb-3 bg-blue-50 border-blue-200">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        Certificate must be valid within 90 days of issuance
                       </AlertDescription>
                     </Alert>
                   )}
@@ -383,21 +381,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </Alert>
                   )}
 
-                  {/* National ID Number Input */}
-                  {doc.type === 'national_id' && doc.status === 'pending' && (
-                    <div className="mb-3">
-                      <Label htmlFor={`id-number-${doc.type}`} className="text-sm">
-                        ID Number (required for upload)
-                      </Label>
-                      <Input
-                        id={`id-number-${doc.type}`}
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                        placeholder="Enter your national ID number"
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
 
                   {/* File Upload */}
                   {doc.status !== 'approved' && (
@@ -449,14 +432,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                             onChange={(e) => {
                               const file = e.target.files?.[0]
                               if (file) {
-                                if (doc.type === 'national_id' && !idNumber) {
-                                  toast({
-                                    title: 'ID Number required',
-                                    description: 'Please enter your ID number before uploading',
-                                    variant: 'destructive'
-                                  })
-                                  return
-                                }
                                 handleFileUpload(doc.type, file)
                               }
                             }}

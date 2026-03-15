@@ -764,48 +764,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             }}
           />
 
-          <div className="space-y-2">
-            <Label>Pricing by Service Radius</Label>
-            <div className="text-xs text-muted-foreground">Set tiered rates based on client distance (km). The first tier that is greater than or equal to the client's distance is used.</div>
-            <div className="space-y-2">
-              {(Array.isArray(profile.hourly_rate_by_radius) ? profile.hourly_rate_by_radius : []).map((row: any, idx: number) => (
-                <div key={idx} className="grid grid-cols-5 gap-2 items-end">
-                  <div className="col-span-2">
-                    <Label>Max distance (km)</Label>
-                    <Input type="number" value={row.radius_km ?? ''} onChange={(e)=>{
-                      const v = Number(e.target.value)
-                      const arr = [...(Array.isArray(profile.hourly_rate_by_radius)?profile.hourly_rate_by_radius:[])]
-                      arr[idx] = { ...arr[idx], radius_km: isFinite(v) ? v : undefined }
-                      handleChange('hourly_rate_by_radius', arr)
-                    }} />
-                  </div>
-                  <div className="col-span-2">
-                    <Label>Rate (Ksh/hour)</Label>
-                    <Input type="number" value={row.rate ?? ''} onChange={(e)=>{
-                      const v = Number(e.target.value)
-                      const arr = [...(Array.isArray(profile.hourly_rate_by_radius)?profile.hourly_rate_by_radius:[])]
-                      arr[idx] = { ...arr[idx], rate: isFinite(v) ? v : undefined }
-                      handleChange('hourly_rate_by_radius', arr)
-                    }} />
-                  </div>
-                  <Button variant="outline" onClick={()=>{
-                    const arr = [...(Array.isArray(profile.hourly_rate_by_radius)?profile.hourly_rate_by_radius:[])]
-                    arr.splice(idx,1)
-                    handleChange('hourly_rate_by_radius', arr)
-                  }}>Remove</Button>
-                </div>
-              ))}
-            </div>
-            <div>
-              <Button variant="ghost" onClick={()=>{
-                const base = Number(profile.hourly_rate)
-                const defaultRate = Number.isFinite(base) && base > 0 ? base : 30
-                const arr = [...(Array.isArray(profile.hourly_rate_by_radius)?profile.hourly_rate_by_radius:[]), { radius_km: 5, rate: defaultRate }]
-                handleChange('hourly_rate_by_radius', arr)
-              }}>Add tier</Button>
-            </div>
-          </div>
-
 
           <div>
             <Label>Availability</Label>
