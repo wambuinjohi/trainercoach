@@ -975,7 +975,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
+    // Using remote API for all environments - dev API plugin disabled
+    // mode === 'development' && devApiPlugin(),  // Disabled - using remote API instead
     mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
