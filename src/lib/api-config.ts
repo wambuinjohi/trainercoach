@@ -60,11 +60,15 @@ export function getUploadsBaseUrl(): string {
 
 /**
  * Get the base API URL based on environment
+ *
+ * IMPORTANT: System uses https://trainercoachconnect.com/api.php for ALL environments including development
+ * This ensures consistent data usage across dev, staging, and production.
+ *
  * Priority order:
  * 1. Environment variable VITE_API_URL (highest priority - deployment config)
  * 2. Stored preference in localStorage (runtime user override)
- * 3. Live API endpoint: https://trainercoachconnect.com/api.php (primary default)
- * 4. Local /api.php (fallback for dev proxy only if live endpoint unavailable)
+ * 3. Native Capacitor apps check
+ * 4. Live API endpoint: https://trainercoachconnect.com/api.php (DEFAULT for all other cases)
  */
 export function getApiBaseUrl(): string {
   // Check environment variable (highest priority - deployment configuration)

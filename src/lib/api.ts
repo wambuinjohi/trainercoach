@@ -1,7 +1,12 @@
 import { getApiUrl as getApiUrlFromConfig, getApiBaseUrl, isCapacitorApp } from './api-config'
 import { getMockResponse } from './mock-data'
 
-// Note: Using the unified /api.php at root level
+// IMPORTANT: API Configuration
+// The system uses https://trainercoachconnect.com/api.php for ALL environments (dev, staging, production)
+// This ensures consistent data usage and prevents sync issues between local dev and production
+// No local development API mocking - all calls go directly to the live server
+//
+// Note: The vite dev proxy provides a fallback at /api.php that redirects to the live API
 // This consolidates both the root api.php and public/api.php into a single endpoint
 // Fallback to /api.php is automatically used if primary endpoint fails
 // Supports both local Apache servers and remote Capacitor deployments
