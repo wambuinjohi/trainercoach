@@ -76,9 +76,29 @@ register_shutdown_function(function() use ($corsOrigin) {
 // Include the database connection
 include('connection.php');
 
-// Auto-migration: Ensure categories table has correct status ENUM
+// Auto-migration: Ensure categories table has correct status columns and fields
 function ensureCategoriesSchemaIsCorrect($conn) {
-    // Check if the status column exists and has the correct ENUM values
+    // List of required columns with their ALTER statements
+    $requiredColumns = [
+        'status' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active' COMMENT 'Category status'",
+        'created_by_admin' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `created_by_admin` BOOLEAN DEFAULT FALSE COMMENT 'Tracks if admin-created vs trainer-requested'",
+        'created_by' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `created_by` VARCHAR(36) COMMENT 'User ID who created this category'",
+        'reviewed_by' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `reviewed_by` VARCHAR(36) COMMENT 'Admin user ID who reviewed this category'",
+        'rejection_reason' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `rejection_reason` TEXT COMMENT 'Reason for rejecting the category'",
+        'reviewed_at' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `reviewed_at` TIMESTAMP NULL COMMENT 'When the category was reviewed'"
+    ];
+
+    // Check and add missing columns
+    foreach ($requiredColumns as $columnName => $alterStatement) {
+        $result = $conn->query("SHOW COLUMNS FROM categories WHERE Field = '$columnName'");
+        if ($result && $result->num_rows === 0) {
+            if (!$conn->query($alterStatement)) {
+                error_log("Warning: Failed to add $columnName column to categories: " . $conn->error);
+            }
+        }
+    }
+
+    // Also ensure status column has correct ENUM values if it exists
     $result = $conn->query("SHOW COLUMNS FROM categories WHERE Field = 'status'");
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
@@ -86,9 +106,8 @@ function ensureCategoriesSchemaIsCorrect($conn) {
 
         // Check if the ENUM needs to be updated
         if (strpos($currentType, 'pending_approval') === false || strpos($currentType, 'rejected') === false) {
-            // Update the ENUM to include all required values
-            $alteration = "ALTER TABLE `categories` MODIFY `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active'";
-            if (!$conn->query($alteration)) {
+            $modification = "ALTER TABLE `categories` MODIFY `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active'";
+            if (!$conn->query($modification)) {
                 error_log("Warning: Failed to update categories status ENUM: " . $conn->error);
             }
         }
