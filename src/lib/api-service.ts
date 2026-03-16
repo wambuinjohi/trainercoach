@@ -735,21 +735,23 @@ export async function getVerificationDocuments(trainerId: string) {
 }
 
 export async function listVerificationDocuments(status?: string, token?: string) {
-  const headers = token ? { 'X-Admin-Token': token } : {}
+  // Note: Authorization header is automatically added by apiRequest() via withAuth()
+  // No need to pass token parameter - it's handled automatically
   const payload: any = {}
   if (status) {
     payload.status = status
   }
-  return apiRequest('verification_documents_list', payload, { headers })
+  return apiRequest('verification_documents_list', payload)
 }
 
 export async function verifyDocument(documentId: string, status: 'approved' | 'rejected', rejectionReason?: string, token?: string) {
-  const headers = token ? { 'X-Admin-Token': token } : {}
+  // Note: Authorization header is automatically added by apiRequest() via withAuth()
+  // No need to pass token parameter - it's handled automatically
   return apiRequest('verification_document_verify', {
     document_id: documentId,
     status,
     rejection_reason: rejectionReason || null
-  }, { headers })
+  })
 }
 
 export async function updateTrainerSponsor(trainerId: string, sponsorId: string | null) {

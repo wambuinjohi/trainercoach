@@ -159,18 +159,50 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   }, [])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      console.log('[Profile Load] Waiting for userId...')
+      return
+    }
     setLoading(true)
     setSelectedCategoryIds([])
     setCategoryPricing({})
     setDocumentsLoading(true)
     const loadProfile = async () => {
       try {
-        // Load profile from API
+        // First, try to load from localStorage cache for instant display
+        const cachedProfile = localStorage.getItem(`trainer_profile_${userId}`)
+        if (cachedProfile) {
+          try {
+            const cachedData = JSON.parse(cachedProfile)
+            console.log('[Profile Load] Loaded from localStorage cache:', cachedData)
+            setProfile(cachedData)
+            setName(String(cachedData.full_name || cachedData.name || ''))
+            setRegistrationPath(cachedData.registration_path || 'direct')
+            setPathLocked(cachedData.path_locked || false)
+            if (cachedData.area_coordinates) {
+              try {
+                const coords = typeof cachedData.area_coordinates === 'string'
+                  ? JSON.parse(cachedData.area_coordinates)
+                  : cachedData.area_coordinates
+                setAreaLocation({
+                  lat: coords.lat || -1.2921,
+                  lng: coords.lng || 36.8219,
+                  label: cachedData.area_of_residence || ''
+                })
+              } catch (e) {
+                console.warn('Could not parse cached area_coordinates:', e)
+              }
+            }
+          } catch (cacheErr) {
+            console.warn('Could not parse cached profile:', cacheErr)
+          }
+        }
+
+        // Now load from API to get fresh data
         let profileData: any = null
-        console.log('[Profile Load] Fetching profile for userId:', userId)
+        console.log('[Profile Load] Fetching profile from API for userId:', userId, 'at', new Date().toISOString())
         const response = await apiService.getUserProfile(userId)
-        console.log('[Profile Load] API response:', response)
+        console.log('[Profile Load] API response:', response, 'at', new Date().toISOString())
 
         // Handle both direct array response and wrapped response with .data property
         let profileList: any[] = []
@@ -182,9 +214,14 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
 
         if (profileList.length > 0) {
           profileData = profileList[0]
-          console.log('[Profile Load] Loaded profile_image from API:', profileData.profile_image)
+          console.log('[Profile Load] Raw profile data from API:', profileData)
+          console.log('[Profile Load] Extracted full_name:', profileData.full_name, 'name:', profileData.name)
           setProfile(profileData)
-          setName(String(profileData.full_name || profileData.name || ''))
+          const fullName = String(profileData.full_name || profileData.name || '')
+          console.log('[Profile Load] Setting name state to:', fullName)
+          setName(fullName)
+          // Update localStorage cache
+          localStorage.setItem(`trainer_profile_${userId}`, JSON.stringify(profileData))
           setRegistrationPath(profileData.registration_path || 'direct')
           setPathLocked(profileData.path_locked || false)
 
@@ -297,21 +334,23 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setDocumentsLoading(false)
         }
       } catch (error) {
-        console.error('Failed to fetch profile:', error)
+        console.error('[Profile Load] Failed to fetch profile:', error)
         // Fallback to localStorage on error - don't show error toast if we have cached data
         try {
           const savedProfile = localStorage.getItem(`trainer_profile_${userId}`)
           if (savedProfile) {
             const data = JSON.parse(savedProfile)
+            console.log('[Profile Load] Using cached profile from localStorage')
             setProfile(data)
-            setName(String(data.name || ''))
+            setName(String(data.full_name || data.name || ''))
             if (data.sponsor_trainer_id) {
               setSponsorId(data.sponsor_trainer_id)
               setSponsorName(data.sponsor_name || data.sponsor_trainer_id)
             }
-            console.log('Loaded profile from localStorage as fallback')
+            console.log('[Profile Load] Loaded profile from localStorage as fallback')
           } else {
             // Only show error toast if we have no cached data
+            console.error('[Profile Load] No cached profile and API failed')
             toast({
               title: 'Failed to load profile',
               description: `${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -319,6 +358,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             })
           }
         } catch (cacheErr) {
+          console.error('[Profile Load] Error loading from cache:', cacheErr)
           toast({
             title: 'Failed to load profile',
             description: `${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -328,6 +368,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       } finally {
         setLoading(false)
         setDocumentsLoading(false)
+        console.log('[Profile Load] Profile loading complete for userId:', userId)
       }
     }
     loadProfile()

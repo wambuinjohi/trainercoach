@@ -70,9 +70,8 @@ export default function DocumentReviewPage() {
   const loadDocuments = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('auth_token')
       // Load ALL documents regardless of status to display in tabs
-      const response = await apiService.listVerificationDocuments(undefined, token)
+      const response = await apiService.listVerificationDocuments()
 
       console.log('Document review response (all statuses):', response)
 
@@ -121,8 +120,7 @@ export default function DocumentReviewPage() {
   const approveDocument = async (document: Document) => {
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('auth_token')
-      await apiService.verifyDocument(document.id, 'approved', undefined, token)
+      await apiService.verifyDocument(document.id, 'approved', undefined)
       
       setDocuments(documents.filter(d => d.id !== document.id))
       toast({ title: 'Success', description: 'Document approved' })
@@ -143,8 +141,7 @@ export default function DocumentReviewPage() {
 
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('auth_token')
-      await apiService.verifyDocument(document.id, 'rejected', reason, token)
+      await apiService.verifyDocument(document.id, 'rejected', reason)
       
       setDocuments(documents.filter(d => d.id !== document.id))
       toast({ title: 'Success', description: 'Document rejected' })

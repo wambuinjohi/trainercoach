@@ -2778,7 +2778,7 @@ switch ($action) {
 
     // LIST ALL VERIFICATION DOCUMENTS (Admin only)
     case 'verification_documents_list':
-        $adminId = verifyAdminToken();
+        $adminId = validateAdminAuthorization($conn);
         if (!$adminId) exit;
 
         $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : null;
@@ -2817,7 +2817,7 @@ switch ($action) {
 
     // VERIFY/APPROVE/REJECT VERIFICATION DOCUMENT (Admin only)
     case 'verification_document_verify':
-        $adminId = verifyAdminToken();
+        $adminId = validateAdminAuthorization($conn);
         if (!$adminId) exit;
 
         if (!isset($input['document_id']) || !isset($input['status'])) {
