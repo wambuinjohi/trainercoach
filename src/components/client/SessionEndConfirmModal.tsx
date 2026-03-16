@@ -128,9 +128,9 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <Card className="w-full max-w-md">
-        <CardHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/40">
+      <Card className="w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+        <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center gap-2">
             {reminderCount >= 3 ? (
               <>
@@ -150,7 +150,7 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-900 dark:text-blue-200">
               {reminderCount >= 3 ? (
