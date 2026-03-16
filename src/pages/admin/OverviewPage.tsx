@@ -65,7 +65,6 @@ export default function OverviewPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const token = localStorage.getItem('auth_token')
 
         // Load the main data
         const [usersData, bookingsData, issuesData] = await Promise.all([
@@ -77,7 +76,7 @@ export default function OverviewPage() {
         // Load documents separately with error handling
         let documentsData = []
         try {
-          documentsData = await apiService.listVerificationDocuments('pending', token)
+          documentsData = await apiService.listVerificationDocuments('pending')
         } catch (docError) {
           console.warn('Failed to load verification documents:', docError)
           documentsData = []
