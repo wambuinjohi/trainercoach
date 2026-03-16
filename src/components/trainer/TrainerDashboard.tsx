@@ -37,6 +37,7 @@ import { loadSettings } from '@/lib/settings'
 import { toast } from '@/hooks/use-toast'
 import { TrainerReportIssue } from './TrainerReportIssue'
 import { TrainerDisputes } from './TrainerDisputes'
+import { TrainerDocumentsView } from './TrainerDocumentsView'
 import * as apiService from '@/lib/api-service'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { NotificationsCenter } from '@/components/client/NotificationsCenter'
@@ -727,6 +728,9 @@ export const TrainerDashboard: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Verification Documents View */}
+      {user?.id && <TrainerDocumentsView trainerId={user.id} />}
 
       <div className="space-y-2">
         <Button className="w-full" onClick={() => setEditingProfile(true)}>Edit Profile</Button>
