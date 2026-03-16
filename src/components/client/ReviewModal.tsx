@@ -72,14 +72,14 @@ export const ReviewModal: React.FC<{ booking: any, onClose?: () => void, onSubmi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md">
-        <Card>
-          <CardHeader>
+      <div className="relative w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+        <Card className="rounded-none sm:rounded-lg">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle>Rate and Review</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 overflow-y-auto flex-1">
             <div className="space-y-4">
               <div>
                 <Label>Rating</Label>

@@ -167,15 +167,15 @@ export const RefundModal: React.FC<RefundModalProps> = ({
 
   if (step === 'confirm') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-        <Card className="w-full max-w-md">
-          <CardHeader>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/40">
+        <Card className="w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-600" />
               Confirm Refund
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-6 space-y-4">
             <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded p-3">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 You are about to refund <strong>Ksh {dispute.amount}</strong> to the client.
@@ -225,12 +225,12 @@ export const RefundModal: React.FC<RefundModalProps> = ({
 
   if (step === 'phone') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-        <Card className="w-full max-w-md">
-          <CardHeader>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/40">
+        <Card className="w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle>Enter Client Phone Number</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-6 space-y-4">
             <p className="text-sm text-muted-foreground">
               The refund will be sent to this M-Pesa phone number.
             </p>
@@ -281,9 +281,9 @@ export const RefundModal: React.FC<RefundModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-6 flex flex-col items-center justify-center gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/40">
+      <Card className="w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+        <CardContent className="p-4 sm:p-6 flex flex-col items-center justify-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <div className="text-center">
             <p className="font-semibold">Processing Refund</p>

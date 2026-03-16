@@ -45,14 +45,14 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md">
-        <Card>
-          <CardHeader>
+      <div className="relative w-full max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-md">
+        <Card className="rounded-none sm:rounded-lg">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle>Confirm Next Session</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6">
             <div className="space-y-3">
               <div>
                 <Label>Date</Label>

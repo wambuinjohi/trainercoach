@@ -71,7 +71,7 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
             </button>
           </CardHeader>
 
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 flex-1 overflow-y-auto">
             <div className="space-y-6">
               {/* Primary Filters Section */}
               <div>
