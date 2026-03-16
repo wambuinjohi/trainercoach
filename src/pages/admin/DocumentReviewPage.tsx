@@ -70,9 +70,10 @@ export default function DocumentReviewPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem('auth_token')
+      // Load ALL documents regardless of status to display in tabs
       const response = await apiService.listVerificationDocuments(undefined, token)
 
-      console.log('Document review response:', response)
+      console.log('Document review response (all statuses):', response)
 
       // Handle various response formats - apiRequest returns data directly or wrapped
       let docs: Document[] = []
@@ -81,6 +82,9 @@ export default function DocumentReviewPage() {
       } else if (response?.data && Array.isArray(response.data)) {
         docs = response.data
       }
+
+      // Ensure we have all documents regardless of status for the tabs
+      console.log('Loaded documents:', docs.length, 'documents with statuses:', docs.map(d => d.status))
 
       setDocuments(docs)
     } catch (error) {
