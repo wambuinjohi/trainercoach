@@ -185,6 +185,21 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setRegistrationPath(profileData.registration_path || 'direct')
           setPathLocked(profileData.path_locked || false)
 
+          // Load sponsor information if available
+          if (profileData.sponsor_trainer_id) {
+            setSponsorId(profileData.sponsor_trainer_id)
+            // Load sponsor name from API
+            try {
+              const sponsorProfile = await apiService.getUserProfile(profileData.sponsor_trainer_id)
+              const sponsorList = Array.isArray(sponsorProfile) ? sponsorProfile : (sponsorProfile?.data && Array.isArray(sponsorProfile.data) ? sponsorProfile.data : [])
+              if (sponsorList.length > 0) {
+                setSponsorName(sponsorList[0].full_name || sponsorList[0].name || profileData.sponsor_trainer_id)
+              }
+            } catch (e) {
+              console.warn('Could not load sponsor information:', e)
+            }
+          }
+
           // Load area coordinates if available
           if (profileData.area_coordinates) {
             try {
@@ -207,6 +222,10 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             profileData = JSON.parse(savedProfile)
             setProfile(profileData)
             setName(String(profileData.name || ''))
+            if (profileData.sponsor_trainer_id) {
+              setSponsorId(profileData.sponsor_trainer_id)
+              setSponsorName(profileData.sponsor_name || profileData.sponsor_trainer_id)
+            }
           }
         }
 
@@ -252,20 +271,33 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         }
       } catch (error) {
         console.error('Failed to fetch profile:', error)
-        toast({
-          title: 'Failed to load profile',
-          description: `${error instanceof Error ? error.message : 'Unknown error'}`,
-          variant: 'destructive'
-        })
-        // Fallback to localStorage on error
+        // Fallback to localStorage on error - don't show error toast if we have cached data
         try {
           const savedProfile = localStorage.getItem(`trainer_profile_${userId}`)
           if (savedProfile) {
             const data = JSON.parse(savedProfile)
             setProfile(data)
             setName(String(data.name || ''))
+            if (data.sponsor_trainer_id) {
+              setSponsorId(data.sponsor_trainer_id)
+              setSponsorName(data.sponsor_name || data.sponsor_trainer_id)
+            }
+            console.log('Loaded profile from localStorage as fallback')
+          } else {
+            // Only show error toast if we have no cached data
+            toast({
+              title: 'Failed to load profile',
+              description: `${error instanceof Error ? error.message : 'Unknown error'}`,
+              variant: 'destructive'
+            })
           }
-        } catch {}
+        } catch (cacheErr) {
+          toast({
+            title: 'Failed to load profile',
+            description: `${error instanceof Error ? error.message : 'Unknown error'}`,
+            variant: 'destructive'
+          })
+        }
       } finally {
         setLoading(false)
       }
@@ -494,6 +526,28 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         <CardTitle>Edit Trainer Profile</CardTitle>
       </CardHeader>
       <CardContent className="pb-24">
+        {loading && !categoriesLoading && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700">
+              <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-blue-700 animate-spin"></div>
+              <span className="text-sm font-medium">Loading your profile information...</span>
+            </div>
+          </div>
+        )}
+
+        {!loading && (name || selectedCategoryIds.length > 0 || profile.profile_image) && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm font-medium text-green-800 mb-2">Profile Data Loaded</p>
+            <div className="text-xs text-green-700 space-y-1">
+              {name && <p>✓ Name: {name}</p>}
+              {profile.profile_image && <p>✓ Profile image loaded</p>}
+              {selectedCategoryIds.length > 0 && <p>✓ {selectedCategoryIds.length} service category/ies selected</p>}
+              {profile.hourly_rate && <p>✓ Hourly rate: Ksh {profile.hourly_rate}</p>}
+              {areaLocation.label && <p>✓ Service area: {areaLocation.label}</p>}
+              {sponsorName && registrationPath === 'sponsored' && <p>✓ Sponsor: {sponsorName}</p>}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4">
           <div>
             <Label htmlFor="name">Full name</Label>
