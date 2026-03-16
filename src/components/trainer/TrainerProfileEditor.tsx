@@ -273,7 +273,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setCategoryPricing({})
         }
 
-        // Load verification documents
+        // Load verification documents with improved error handling
         try {
           console.log('[Profile Load] Fetching verification documents for userId:', userId)
           const docsResponse = await apiService.getVerificationDocuments(userId)
@@ -291,6 +291,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setVerificationDocuments(docsList)
         } catch (docsError) {
           console.warn('Failed to fetch verification documents:', docsError)
+          // Don't show error toast - documents will load in the VerificationDocumentsForm component
           setVerificationDocuments([])
         } finally {
           setDocumentsLoading(false)

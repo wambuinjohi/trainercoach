@@ -45,6 +45,8 @@ export const mockData = {
 
   users: [],
 
+  verificationDocuments: [],
+
   trainers: [
     {
       id: "trainer-1",
@@ -125,6 +127,18 @@ export function getMockResponse(action: string, payload?: Record<string, any>): 
       return {
         status: 'success',
         message: 'Server is running (mock)'
+      }
+
+    case 'verification_documents_get':
+      return {
+        status: 'success',
+        data: mockData.verificationDocuments
+      }
+
+    case 'verification_documents_list':
+      return {
+        status: 'success',
+        data: mockData.verificationDocuments
       }
 
     default:
