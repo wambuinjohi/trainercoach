@@ -771,6 +771,61 @@ function devApiPlugin() {
               res.end(JSON.stringify(queryResponse));
               return;
 
+            case "admin_category_list":
+              // Proxy to real API for admin category list with filtering
+              try {
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
+                const catListResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({
+                    action: 'admin_category_list',
+                    status: body.status || 'all',
+                    sortBy: body.sortBy || 'created_at'
+                  })
+                });
+                const catListData = await catListResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(catListData));
+              } catch (e) {
+                console.error('Failed to fetch admin categories from real API:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to fetch categories",
+                  data: null
+                }));
+              }
+              return;
+
+            case "admin_category_create":
+            case "admin_category_update":
+            case "admin_category_delete":
+            case "admin_category_archive":
+            case "admin_category_approve":
+            case "admin_category_reject":
+              // Proxy all admin category operations to real API
+              try {
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
+                const adminCatResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify(body)
+                });
+                const adminCatData = await adminCatResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(adminCatData));
+              } catch (e) {
+                console.error(`Failed to execute admin action ${action}:`, e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: `Failed to execute ${action}`,
+                  data: null
+                }));
+              }
+              return;
+
             // Default: return success for any unknown action
             default:
               console.warn(`[Dev API] Unknown action: ${action}`);

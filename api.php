@@ -76,6 +76,47 @@ register_shutdown_function(function() use ($corsOrigin) {
 // Include the database connection
 include('connection.php');
 
+// Auto-migration: Ensure categories table has correct status columns and fields
+function ensureCategoriesSchemaIsCorrect($conn) {
+    // List of required columns with their ALTER statements
+    $requiredColumns = [
+        'status' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active' COMMENT 'Category status'",
+        'created_by_admin' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `created_by_admin` BOOLEAN DEFAULT FALSE COMMENT 'Tracks if admin-created vs trainer-requested'",
+        'created_by' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `created_by` VARCHAR(36) COMMENT 'User ID who created this category'",
+        'reviewed_by' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `reviewed_by` VARCHAR(36) COMMENT 'Admin user ID who reviewed this category'",
+        'rejection_reason' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `rejection_reason` TEXT COMMENT 'Reason for rejecting the category'",
+        'reviewed_at' => "ALTER TABLE `categories` ADD COLUMN IF NOT EXISTS `reviewed_at` TIMESTAMP NULL COMMENT 'When the category was reviewed'"
+    ];
+
+    // Check and add missing columns
+    foreach ($requiredColumns as $columnName => $alterStatement) {
+        $result = $conn->query("SHOW COLUMNS FROM categories WHERE Field = '$columnName'");
+        if ($result && $result->num_rows === 0) {
+            if (!$conn->query($alterStatement)) {
+                error_log("Warning: Failed to add $columnName column to categories: " . $conn->error);
+            }
+        }
+    }
+
+    // Also ensure status column has correct ENUM values if it exists
+    $result = $conn->query("SHOW COLUMNS FROM categories WHERE Field = 'status'");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $currentType = $row['Type'];
+
+        // Check if the ENUM needs to be updated
+        if (strpos($currentType, 'pending_approval') === false || strpos($currentType, 'rejected') === false) {
+            $modification = "ALTER TABLE `categories` MODIFY `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active'";
+            if (!$conn->query($modification)) {
+                error_log("Warning: Failed to update categories status ENUM: " . $conn->error);
+            }
+        }
+    }
+}
+
+// Run auto-migration on API startup
+ensureCategoriesSchemaIsCorrect($conn);
+
 // Include M-Pesa helper functions
 include('mpesa_helper.php');
 
@@ -3181,20 +3222,20 @@ switch ($action) {
 
         $whereClause = "";
         if ($status === 'active') {
-            $whereClause = "WHERE c.approval_status = 'active'";
+            $whereClause = "WHERE c.status = 'active'";
         } else if ($status === 'pending_approval') {
-            $whereClause = "WHERE c.approval_status = 'pending_approval'";
+            $whereClause = "WHERE c.status = 'pending_approval'";
         } else if ($status === 'rejected') {
-            $whereClause = "WHERE c.approval_status = 'rejected'";
+            $whereClause = "WHERE c.status = 'rejected'";
         } else if ($status === 'archived') {
-            $whereClause = "WHERE c.approval_status = 'archived'";
+            $whereClause = "WHERE c.status = 'archived'";
         }
 
         $orderClause = $sortBy === 'name' ? "ORDER BY c.name ASC" : "ORDER BY c.created_at DESC";
 
         $sql = "
             SELECT
-                c.id, c.name, c.icon, c.description, c.approval_status as status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
+                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
                 COUNT(tc.trainer_id) as trainer_count
             FROM categories c
             LEFT JOIN trainer_categories tc ON c.id = tc.category_id
