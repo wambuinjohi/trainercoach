@@ -41,6 +41,8 @@ export default function DocumentReviewPage() {
   const [selectedTab, setSelectedTab] = useState('pending')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [tokenInput, setTokenInput] = useState('')
+  const [showTokenInput, setShowTokenInput] = useState(false)
   const [viewModal, setViewModal] = useState<{
     open: boolean
     document: Document | null
@@ -66,10 +68,39 @@ export default function DocumentReviewPage() {
     loadDocuments()
   }, [])
 
+  const getAdminToken = (): string | null => {
+    // Try to get token from localStorage first
+    const storedToken = localStorage.getItem('adminToken')
+    if (storedToken) return storedToken
+
+    // Try to get from environment variable
+    const envToken = import.meta.env.VITE_ADMIN_TOKEN
+    if (envToken) return envToken
+
+    return null
+  }
+
+  const handleTokenSubmit = async () => {
+    if (!tokenInput.trim()) {
+      toast({ title: 'Error', description: 'Please enter an admin token', variant: 'destructive' })
+      return
+    }
+    localStorage.setItem('adminToken', tokenInput)
+    setShowTokenInput(false)
+    await loadDocuments()
+  }
+
   const loadDocuments = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = getAdminToken()
+
+      if (!token) {
+        setShowTokenInput(true)
+        setLoading(false)
+        return
+      }
+
       const response = await apiService.listVerificationDocuments(undefined, token)
 
       console.log('Document review response:', response)
@@ -92,6 +123,12 @@ export default function DocumentReviewPage() {
   }
 
   const handleApproveClick = (document: Document) => {
+    const token = getAdminToken()
+    if (!token) {
+      toast({ title: 'Error', description: 'Admin token required. Please set it first.', variant: 'destructive' })
+      setShowTokenInput(true)
+      return
+    }
     setConfirmModal({
       open: true,
       title: 'Approve Document',
@@ -102,6 +139,12 @@ export default function DocumentReviewPage() {
   }
 
   const handleRejectClick = (document: Document) => {
+    const token = getAdminToken()
+    if (!token) {
+      toast({ title: 'Error', description: 'Admin token required. Please set it first.', variant: 'destructive' })
+      setShowTokenInput(true)
+      return
+    }
     setSelectedDocument(document)
     setRejectionReason('')
     setConfirmModal({
@@ -116,7 +159,7 @@ export default function DocumentReviewPage() {
   const approveDocument = async (document: Document) => {
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = getAdminToken()
       await apiService.verifyDocument(document.id, 'approved', undefined, token)
       
       setDocuments(documents.filter(d => d.id !== document.id))
@@ -138,7 +181,7 @@ export default function DocumentReviewPage() {
 
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = getAdminToken()
       await apiService.verifyDocument(document.id, 'rejected', reason, token)
       
       setDocuments(documents.filter(d => d.id !== document.id))
@@ -465,6 +508,42 @@ export default function DocumentReviewPage() {
               ) : (
                 confirmModal.action === 'approve' ? 'Approve' : 'Reject'
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Admin Token Input Modal */}
+      <AlertDialog open={showTokenInput} onOpenChange={(open) => !open && setShowTokenInput(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Admin Token Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter your admin token to access document verification features. This token is required by the remote API for security.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="admin-token" className="text-sm">Admin Token</Label>
+              <input
+                id="admin-token"
+                type="password"
+                placeholder="Enter your admin token..."
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md bg-input mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Contact your platform administrator to get your admin token.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleTokenSubmit}>
+              Set Token
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
