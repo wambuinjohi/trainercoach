@@ -772,59 +772,30 @@ function devApiPlugin() {
               return;
 
             case "admin_category_list":
-              // Mock admin category list for development
-              console.log(`[Dev API] admin_category_list`, { status: body.status, sortBy: body.sortBy });
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Categories fetched successfully",
-                data: [
-                  {
-                    id: 1,
-                    name: "Strength Training",
-                    icon: "💪",
-                    description: "Build muscle and increase strength",
-                    status: "active",
-                    created_by_admin: true,
-                    created_by: null,
-                    reviewed_by: null,
-                    rejection_reason: null,
-                    reviewed_at: null,
-                    created_at: "2024-01-15T10:00:00Z",
-                    updated_at: "2024-01-15T10:00:00Z",
-                    trainer_count: 3
-                  },
-                  {
-                    id: 2,
-                    name: "Cardio",
-                    icon: "🏃",
-                    description: "Improve cardiovascular fitness",
-                    status: "active",
-                    created_by_admin: true,
-                    created_by: null,
-                    reviewed_by: null,
-                    rejection_reason: null,
-                    reviewed_at: null,
-                    created_at: "2024-01-15T10:00:00Z",
-                    updated_at: "2024-01-15T10:00:00Z",
-                    trainer_count: 2
-                  },
-                  {
-                    id: 3,
-                    name: "Yoga",
-                    icon: "🧘",
-                    description: "Flexibility and mindfulness",
-                    status: "pending_approval",
-                    created_by_admin: false,
-                    created_by: "user-123",
-                    reviewed_by: null,
-                    rejection_reason: null,
-                    reviewed_at: null,
-                    created_at: "2024-01-10T15:30:00Z",
-                    updated_at: "2024-01-10T15:30:00Z",
-                    trainer_count: 1
-                  }
-                ]
-              }));
+              // Proxy to real API for admin category list with filtering
+              try {
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
+                const catListResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({
+                    action: 'admin_category_list',
+                    status: body.status || 'all',
+                    sortBy: body.sortBy || 'created_at'
+                  })
+                });
+                const catListData = await catListResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(catListData));
+              } catch (e) {
+                console.error('Failed to fetch admin categories from real API:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: "Failed to fetch categories",
+                  data: null
+                }));
+              }
               return;
 
             case "admin_category_create":
