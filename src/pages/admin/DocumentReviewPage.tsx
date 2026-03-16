@@ -69,7 +69,7 @@ export default function DocumentReviewPage() {
   const loadDocuments = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = localStorage.getItem('auth_token')
       const response = await apiService.listVerificationDocuments(undefined, token)
 
       console.log('Document review response:', response)
@@ -116,7 +116,7 @@ export default function DocumentReviewPage() {
   const approveDocument = async (document: Document) => {
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = localStorage.getItem('auth_token')
       await apiService.verifyDocument(document.id, 'approved', undefined, token)
       
       setDocuments(documents.filter(d => d.id !== document.id))
@@ -138,7 +138,7 @@ export default function DocumentReviewPage() {
 
     try {
       setActionLoading(true)
-      const token = localStorage.getItem('adminToken')
+      const token = localStorage.getItem('auth_token')
       await apiService.verifyDocument(document.id, 'rejected', reason, token)
       
       setDocuments(documents.filter(d => d.id !== document.id))
