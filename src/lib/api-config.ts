@@ -61,24 +61,22 @@ export function getUploadsBaseUrl(): string {
 /**
  * Get the base API URL based on environment
  * Priority order:
- * 1. Development mode: local /api.php (for Vite mock API)
- * 2. Stored preference in localStorage
- * 3. Environment variable (for deployment configuration)
- * 4. Live API endpoint: https://trainercoachconnect.com
- * 5. Fallback to relative /api.php (local endpoint) only if explicitly disabled
+ * 1. Environment variable VITE_API_URL (highest priority - deployment config)
+ * 2. Stored preference in localStorage (runtime user override)
+ * 3. Live API endpoint: https://trainercoachconnect.com/api.php (primary default)
+ * 4. Local /api.php (fallback for dev proxy only if live endpoint unavailable)
  */
 export function getApiBaseUrl(): string {
-  // In development, use local /api.php which is proxied to the real API via Vite
-  // This avoids CORS issues when making requests from the dev server
-  // The Vite proxy (configured in vite.config.ts) forwards requests to https://trainercoachconnect.com
-  if (import.meta.env.DEV) {
+  // Check environment variable (highest priority - deployment configuration)
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
     if (typeof window !== 'undefined') {
-      console.log('[API Config] Development mode - using local /api.php (proxied to real API)');
+      console.log('[API Config] Using URL from VITE_API_URL environment variable:', envUrl);
     }
-    return '/api.php';
+    return envUrl;
   }
 
-  // Check if user has manually set an API URL
+  // Check if user has manually set an API URL (runtime override)
   const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('api_url') : null;
   // Basic validation: must be a valid URL string or relative path
   if (storedUrl && storedUrl.length > 5 && (storedUrl.startsWith('/') || storedUrl.includes('://'))) {
@@ -88,16 +86,7 @@ export function getApiBaseUrl(): string {
     return storedUrl;
   }
 
-  // Check environment variable
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    if (typeof window !== 'undefined') {
-      console.log('[API Config] Using URL from VITE_API_URL environment variable:', envUrl);
-    }
-    return envUrl;
-  }
-
-  // For native Capacitor apps, use the remote server
+  // For native Capacitor apps, ensure we use the remote server
   if (isCapacitorApp()) {
     // Only use remote URL if we're actually on a native platform or explicitly told to
     const isNative = (window as any).Capacitor?.isNative || (window as any).Capacitor?.platform !== 'web';
@@ -110,8 +99,9 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  // Use the live API endpoint by default (works across dev and production)
-  const liveApiUrl = 'https://trainercoachconnect.com';
+  // Use the live API endpoint as primary default (works across dev and production)
+  // This ensures all data uses the live endpoint even in development mode
+  const liveApiUrl = 'https://trainercoachconnect.com/api.php';
   if (typeof window !== 'undefined') {
     console.log('[API Config] Using live API endpoint:', liveApiUrl);
   }
