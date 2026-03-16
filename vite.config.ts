@@ -975,10 +975,10 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Using remote API for all environments - dev API plugin disabled
-    // mode === 'development' && devApiPlugin(),  // Disabled - using remote API instead
-    mode === 'development' && adminApiPlugin(),
-    mode === 'development' && paymentsApiPlugin(),
+    // Using remote API for all environments - all dev API plugins disabled
+    // mode === 'development' && devApiPlugin(),        // Disabled - using remote API instead
+    // mode === 'development' && adminApiPlugin(),      // Disabled - using remote API instead
+    // mode === 'development' && paymentsApiPlugin(),   // Disabled - using remote API instead
     mode === 'development' && componentTagger(),
     {
       name: "copy-php-files",
