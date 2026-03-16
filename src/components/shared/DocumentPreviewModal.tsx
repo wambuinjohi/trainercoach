@@ -58,20 +58,18 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             {title || (document?.document_type ? getDocumentTypeLabel(document.document_type) : 'Document Preview')}
           </AlertDialogTitle>
           {document?.status && (
-            <AlertDialogDescription>
-              <Badge
-                className="mt-2"
-                variant={
-                  document.status === 'approved'
-                    ? 'default'
-                    : document.status === 'rejected'
-                      ? 'destructive'
-                      : 'secondary'
-                }
-              >
-                {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
-              </Badge>
-            </AlertDialogDescription>
+            <Badge
+              className="mt-2 w-fit"
+              variant={
+                document.status === 'approved'
+                  ? 'default'
+                  : document.status === 'rejected'
+                    ? 'destructive'
+                    : 'secondary'
+              }
+            >
+              {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
+            </Badge>
           )}
         </AlertDialogHeader>
 
