@@ -130,11 +130,22 @@ async function apiRequest_Internal<T = any>(
   init: RequestInit
 ): Promise<T> {
   try {
+    // Merge headers properly, ensuring our constructed headers (including auth tokens) take precedence
+    // Extract headers from init first if they exist
+    const initHeaders = (init.headers as Record<string, string>) || {}
+    const mergedHeaders = {
+      ...initHeaders,
+      ...headers, // Our headers (including auth) override init headers
+    }
+
+    // Spread init but exclude headers to prevent overriding our merged headers
+    const { headers: _, ...restInit } = init
+
     const res = await fetch(apiUrl, {
       method: 'POST',
-      headers,
+      ...restInit,
+      headers: mergedHeaders,
       body: JSON.stringify({ action, ...payload }),
-      ...init,
     })
 
     let json: ApiResponse<T> | null = null

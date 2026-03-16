@@ -33,6 +33,7 @@ export default function OverviewPage() {
     totalRevenue: 0,
     pendingApprovals: 0,
     activeDisputes: 0,
+    pendingDocuments: 0,
   })
   const [analyticsPoints, setAnalyticsPoints] = useState<AnalyticsPoint[]>([])
   const [range, setRange] = useState<'30d' | '90d' | '12m'>('12m')
@@ -64,15 +65,18 @@ export default function OverviewPage() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const [usersData, bookingsData, issuesData] = await Promise.all([
+        const token = localStorage.getItem('auth_token')
+        const [usersData, bookingsData, issuesData, documentsData] = await Promise.all([
           apiService.getUsers(),
           apiService.getAllBookings(),
           apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
+          apiService.listVerificationDocuments('pending', token),
         ])
 
         // Ensure arrays - handle various response formats
         const users = Array.isArray(usersData) ? usersData : (usersData?.data && Array.isArray(usersData.data) ? usersData.data : [])
         const bookings = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.data && Array.isArray(bookingsData.data) ? bookingsData.data : [])
+        const documents = Array.isArray(documentsData) ? documentsData : (documentsData?.data && Array.isArray(documentsData.data) ? documentsData.data : [])
 
         // Calculate stats
         const approvedTrainers = users.filter((u: any) => u.user_type === 'trainer').length
@@ -87,6 +91,9 @@ export default function OverviewPage() {
         // Count pending approvals
         const pendingApprovals = users.filter((u: any) => u.approval_status === 'pending').length
 
+        // Count pending documents
+        const pendingDocuments = documents.filter((d: any) => d.status === 'pending').length
+
         // Count disputes
         const activeDisputes = issuesData?.data?.filter((i: any) => i.status !== 'resolved')?.length || 0
 
@@ -99,6 +106,7 @@ export default function OverviewPage() {
           totalRevenue,
           pendingApprovals,
           activeDisputes,
+          pendingDocuments,
         })
 
         // Build analytics points from bookings
@@ -122,7 +130,7 @@ export default function OverviewPage() {
         setAnalyticsPoints(points)
 
         // Set activity feed
-        setActivityFeed([
+        const activities: ActivityItem[] = [
           {
             id: '1',
             timestamp: new Date().toISOString(),
@@ -132,16 +140,23 @@ export default function OverviewPage() {
           {
             id: '2',
             timestamp: new Date(Date.now() - 3600000).toISOString(),
-            message: `${pendingApprovals} trainer applications pending approval`,
+            message: `${pendingDocuments} verification documents pending review`,
             tone: 'alert',
           },
           {
             id: '3',
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            message: `${pendingApprovals} trainer applications pending approval`,
+            tone: 'alert',
+          },
+          {
+            id: '4',
             timestamp: new Date(Date.now() - 7200000).toISOString(),
             message: `${activeDisputes} active disputes`,
             tone: 'alert',
           },
-        ])
+        ]
+        setActivityFeed(activities)
       } catch (error) {
         console.error('Failed to load overview data:', error)
       } finally {
@@ -277,7 +292,24 @@ export default function OverviewPage() {
       </div>
 
       {/* Alert Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-yellow-500/5 border-yellow-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="font-semibold text-foreground">Pending Documents</p>
+                  <p className="text-sm text-muted-foreground">{stats.pendingDocuments} documents need review</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/document-review')}>
+                Review
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="bg-yellow-500/5 border-yellow-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
