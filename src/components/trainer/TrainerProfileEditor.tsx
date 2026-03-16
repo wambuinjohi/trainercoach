@@ -104,6 +104,8 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     label: ''
   })
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
+  const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
+  const [documentsLoading, setDocumentsLoading] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const { upload } = useFileUpload({
     maxFileSize: 5 * 1024 * 1024,
@@ -161,6 +163,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     setLoading(true)
     setSelectedCategoryIds([])
     setCategoryPricing({})
+    setDocumentsLoading(true)
     const loadProfile = async () => {
       try {
         // Load profile from API
@@ -269,6 +272,30 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setSelectedCategoryIds([])
           setCategoryPricing({})
         }
+
+        // Load verification documents with improved error handling
+        try {
+          console.log('[Profile Load] Fetching verification documents for userId:', userId)
+          const docsResponse = await apiService.getVerificationDocuments(userId)
+          console.log('[Profile Load] Verification documents response:', docsResponse)
+
+          // Handle both direct array response and wrapped response with .data property
+          let docsList: any[] = []
+          if (Array.isArray(docsResponse)) {
+            docsList = docsResponse
+          } else if (docsResponse?.data && Array.isArray(docsResponse.data)) {
+            docsList = docsResponse.data
+          }
+
+          console.log('[Profile Load] Loaded documents:', docsList)
+          setVerificationDocuments(docsList)
+        } catch (docsError) {
+          console.warn('Failed to fetch verification documents:', docsError)
+          // Don't show error toast - documents will load in the VerificationDocumentsForm component
+          setVerificationDocuments([])
+        } finally {
+          setDocumentsLoading(false)
+        }
       } catch (error) {
         console.error('Failed to fetch profile:', error)
         // Fallback to localStorage on error - don't show error toast if we have cached data
@@ -300,6 +327,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         }
       } finally {
         setLoading(false)
+        setDocumentsLoading(false)
       }
     }
     loadProfile()
@@ -526,16 +554,18 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         <CardTitle>Edit Trainer Profile</CardTitle>
       </CardHeader>
       <CardContent className="pb-24">
-        {loading && !categoriesLoading && (
+        {(loading || documentsLoading) && !categoriesLoading && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 text-blue-700">
               <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-blue-700 animate-spin"></div>
-              <span className="text-sm font-medium">Loading your profile information...</span>
+              <span className="text-sm font-medium">
+                Loading your profile information{documentsLoading ? ' and verification documents' : ''}...
+              </span>
             </div>
           </div>
         )}
 
-        {!loading && (name || selectedCategoryIds.length > 0 || profile.profile_image) && (
+        {!loading && !documentsLoading && (name || selectedCategoryIds.length > 0 || profile.profile_image || verificationDocuments.length > 0) && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm font-medium text-green-800 mb-2">Profile Data Loaded</p>
             <div className="text-xs text-green-700 space-y-1">
@@ -545,6 +575,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
               {profile.hourly_rate && <p>✓ Hourly rate: Ksh {profile.hourly_rate}</p>}
               {areaLocation.label && <p>✓ Service area: {areaLocation.label}</p>}
               {sponsorName && registrationPath === 'sponsored' && <p>✓ Sponsor: {sponsorName}</p>}
+              {verificationDocuments.length > 0 && <p>✓ {verificationDocuments.length} verification document(s) preloaded</p>}
             </div>
           </div>
         )}
