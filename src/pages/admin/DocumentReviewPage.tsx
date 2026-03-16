@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { DocumentPreviewModal } from '@/components/shared/DocumentPreviewModal'
 
 interface Document {
   id: string
@@ -342,80 +343,16 @@ export default function DocumentReviewPage() {
         </TabsContent>
       </Tabs>
 
-      {/* View Document Modal */}
-      <AlertDialog open={viewModal.open} onOpenChange={(open) => {
-        if (!open) setViewModal({ open: false, document: null })
-      }}>
-        <AlertDialogContent className="max-w-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {viewModal.document && getDocumentTypeLabel(viewModal.document.document_type)}
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-          
-          {viewModal.document && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Trainer Information</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Name</p>
-                    <p className="text-sm font-medium">{viewModal.document.full_name || viewModal.document.trainer_id}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">ID</p>
-                    <p className="text-sm font-medium">{viewModal.document.trainer_id}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Document</p>
-                {viewModal.document.file_url ? (
-                  viewModal.document.file_url.endsWith('.pdf') ? (
-                    <iframe
-                      src={viewModal.document.file_url}
-                      className="w-full h-96 border rounded-lg"
-                      title="PDF Document"
-                    />
-                  ) : (
-                    <img
-                      src={viewModal.document.file_url}
-                      alt={getDocumentTypeLabel(viewModal.document.document_type)}
-                      className="w-full h-auto max-h-96 object-contain border rounded-lg"
-                    />
-                  )
-                ) : (
-                  <p className="text-sm text-muted-foreground">No document file available</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Uploaded</p>
-                  <p className="text-sm">{new Date(viewModal.document.uploaded_at).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="text-sm">
-                    <Badge variant={
-                      viewModal.document.status === 'approved' ? 'default' :
-                      viewModal.document.status === 'rejected' ? 'destructive' :
-                      'secondary'
-                    }>
-                      {viewModal.document.status.charAt(0).toUpperCase() + viewModal.document.status.slice(1)}
-                    </Badge>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* View Document Modal - Using Shared Component */}
+      <DocumentPreviewModal
+        open={viewModal.open}
+        onOpenChange={(open) => {
+          if (!open) setViewModal({ open: false, document: null })
+        }}
+        document={viewModal.document}
+        showTrainerInfo={true}
+        getDocumentTypeLabel={getDocumentTypeLabel}
+      />
 
       {/* Confirm Action Modal */}
       <AlertDialog open={confirmModal.open} onOpenChange={(open) => {
