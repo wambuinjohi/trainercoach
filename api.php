@@ -76,6 +76,28 @@ register_shutdown_function(function() use ($corsOrigin) {
 // Include the database connection
 include('connection.php');
 
+// Auto-migration: Ensure categories table has correct status ENUM
+function ensureCategoriesSchemaIsCorrect($conn) {
+    // Check if the status column exists and has the correct ENUM values
+    $result = $conn->query("SHOW COLUMNS FROM categories WHERE Field = 'status'");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $currentType = $row['Type'];
+
+        // Check if the ENUM needs to be updated
+        if (strpos($currentType, 'pending_approval') === false || strpos($currentType, 'rejected') === false) {
+            // Update the ENUM to include all required values
+            $alteration = "ALTER TABLE `categories` MODIFY `status` ENUM('active', 'pending_approval', 'rejected', 'archived') DEFAULT 'active'";
+            if (!$conn->query($alteration)) {
+                error_log("Warning: Failed to update categories status ENUM: " . $conn->error);
+            }
+        }
+    }
+}
+
+// Run auto-migration on API startup
+ensureCategoriesSchemaIsCorrect($conn);
+
 // Include M-Pesa helper functions
 include('mpesa_helper.php');
 
@@ -3181,20 +3203,20 @@ switch ($action) {
 
         $whereClause = "";
         if ($status === 'active') {
-            $whereClause = "WHERE c.approval_status = 'active'";
+            $whereClause = "WHERE c.status = 'active'";
         } else if ($status === 'pending_approval') {
-            $whereClause = "WHERE c.approval_status = 'pending_approval'";
+            $whereClause = "WHERE c.status = 'pending_approval'";
         } else if ($status === 'rejected') {
-            $whereClause = "WHERE c.approval_status = 'rejected'";
+            $whereClause = "WHERE c.status = 'rejected'";
         } else if ($status === 'archived') {
-            $whereClause = "WHERE c.approval_status = 'archived'";
+            $whereClause = "WHERE c.status = 'archived'";
         }
 
         $orderClause = $sortBy === 'name' ? "ORDER BY c.name ASC" : "ORDER BY c.created_at DESC";
 
         $sql = "
             SELECT
-                c.id, c.name, c.icon, c.description, c.approval_status as status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
+                c.id, c.name, c.icon, c.description, c.status, c.created_by_admin, c.created_by, c.reviewed_by, c.rejection_reason, c.reviewed_at, c.created_at, c.updated_at,
                 COUNT(tc.trainer_id) as trainer_count
             FROM categories c
             LEFT JOIN trainer_categories tc ON c.id = tc.category_id
