@@ -136,6 +136,8 @@ function devApiPlugin() {
 
         try {
           let body = {};
+          const contentType = req.headers['content-type'] || '';
+          const isFormData = contentType.includes('multipart/form-data');
 
           // Handle request body parsing for POST
           if (req.method === "POST" && req.headers['content-length'] && req.headers['content-length'] !== '0') {
@@ -144,6 +146,13 @@ function devApiPlugin() {
               chunks.push(chunk as Buffer);
             }
             const raw = Buffer.concat(chunks).toString('utf8');
+
+            // For FormData (file uploads), skip JSON parsing and bypass dev mock
+            if (isFormData) {
+              // File uploads should go to the real API, not the dev mock
+              return next();
+            }
+
             if (raw) {
               try {
                 body = JSON.parse(raw);
@@ -1030,8 +1039,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
-    mode === 'development' && adminApiPlugin(),
+    // Mock data disabled - all API calls use real backend
+    // mode === 'development' && devApiPlugin(),
+    // mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
     {
