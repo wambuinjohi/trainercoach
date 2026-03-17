@@ -944,7 +944,16 @@ export const ClientDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="sticky top-0 z-40 bg-background border-b border-border">
-        <div className="container max-w-md mx-auto flex justify-end p-4">
+        <div className="container max-w-md mx-auto flex justify-end items-center gap-2 p-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowEditProfile(true)}
+            className="text-muted-foreground hover:text-foreground"
+            title="Edit profile"
+          >
+            <User className="h-5 w-5" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"
