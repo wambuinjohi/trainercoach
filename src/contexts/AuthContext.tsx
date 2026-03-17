@@ -311,6 +311,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('app-user-type', userTypeParam);
         localStorage.setItem('auth_token', access_token);
 
+        // Flag for new trainer signup to auto-open profile editor modal
+        if (userTypeParam === 'trainer') {
+          localStorage.setItem('trainer_signup_new', 'true');
+        }
+
         // Store detected timezone
         const timezone = detectDeviceTimezone();
         setStoredTimezone(timezone);

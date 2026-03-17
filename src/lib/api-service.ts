@@ -679,7 +679,7 @@ export async function setTrainerAccountStatus(userId: string, status: string, to
   return apiRequest('trainer_set_account_status', { user_id: userId, status }, { headers })
 }
 
-export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string, onProgress?: (progress: number) => void) {
+export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string, onProgress?: (progress: number) => void, additionalData?: Record<string, any>) {
   const formData = new FormData()
   formData.append('action', 'verification_document_upload')
   formData.append('trainer_id', trainerId)
@@ -687,6 +687,14 @@ export async function uploadVerificationDocument(trainerId: string, documentType
   formData.append('file', file)
   if (idNumber) {
     formData.append('id_number', idNumber)
+  }
+  // Add any additional data (like id_side, id_type, passport_number)
+  if (additionalData) {
+    Object.entries(additionalData).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        formData.append(key, String(value))
+      }
+    })
   }
 
   const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'

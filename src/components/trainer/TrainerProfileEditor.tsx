@@ -590,11 +590,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Edit Trainer Profile</CardTitle>
-      </CardHeader>
-      <CardContent className="pb-24">
+    <div className="w-full pb-24">
         {(loading || documentsLoading) && !categoriesLoading && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 text-blue-700">
@@ -620,14 +616,14 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
           </div>
         )}
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
           <div>
             <Label htmlFor="name">Full name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Label>Profile Image</Label>
               <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                 💡 A high quality photo creates client trust.
@@ -698,7 +694,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <Label htmlFor="bio">Bio</Label>
             <p className="text-sm text-gray-600 mb-2">Describe your expertise, experience, and what clients should expect during training sessions</p>
             <textarea
@@ -712,12 +708,14 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           </div>
 
           {/* Area of Residence Selector */}
-          <MapLocationSelector
-            initialLocation={areaLocation}
-            onChange={(location) => setAreaLocation(location)}
-          />
+          <div className="sm:col-span-2">
+            <MapLocationSelector
+              initialLocation={areaLocation}
+              onChange={(location) => setAreaLocation(location)}
+            />
+          </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:col-span-2">
             <div>
               <Label htmlFor="hourly_rate">Default Hourly Rate (Ksh)</Label>
               <Input
@@ -746,7 +744,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             </div>
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <Label htmlFor="mpesa_number">M-Pesa Payout Number (required)</Label>
             <Input
               id="mpesa_number"
@@ -757,7 +755,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             <p className="text-xs text-muted-foreground mt-1">Payments will be sent directly to this number after each completed session.</p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 sm:col-span-2">
             <Label>Service Categories (required)</Label>
             <p className="text-sm text-muted-foreground">Select the categories of services you offer. These are defined by the platform administrator.</p>
             {categoriesLoading ? (
@@ -891,17 +889,18 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           />
 
           {/* Verification Documents Section */}
-          <VerificationDocumentsForm
-            onComplete={() => {
-              toast({
-                title: 'Success',
-                description: 'Your verification documents have been submitted for review.',
-              })
-            }}
-          />
+          <div className="sm:col-span-2">
+            <VerificationDocumentsForm
+              onComplete={() => {
+                toast({
+                  title: 'Success',
+                  description: 'Your verification documents have been submitted for review.',
+                })
+              }}
+            />
+          </div>
 
-
-          <div>
+          <div className="sm:col-span-2">
             <Label>Availability</Label>
             <AvailabilitySelector
               value={profile.availability}
@@ -909,13 +908,12 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
             />
           </div>
 
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end sm:col-span-2">
             <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>
             <Button onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Profile'}</Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }
 

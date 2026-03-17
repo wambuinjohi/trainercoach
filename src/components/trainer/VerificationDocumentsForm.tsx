@@ -10,9 +10,10 @@ import { Clock, CheckCircle2, AlertCircle, FileText, Upload, Loader2 } from 'luc
 import { toast } from '@/hooks/use-toast'
 import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
+import { IdDocumentUploadSection } from './IdDocumentUploadSection'
 
 interface Document {
-  type: 'national_id' | 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
+  type: 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -27,12 +28,6 @@ interface Document {
 
 const requiredDocuments: Document[] = [
   {
-    type: 'national_id',
-    label: 'National ID',
-    description: 'Upload a clear photo of both sides of your national ID',
-    status: 'pending'
-  },
-  {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
     description: 'GPS location confirmation of your address will be captured separately',
@@ -44,6 +39,12 @@ const requiredDocuments: Document[] = [
     description: 'Must be uploaded within 90 days of issuance',
     status: 'pending',
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    type: 'discipline_certificate',
+    label: 'Discipline Certificate',
+    description: 'Upload your professional discipline certificate or license',
+    status: 'pending'
   }
 ]
 
@@ -299,11 +300,25 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
   return (
     <div className="space-y-6">
+      {/* ID/Passport Upload Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Trainer Verification Documents
+            ID/Passport Verification
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <IdDocumentUploadSection />
+        </CardContent>
+      </Card>
+
+      {/* Other Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Additional Trainer Documents
             {registrationPath === 'sponsored' && (
               <Badge variant="outline" className="ml-2">
                 Sponsored Path
