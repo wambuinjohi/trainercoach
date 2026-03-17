@@ -202,8 +202,10 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
     )
 
     try {
-      const uploadDocType = side ? `${docType}_${side}` : docType
-      
+      // Backend expects just 'national_id' or 'passport', not 'national_id_front'
+      // The id_side is sent separately in additionalData
+      const uploadDocType = docType
+
       // Prepare additional data for API
       const additionalData = {
         id_side: side || null,

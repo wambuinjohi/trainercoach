@@ -44,7 +44,6 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         ...prev,
         locationLat: geoLocation.lat,
         locationLng: geoLocation.lng,
-        locationLabel: prev.locationLabel || 'My location',
       }))
     }
   }, [geoLocation])
@@ -83,6 +82,10 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     }
     if (formData.password !== formData.confirmPassword) {
       toast({ title: 'PINs do not match', description: 'Please ensure your PINs match', variant: 'destructive' })
+      return
+    }
+    if (!formData.locationLabel.trim()) {
+      toast({ title: 'Location required', description: 'Please enter your locality or use GPS', variant: 'destructive' })
       return
     }
 
@@ -209,7 +212,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                 <div className="space-y-2">
                   <Label htmlFor="signup-location">Your locality</Label>
                   <div className="flex gap-2">
-                    <Input id="signup-location" type="text" placeholder="e.g. Nairobi, Parklands" value={formData.locationLabel} onChange={(e) => handleInputChange('locationLabel', e.target.value)} className="bg-input border-border" />
+                    <Input id="signup-location" type="text" placeholder="e.g. Nairobi, Parklands" value={formData.locationLabel} onChange={(e) => handleInputChange('locationLabel', e.target.value)} required className="bg-input border-border" />
                     <Button type="button" variant="outline" onClick={() => {
                       requestGeoLocation()
                     }}>Use GPS</Button>
