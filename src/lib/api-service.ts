@@ -954,6 +954,158 @@ export async function expireGracePeriod(trainerId: string) {
 }
 
 // ============================================================================
+// TRAINER PROFILE SERVICES (Phase 5/6)
+// ============================================================================
+
+/**
+ * Get trainer profile completion status and percentage
+ * @param trainerId Trainer user ID
+ * @returns Profile completion data with percentage and missing fields
+ */
+export async function getProfileCompletion(trainerId: string) {
+  try {
+    const profile = await getUserProfile(trainerId)
+    const profileList = Array.isArray(profile) ? profile : (profile?.data && Array.isArray(profile.data) ? profile.data : [])
+
+    if (profileList.length === 0) {
+      return { percentage: 0, isComplete: false, missingFields: ['profile'] }
+    }
+
+    const profileData = profileList[0]
+    const requiredFields = [
+      'full_name',
+      'hourly_rate',
+      'area_of_residence',
+      'profile_image',
+      'bio',
+      'mpesa_number'
+    ]
+
+    const missingFields = requiredFields.filter(field => !profileData[field])
+    const completedFields = requiredFields.length - missingFields.length
+    const percentage = Math.round((completedFields / requiredFields.length) * 100)
+
+    // Check if trainer has categories
+    const categories = await getTrainerCategories(trainerId)
+    const categoriesList = Array.isArray(categories) ? categories : (categories?.data && Array.isArray(categories.data) ? categories.data : [])
+    const hasCategories = categoriesList.length > 0
+
+    return {
+      percentage,
+      isComplete: percentage === 100 && hasCategories,
+      completedFields,
+      totalFields: requiredFields.length,
+      missingFields: missingFields.length > 0 ? missingFields : [],
+      hasCategories,
+      profileData: {
+        name: profileData.full_name,
+        email: profileData.email,
+        image: profileData.profile_image,
+        bio: profileData.bio,
+        location: profileData.area_of_residence,
+        rate: profileData.hourly_rate,
+        mpesaNumber: profileData.mpesa_number,
+        registrationPath: profileData.registration_path,
+        verificationStatus: profileData.verification_status
+      }
+    }
+  } catch (error) {
+    console.error('Error getting profile completion:', error)
+    return { percentage: 0, isComplete: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * Get trainer statistics (bookings, ratings, etc.)
+ * @param trainerId Trainer user ID
+ * @returns Trainer stats data
+ */
+export async function getTrainerStats(trainerId: string) {
+  try {
+    return await apiRequest('trainer_stats_get', { trainer_id: trainerId })
+  } catch (error) {
+    console.error('Error getting trainer stats:', error)
+    return { totalBookings: 0, rating: 0, reviews: 0, earnings: 0, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * Get trainer profile summary (public view)
+ * @param trainerId Trainer user ID
+ * @returns Trainer profile summary with essential info
+ */
+export async function getTrainerProfileSummary(trainerId: string) {
+  try {
+    const profile = await getUserProfile(trainerId)
+    const profileList = Array.isArray(profile) ? profile : (profile?.data && Array.isArray(profile.data) ? profile.data : [])
+
+    if (profileList.length === 0) {
+      return null
+    }
+
+    const profileData = profileList[0]
+
+    // Get categories
+    const categories = await getTrainerCategories(trainerId)
+    const categoriesList = Array.isArray(categories) ? categories : (categories?.data && Array.isArray(categories.data) ? categories.data : [])
+
+    // Get stats
+    const stats = await getTrainerStats(trainerId)
+
+    return {
+      id: trainerId,
+      name: profileData.full_name,
+      email: profileData.email,
+      image: profileData.profile_image,
+      bio: profileData.bio,
+      location: profileData.area_of_residence,
+      hourlyRate: profileData.hourly_rate,
+      serviceRadius: profileData.service_radius,
+      categories: categoriesList.map((cat: any) => ({
+        id: cat.category_id || cat.id,
+        name: cat.name,
+        rate: cat.hourly_rate
+      })),
+      rating: stats?.rating || 0,
+      reviews: stats?.reviews || 0,
+      totalBookings: stats?.totalBookings || 0,
+      verified: profileData.verification_status === 'approved',
+      registrationPath: profileData.registration_path
+    }
+  } catch (error) {
+    console.error('Error getting trainer profile summary:', error)
+    return null
+  }
+}
+
+/**
+ * Update trainer profile status (e.g., active, inactive, suspended)
+ * @param trainerId Trainer user ID
+ * @param status Profile status
+ */
+export async function updateTrainerProfileStatus(trainerId: string, status: 'active' | 'inactive' | 'suspended') {
+  return apiRequest('update', {
+    table: 'user_profiles',
+    data: { profile_status: status },
+    where: `user_id = '${trainerId}'`,
+  })
+}
+
+/**
+ * Get list of trainers with profile completion status (for admin)
+ * @returns List of trainers with completion percentage
+ */
+export async function getTrainersWithProfileStatus() {
+  try {
+    const trainers = await apiRequest('trainers_with_profile_status')
+    return Array.isArray(trainers) ? trainers : (trainers?.data && Array.isArray(trainers.data) ? trainers.data : [])
+  } catch (error) {
+    console.error('Error getting trainers with profile status:', error)
+    return []
+  }
+}
+
+// ============================================================================
 // HEALTH CHECK
 // ============================================================================
 
