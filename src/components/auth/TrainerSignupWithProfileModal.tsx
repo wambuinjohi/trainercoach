@@ -67,16 +67,16 @@ export const TrainerSignupWithProfileModal: React.FC<TrainerSignupWithProfileMod
           handleProfileModalClose()
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Complete Your Profile</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="w-full rounded-none sm:rounded-lg max-w-full sm:max-w-2xl max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+          <DialogHeader className="sticky top-0 bg-background z-10 pb-4 border-b">
+            <DialogTitle className="text-lg sm:text-2xl">Complete Your Profile</DialogTitle>
+            <DialogDescription className="text-xs sm:text-base mt-1">
               Set up your trainer profile to start accepting bookings. You can update this anytime.
             </DialogDescription>
           </DialogHeader>
 
           {/* Profile Editor */}
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-6">
             <TrainerProfileEditor
               onClose={handleProfileModalClose}
             />

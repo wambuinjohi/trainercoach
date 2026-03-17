@@ -11,26 +11,24 @@ interface ProfileEditorModalProps {
 export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-full sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6 rounded-lg">
-        <DialogHeader className="pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-xl sm:text-2xl">Edit Your Profile</DialogTitle>
-              <DialogDescription className="text-sm sm:text-base mt-1">
-                Complete all required fields to progress through account verification stages
-              </DialogDescription>
-            </div>
-            {/* Close button for mobile */}
-            <button
-              onClick={onClose}
-              className="ml-2 p-1 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100 sm:hidden"
-              aria-label="Close dialog"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      <DialogContent className="w-full rounded-none sm:rounded-lg max-w-full sm:max-w-2xl md:max-w-3xl max-h-[100vh] sm:max-h-[95vh] overflow-y-auto p-0 flex flex-col">
+        <div className="sticky top-0 bg-background z-10 border-b p-3 sm:p-6 flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <DialogTitle className="text-lg sm:text-2xl">Edit Your Profile</DialogTitle>
+            <DialogDescription className="text-xs sm:text-base mt-1">
+              Complete all required fields to progress through account verification stages
+            </DialogDescription>
           </div>
-        </DialogHeader>
-        <div className="mt-6 pr-0 sm:pr-0">
+          {/* Close button for mobile */}
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0 sm:hidden"
+            aria-label="Close dialog"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           <TrainerProfileEditor onClose={onClose} />
         </div>
       </DialogContent>

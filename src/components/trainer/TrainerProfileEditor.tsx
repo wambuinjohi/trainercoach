@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
@@ -11,8 +10,6 @@ import { MapLocationSelector } from './MapLocationSelector'
 import { AvailabilitySelector } from './AvailabilitySelector'
 import { VerificationDocumentsForm } from './VerificationDocumentsForm'
 import { SponsorSelector } from './SponsorSelector'
-import { useFileUpload } from '@/hooks/use-file-upload'
-import { Upload, X } from 'lucide-react'
 import { detectDeviceTimezone } from '@/lib/timezone'
 import * as apiService from '@/lib/api-service'
 import { apiRequest, withAuth } from '@/lib/api'
@@ -87,8 +84,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<Partial<TrainerProfile>>({})
   const [name, setName] = useState('')
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, number>>({})
@@ -106,29 +101,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
   const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
-  const imageInputRef = useRef<HTMLInputElement>(null)
-  const { upload } = useFileUpload({
-    maxFileSize: 5 * 1024 * 1024,
-    allowedExtensions: ['jpg', 'jpeg', 'png', 'gif'],
-    onSuccess: (files) => {
-      if (files.length > 0) {
-        const uploadedFile = files[0]
-        console.log('[Image Upload] Success - updating profile_image to:', uploadedFile.url)
-        handleChange('profile_image', uploadedFile.url)
-        toast({ title: 'Image uploaded', description: 'Profile image has been updated' })
-        setUploadingImage(false)
-        setUploadProgress(0)
-      }
-    },
-    onError: (error) => {
-      toast({ title: 'Upload failed', description: error, variant: 'destructive' })
-      setUploadingImage(false)
-      setUploadProgress(0)
-    },
-    onProgress: (progress) => {
-      setUploadProgress(progress)
-    }
-  })
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -403,22 +375,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     }
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.currentTarget.files
-    if (files && files.length > 0) {
-      setUploadingImage(true)
-      const fileArray = Array.from(files)
-      await upload(fileArray)
-    }
-    // Reset input
-    if (imageInputRef.current) {
-      imageInputRef.current.value = ''
-    }
-  }
-
-  const clearProfileImage = () => {
-    handleChange('profile_image', '')
-  }
 
   const save = async () => {
     if (!userId) {
@@ -617,106 +573,32 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Basic Information</CardTitle>
-          <CardDescription className="text-xs">Your name and profile photo</CardDescription>
+          <CardDescription className="text-xs">Your name and profile bio</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left: Profile Photo */}
-            <div className="space-y-3">
-              <Label>Profile Image</Label>
-              <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                💡 A high quality photo creates client trust.
-              </p>
-
-              {/* Image Preview */}
-              {profile.profile_image && (
-                <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-border bg-muted">
-                  <img
-                    src={profile.profile_image}
-                    alt="Profile preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearProfileImage}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Upload Area */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={uploadingImage || loading}
-                  className="flex-1 p-3 border-2 border-dashed border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span className="text-sm">{uploadingImage ? 'Uploading...' : 'Upload'}</span>
-                </button>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif"
-                  onChange={handleImageUpload}
-                  disabled={uploadingImage || loading}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Upload Progress Bar */}
-              {uploadingImage && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Uploading...</span>
-                    <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="h-2" />
-                </div>
-              )}
-
-              {/* Manual URL Input */}
-              <div>
-                <Label htmlFor="profile-image-url" className="text-xs text-muted-foreground">Or paste URL</Label>
-                <Input
-                  id="profile-image-url"
-                  value={profile.profile_image || ''}
-                  onChange={(e) => handleChange('profile_image', e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  disabled={loading}
-                  className="bg-input border-border text-xs"
-                />
-              </div>
+          <div className="space-y-6">
+            <div>
+              <Label htmlFor="name">Full name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your full name"
+                className="bg-input border-border"
+              />
             </div>
 
-            {/* Right: Name and Bio */}
-            <div className="md:col-span-2 space-y-6">
-              <div>
-                <Label htmlFor="name">Full name</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  className="bg-input border-border"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="bio">Bio</Label>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Describe your expertise, experience, and what clients should expect during training sessions</p>
-                <textarea
-                  id="bio"
-                  value={profile.bio || ''}
-                  onChange={(e) => handleChange('bio', e.target.value)}
-                  placeholder="Share your expertise and training philosophy..."
-                  className="w-full p-3 border border-border rounded-md bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary text-sm"
-                  rows={5}
-                />
-              </div>
+            <div>
+              <Label htmlFor="bio">Bio</Label>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Describe your expertise, experience, and what clients should expect during training sessions</p>
+              <textarea
+                id="bio"
+                value={profile.bio || ''}
+                onChange={(e) => handleChange('bio', e.target.value)}
+                placeholder="Share your expertise and training philosophy..."
+                className="w-full p-3 border border-border rounded-md bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary text-sm"
+                rows={5}
+              />
             </div>
           </div>
         </CardContent>

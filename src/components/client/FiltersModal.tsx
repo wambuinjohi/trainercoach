@@ -62,16 +62,16 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900">
-        <Card className="border-0 rounded-t-2xl sm:rounded-2xl">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200 dark:border-slate-800">
-            <CardTitle className="text-xl">Filters</CardTitle>
-            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+      <div className="relative w-full sm:max-w-lg max-h-[100vh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900">
+        <Card className="border-0 rounded-t-2xl sm:rounded-2xl h-full flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 p-3 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl">Filters</CardTitle>
+            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex-shrink-0">
               <X className="h-5 w-5" />
             </button>
           </CardHeader>
 
-          <CardContent className="pt-6 flex-1 overflow-y-auto">
+          <CardContent className="p-3 sm:p-6 flex-1 overflow-y-auto">
             <div className="space-y-6">
               {/* Primary Filters Section */}
               <div>
