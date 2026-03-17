@@ -11,7 +11,7 @@ interface ProfileEditorModalProps {
 export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-full sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-2xl max-h-[95vh] overflow-y-auto p-4 sm:p-6 rounded-lg">
+      <DialogContent className="w-full max-w-full sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-5xl max-h-[95vh] overflow-y-auto p-4 sm:p-6 rounded-lg">
         <DialogHeader className="pb-4 border-b">
           <div className="flex items-center justify-between">
             <div className="flex-1">
