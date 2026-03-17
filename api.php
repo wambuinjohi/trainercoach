@@ -2518,8 +2518,9 @@ switch ($action) {
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $documentType = $conn->real_escape_string($input['document_type']);
         $idNumber = isset($input['id_number']) ? $conn->real_escape_string($input['id_number']) : null;
+        $idSide = isset($input['id_side']) ? $conn->real_escape_string($input['id_side']) : null;
 
-        error_log("[VERIFICATION_DOCUMENT_UPLOAD] trainerId: $trainerId, documentType: $documentType");
+        error_log("[VERIFICATION_DOCUMENT_UPLOAD] trainerId: $trainerId, documentType: $documentType, idSide: $idSide");
 
         // Validate document upload based on registration path
         $stmt = $conn->prepare("SELECT registration_path FROM user_profiles WHERE user_id = ? LIMIT 1");
@@ -2530,7 +2531,7 @@ switch ($action) {
         $stmt->close();
 
         // Validate document type - only these are allowed
-        $allowedDocTypes = ['national_id_front', 'national_id_back', 'proof_of_residence', 'certificate_of_good_conduct'];
+        $allowedDocTypes = ['national_id', 'passport', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate'];
         if (!in_array($documentType, $allowedDocTypes)) {
             respond("error", "Invalid document type. Document uploads are not allowed.", null, 403);
         }
@@ -2674,14 +2675,24 @@ switch ($action) {
         }
 
         // Check if document already exists
+        // For ID documents, include id_side in the check
         $sql = "SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?";
+        $params = [$trainerId, $documentType];
+        $types = "ss";
+
+        if (in_array($documentType, ['national_id', 'passport']) && $idSide) {
+            $sql .= " AND id_side = ?";
+            $params[] = $idSide;
+            $types .= "s";
+        }
+
         $stmt = $conn->prepare($sql);
         if ($stmt === false) {
             respond("error", "Prepare failed: " . $conn->error . " | SQL: " . $sql, null, 500);
             break;
         }
 
-        if (!$stmt->bind_param("ss", $trainerId, $documentType)) {
+        if (!$stmt->bind_param($types, ...$params)) {
             $stmt->close();
             respond("error", "Bind failed: " . $stmt->error, null, 500);
             break;
@@ -2709,7 +2720,7 @@ switch ($action) {
 
             $sql = "
                 UPDATE verification_documents
-                SET file_url = ?, file_path = ?, id_number = ?, status = 'pending', expires_at = ?, updated_at = NOW()
+                SET file_url = ?, file_path = ?, id_number = ?, id_side = ?, status = 'pending', expires_at = ?, updated_at = NOW()
                 WHERE id = ?
             ";
 
@@ -2719,7 +2730,7 @@ switch ($action) {
                 break;
             }
 
-            if (!$stmt->bind_param("sssss", $fileUrl, $filePath, $idNumber, $expiresAt, $docId)) {
+            if (!$stmt->bind_param("ssssss", $fileUrl, $filePath, $idNumber, $idSide, $expiresAt, $docId)) {
                 $stmt->close();
                 respond("error", "Bind failed: " . $stmt->error, null, 500);
                 break;
@@ -2744,8 +2755,8 @@ switch ($action) {
             }
 
             $sql = "
-                INSERT INTO verification_documents (id, trainer_id, document_type, file_url, file_path, id_number, expires_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO verification_documents (id, trainer_id, document_type, file_url, file_path, id_number, id_side, expires_at, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ";
 
             $stmt = $conn->prepare($sql);
@@ -2754,7 +2765,7 @@ switch ($action) {
                 break;
             }
 
-            if (!$stmt->bind_param("sssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $expiresAt)) {
+            if (!$stmt->bind_param("ssssssss", $docId, $trainerId, $documentType, $fileUrl, $filePath, $idNumber, $idSide, $expiresAt)) {
                 $stmt->close();
                 respond("error", "Bind failed: " . $stmt->error, null, 500);
                 break;
@@ -2780,7 +2791,7 @@ switch ($action) {
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $sql = "
-            SELECT id, trainer_id, document_type, file_url, file_path, status, rejection_reason, id_number, uploaded_at, reviewed_at, expires_at
+            SELECT id, trainer_id, document_type, file_url, file_path, status, rejection_reason, id_number, id_side, uploaded_at, reviewed_at, expires_at
             FROM verification_documents
             WHERE trainer_id = ?
             ORDER BY uploaded_at DESC
