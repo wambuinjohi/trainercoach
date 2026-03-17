@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { apiRequest, withAuth } from '@/lib/api'
+import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { useGeolocation } from '@/hooks/use-geolocation'
@@ -21,21 +22,43 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
   useEffect(() => {
     if (!userId) return
     setLoading(true)
-    apiRequest('profile_get', { user_id: userId }, { headers: withAuth() })
-      .then((data: any) => {
-        if (data) {
-          setProfile(data)
+    const loadProfile = async () => {
+      try {
+        console.log('[Client Profile Load] Fetching profile from API for userId:', userId)
+        const response = await apiService.getUserProfile(userId)
+        console.log('[Client Profile Load] API response:', response)
+
+        // Handle both direct array response and wrapped response with .data property
+        let profileList: any[] = []
+        if (Array.isArray(response)) {
+          profileList = response
+        } else if (response?.data && Array.isArray(response.data)) {
+          profileList = response.data
+        }
+
+        if (profileList.length > 0) {
+          const profileData = profileList[0]
+          console.log('[Client Profile Load] Raw profile data from API:', profileData)
+          setProfile(profileData)
         } else {
+          console.log('[Client Profile Load] No profile found, initializing empty profile')
           // Initialize empty profile if user doesn't have one yet
           setProfile({})
         }
-      })
-      .catch((error: any) => {
-        console.warn('Failed to load profile', error)
+      } catch (error: any) {
+        console.error('[Client Profile Load] Failed to load profile:', error)
         // Initialize empty profile on error so user can still edit
         setProfile({})
-      })
-      .finally(() => setLoading(false))
+        toast({
+          title: 'Note',
+          description: 'Could not load profile data. You can still edit and save.',
+          variant: 'destructive'
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadProfile()
   }, [userId])
 
   const updateLocationFromGPS = async () => {
@@ -50,6 +73,7 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
           if (result?.label) {
             setProfile(prev => ({
               ...prev,
+              area_of_residence: result.label,
               location: result.label,
               location_label: result.label,
               location_lat: geoLocation.lat,
@@ -89,21 +113,32 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
     if (!userId) return
     setLoading(true)
     try {
+      // Build area_coordinates JSON if we have location coordinates
+      let areaCoordinates = null
+      if (profile.location_lat != null && profile.location_lng != null) {
+        areaCoordinates = JSON.stringify({
+          lat: profile.location_lat,
+          lng: profile.location_lng
+        })
+      }
+
       const payload = {
-        user_id: userId,
         full_name: profile.full_name || null,
         phone_number: profile.phone_number || null,
         profile_image: profile.profile_image || null,
         bio: profile.bio || null,
-        location: (profile.location || profile.location_label || '') || null,
+        area_of_residence: (profile.location || profile.location_label || profile.area_of_residence || '') || null,
+        area_coordinates: areaCoordinates,
         location_lat: profile.location_lat || null,
         location_lng: profile.location_lng || null,
       }
-      await apiRequest('profile_update', payload, { headers: withAuth() })
+      console.log('[Client Profile Save] Saving profile with payload:', payload)
+      await apiService.updateUserProfile(userId, payload)
+      console.log('[Client Profile Save] Profile saved successfully')
       toast({ title: 'Saved', description: 'Profile updated' })
       onClose?.()
     } catch (err) {
-      console.error('Save client profile error', err)
+      console.error('[Client Profile Save] Error:', err)
       toast({ title: 'Error', description: (err as any)?.message || 'Failed to save profile', variant: 'destructive' })
     } finally {
       setLoading(false)
@@ -133,8 +168,8 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
                 <div className="flex gap-2">
                   <Input
                     placeholder="e.g. Nairobi, Parklands"
-                    value={(profile.location || profile.location_label) || ''}
-                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                    value={(profile.area_of_residence || profile.location || profile.location_label) || ''}
+                    onChange={(e) => setProfile({ ...profile, area_of_residence: e.target.value })}
                   />
                   <Button
                     type="button"

@@ -1153,11 +1153,26 @@ switch ($action) {
         $profileId = 'profile_' . uniqid();
         $fullName = trim($firstName . ' ' . $lastName);
 
+        // Extract optional profile fields from signup request
+        $areaOfResidence = isset($input['location_label']) ? $conn->real_escape_string($input['location_label']) : (isset($input['location']) ? $conn->real_escape_string($input['location']) : NULL);
+        $areaCoordinates = NULL;
+        if ((isset($input['location_lat']) && is_numeric($input['location_lat'])) && (isset($input['location_lng']) && is_numeric($input['location_lng']))) {
+            $areaCoordinates = json_encode([
+                'lat' => floatval($input['location_lat']),
+                'lng' => floatval($input['location_lng'])
+            ]);
+        }
+        $profileImage = isset($input['profile_image']) ? $conn->real_escape_string($input['profile_image']) : NULL;
+        $bio = isset($input['bio']) ? $conn->real_escape_string($input['bio']) : NULL;
+
         $stmt = $conn->prepare("
-            INSERT INTO user_profiles (id, user_id, user_type, full_name, phone_number, registration_path, path_locked, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+            INSERT INTO user_profiles (
+                id, user_id, user_type, full_name, phone_number, registration_path, path_locked,
+                area_of_residence, area_coordinates, profile_image, bio, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("sssssss", $profileId, $userId, $userType, $fullName, $phone, $registrationPath, $now);
+        $stmt->bind_param("sssssssssss", $profileId, $userId, $userType, $fullName, $phone, $registrationPath,
+                          $areaOfResidence, $areaCoordinates, $profileImage, $bio, $now);
         $stmt->execute();
         $stmt->close();
 
@@ -4212,7 +4227,7 @@ switch ($action) {
         }
 
         if ($result->num_rows === 0) {
-            respond("success", "Profile not found.", ["data" => null]);
+            respond("success", "Profile not found.", null);
         }
 
         $profile = $result->fetch_assoc();
