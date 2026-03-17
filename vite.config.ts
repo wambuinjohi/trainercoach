@@ -1039,8 +1039,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' && devApiPlugin(),  // Enable dev API plugin for local development
-    mode === 'development' && adminApiPlugin(),
+    // Mock data disabled - all API calls use real backend
+    // mode === 'development' && devApiPlugin(),
+    // mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
     {
