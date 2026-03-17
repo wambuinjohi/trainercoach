@@ -111,6 +111,7 @@ export const ClientDashboard: React.FC = () => {
   const [nextSessionBooking, setNextSessionBooking] = useState<any>(null)
   const [pendingSessionConfirm, setPendingSessionConfirm] = useState<any>(null)
   const [pendingSessionStart, setPendingSessionStart] = useState<any>(null)
+  const [clientProfile, setClientProfile] = useState<any>(null)
 
   // Ref to track if trainers have been enriched with the current location to avoid infinite loops
   const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
@@ -209,6 +210,18 @@ export const ClientDashboard: React.FC = () => {
     } catch (err) {
       console.warn('Failed to load bookings', err)
       setBookings([])
+    }
+  }, [user?.id])
+
+  const loadClientProfile = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const profileData = await apiRequest('profile_get', { user_id: user.id }, { headers: withAuth() })
+      if (profileData) {
+        setClientProfile(profileData)
+      }
+    } catch (err) {
+      console.warn('Failed to load client profile', err)
     }
   }, [user?.id])
 
@@ -326,7 +339,8 @@ export const ClientDashboard: React.FC = () => {
     loadCategories()
     loadTrainers()
     loadBookings()
-  }, [user?.id, filters, loadBookings])
+    loadClientProfile()
+  }, [user?.id, filters, loadBookings, loadClientProfile])
 
   // Update distances when user location changes and filter by service radius
   useEffect(() => {
@@ -461,6 +475,47 @@ export const ClientDashboard: React.FC = () => {
           onRateClick={(booking) => setReviewBooking(booking)}
           onDismiss={() => loadBookings()}
         />
+
+        {clientProfile && (
+          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden">
+                  {clientProfile.profile_image ? (
+                    <img src={clientProfile.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-8 w-8 text-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold text-foreground">{clientProfile.full_name || 'Your Profile'}</h2>
+                  {clientProfile.phone_number && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                      📱 {clientProfile.phone_number}
+                    </p>
+                  )}
+                  {clientProfile.location_label && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                      📍 {clientProfile.location_label}
+                    </p>
+                  )}
+                  {clientProfile.bio && (
+                    <p className="text-sm text-foreground mt-2">{clientProfile.bio}</p>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowEditProfile(true)}
+                    className="mt-3"
+                  >
+                    Edit Profile
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="text-center py-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">Find Your Perfect Trainer</h1>
           <p className="text-muted-foreground">Connect with certified professionals in your area</p>
