@@ -869,7 +869,6 @@ switch ($action) {
             // Auto-calculate service radius based on trainer tier/default
             // For now, use a default of 10km if not explicitly set
             $data['service_radius'] = 10;
-            $data['auto_service_radius'] = true;
         }
 
         // Validate registration_path changes - prevent if path_locked is true
