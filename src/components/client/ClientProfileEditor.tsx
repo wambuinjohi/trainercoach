@@ -23,10 +23,12 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
     setLoading(true)
     apiRequest('profile_get', { user_id: userId }, { headers: withAuth() })
       .then((data: any) => {
+        console.log('Profile loaded:', data)
         if (data) {
           setProfile(data)
         } else {
           // Initialize empty profile if user doesn't have one yet
+          console.log('No profile data returned, initializing empty')
           setProfile({})
         }
       })
