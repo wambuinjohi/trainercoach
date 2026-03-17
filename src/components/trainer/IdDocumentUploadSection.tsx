@@ -56,7 +56,7 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
     return `national_id${side ? '_' + side : ''}`
   }
 
-  const loadDocuments = async () => {
+  const loadDocumentsWithType = async (type: 'national_id' | 'passport') => {
     if (!userId) return
     try {
       const response = await apiService.getVerificationDocuments(userId)
@@ -64,15 +64,15 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
 
       if (Array.isArray(docs)) {
         // Filter only ID-related documents
-        const idDocs = docs.filter(d => 
+        const idDocs = docs.filter(d =>
           d.document_type === 'national_id' || d.document_type === 'passport'
         )
 
         // Map to our internal structure
         const mappedDocs: IdDocument[] = []
-        
+
         // Group by type
-        if (idType === 'national_id') {
+        if (type === 'national_id') {
           // Add front and back for national ID
           const frontDoc = idDocs.find(d => d.document_type === 'national_id' && d.id_side === 'front')
           const backDoc = idDocs.find(d => d.document_type === 'national_id' && d.id_side === 'back')
@@ -142,13 +142,18 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
     }
   }
 
+  const loadDocuments = async () => {
+    loadDocumentsWithType(idType)
+  }
+
   const handleIdTypeChange = (newType: 'national_id' | 'passport') => {
     setIdType(newType)
     onIdTypeChange?.(newType)
     // Reset documents when switching type
     setDocuments([])
     setIdNumber('')
-    loadDocuments()
+    // Load documents with the new type (pass as parameter since state update is async)
+    loadDocumentsWithType(newType)
   }
 
   const handlePassportNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
