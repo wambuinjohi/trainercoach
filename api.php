@@ -4196,6 +4196,21 @@ switch ($action) {
 
         $profile = $result->fetch_assoc();
 
+        // Fill in missing name and phone from users table if not in profile
+        if (empty($profile['full_name']) || empty($profile['phone_number'])) {
+            $userSql = "SELECT first_name, last_name, phone FROM users WHERE id = '$userId' LIMIT 1";
+            $userResult = $conn->query($userSql);
+            if ($userResult && $userResult->num_rows > 0) {
+                $userData = $userResult->fetch_assoc();
+                if (empty($profile['full_name']) && !empty($userData['first_name'])) {
+                    $profile['full_name'] = trim($userData['first_name'] . ' ' . $userData['last_name']);
+                }
+                if (empty($profile['phone_number']) && !empty($userData['phone'])) {
+                    $profile['phone_number'] = $userData['phone'];
+                }
+            }
+        }
+
         // Normalize profile image URL
         if (!empty($profile['profile_image'])) {
             $profile['profile_image'] = normalizeImageUrl($profile['profile_image']);
