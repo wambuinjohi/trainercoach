@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AutoSetupWrapper } from "@/components/AutoSetupWrapper";
 import { initializeTimezoneDetection } from "@/lib/timezone";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { TrainerSignupWithProfileModal } from "@/components/auth/TrainerSignupWithProfileModal";
 import { ClientDashboard } from "@/components/client/ClientDashboard";
 import { TrainerDashboard } from "@/components/trainer/TrainerDashboard";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -107,7 +108,7 @@ const AppRoutes = () => (
         else if (type === 'trainer') window.location.href = "/trainer";
         else window.location.href = "/client";
       }} />} />
-      <Route path="/signup" element={<AuthForm initialTab="signup" onSuccess={(type) => {
+      <Route path="/signup" element={<TrainerSignupWithProfileModal onSuccess={(type) => {
         if (type === 'admin') window.location.href = "/admin";
         else if (type === 'trainer') window.location.href = "/trainer";
         else window.location.href = "/client";

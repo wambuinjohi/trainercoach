@@ -7,13 +7,26 @@ interface User {
   email: string;
 }
 
+interface SignupData {
+  full_name?: string;
+  phone_number?: string;
+  location_label?: string;
+  location_lat?: number;
+  location_lng?: number;
+  registration_path?: 'direct' | 'sponsored';
+  sponsor_trainer_id?: string;
+  [key: string]: any;
+}
+
 interface AuthContextType {
   user: User | null;
   userType: 'client' | 'trainer' | 'admin' | null;
   loading: boolean;
+  signupData: SignupData | null;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, userType: string, profile?: Record<string, any>) => Promise<void>;
   signOut: () => Promise<void>;
+  clearSignupData: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -125,6 +138,7 @@ async function performLogin(
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<'client' | 'trainer' | 'admin' | null>(null);
+  const [signupData, setSignupData] = useState<SignupData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -132,6 +146,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedUser = localStorage.getItem('app-user');
       const storedType = localStorage.getItem('app-user-type');
       const storedToken = localStorage.getItem('auth_token');
+      const storedSignupData = localStorage.getItem('signup_data');
+
+      // Restore signup data if available
+      if (storedSignupData) {
+        try {
+          const signupDataToRestore = JSON.parse(storedSignupData);
+          setSignupData(signupDataToRestore);
+        } catch (e) {
+          console.warn('Could not parse stored signup data:', e);
+        }
+      }
 
       if (storedUser && storedType && storedToken) {
         try {
@@ -311,6 +336,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('app-user-type', userTypeParam);
         localStorage.setItem('auth_token', access_token);
 
+        // Store all signup data for profile pre-filling
+        const signupDataToStore: SignupData = {
+          full_name: profile?.full_name,
+          phone_number: profile?.phone_number,
+          location_label: profile?.location_label || profile?.location,
+          location_lat: profile?.location_lat,
+          location_lng: profile?.location_lng,
+          registration_path: profile?.registration_path || 'direct',
+          sponsor_trainer_id: profile?.sponsor_trainer_id,
+          ...profile
+        };
+        setSignupData(signupDataToStore);
+        localStorage.setItem('signup_data', JSON.stringify(signupDataToStore));
+
         // Flag for new trainer signup to auto-open profile editor modal
         if (userTypeParam === 'trainer') {
           localStorage.setItem('trainer_signup_new', 'true');
@@ -333,16 +372,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const clearSignupData = () => {
+    setSignupData(null);
+    localStorage.removeItem('signup_data');
+    localStorage.removeItem('trainer_signup_new');
+  };
+
   const signOut = async () => {
     setUser(null);
     setUserType(null);
+    setSignupData(null);
     localStorage.removeItem('app-user');
     localStorage.removeItem('app-user-type');
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('signup_data');
+    localStorage.removeItem('trainer_signup_new');
   };
 
   return (
-    <AuthContext.Provider value={{ user, userType, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, userType, loading, signupData, signIn, signUp, signOut, clearSignupData }}>
       {children}
     </AuthContext.Provider>
   );

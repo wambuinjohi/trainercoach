@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
@@ -464,7 +464,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         serviceRadiusNum = getDefaultServiceRadius()
       }
 
-
       // Payout is M-Pesa only - default to null
       const payoutDetails = null
 
@@ -493,7 +492,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       }
 
       // Save to API
-          try {
+      try {
         const detectedTimezone = detectDeviceTimezone()
         const updatePayload = {
           full_name: name,
@@ -590,132 +589,170 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   }
 
   return (
-    <div className="w-full pb-24">
-        {(loading || documentsLoading) && !categoriesLoading && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700">
-              <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-blue-700 animate-spin"></div>
-              <span className="text-sm font-medium">
-                Loading your profile information{documentsLoading ? ' and verification documents' : ''}...
-              </span>
-            </div>
+    <div className="w-full space-y-6 pb-24">
+      {/* Loading State */}
+      {(loading || documentsLoading) && !categoriesLoading && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-700">
+            <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-blue-700 animate-spin"></div>
+            <span className="text-sm font-medium">
+              Loading your profile information{documentsLoading ? ' and verification documents' : ''}...
+            </span>
           </div>
-        )}
+        </div>
+      )}
 
-        {!loading && !documentsLoading && (name || selectedCategoryIds.length > 0 || profile.profile_image || verificationDocuments.length > 0) && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm font-medium text-green-800 mb-2">Profile Data Loaded</p>
-            <div className="text-xs text-green-700 space-y-1">
-              {name && <p>✓ Name: {name}</p>}
-              {profile.profile_image && <p>✓ Profile image loaded</p>}
-              {selectedCategoryIds.length > 0 && <p>✓ {selectedCategoryIds.length} service category/ies selected</p>}
-              {profile.hourly_rate && <p>✓ Hourly rate: Ksh {profile.hourly_rate}</p>}
-              {areaLocation.label && <p>✓ Service area: {areaLocation.label}</p>}
-              {sponsorName && registrationPath === 'sponsored' && <p>✓ Sponsor: {sponsorName}</p>}
-              {verificationDocuments.length > 0 && <p>✓ {verificationDocuments.length} verification document(s) preloaded</p>}
-            </div>
+      {/* Profile Data Loaded State */}
+      {!loading && !documentsLoading && (name || selectedCategoryIds.length > 0 || profile.profile_image || verificationDocuments.length > 0) && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm font-medium text-green-800 mb-2">Profile Data Loaded</p>
+          <div className="text-xs text-green-700 space-y-1">
+            {name && <p>✓ Name: {name}</p>}
+            {profile.profile_image && <p>✓ Profile image loaded</p>}
+            {selectedCategoryIds.length > 0 && <p>✓ {selectedCategoryIds.length} service category/ies selected</p>}
+            {profile.hourly_rate && <p>✓ Hourly rate: Ksh {profile.hourly_rate}</p>}
+            {areaLocation.label && <p>✓ Service area: {areaLocation.label}</p>}
+            {sponsorName && registrationPath === 'sponsored' && <p>✓ Sponsor: {sponsorName}</p>}
+            {verificationDocuments.length > 0 && <p>✓ {verificationDocuments.length} verification document(s) preloaded</p>}
           </div>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+        </div>
+      )}
+
+      {/* BASIC INFORMATION SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Basic Information</CardTitle>
+          <CardDescription>Your name and profile photo</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           <div>
             <Label htmlFor="name">Full name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
+            <Input 
+              id="name" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="Your full name"
+              className="bg-input border-border" 
+            />
           </div>
 
-          <div className="space-y-2 sm:col-span-2">
+          {/* Profile Image Section */}
+          <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Label>Profile Image</Label>
               <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                 💡 A high quality photo creates client trust.
               </p>
             </div>
-            <div className="space-y-3">
-              {/* Image Preview */}
-              {profile.profile_image && (
-                <div className="relative w-32 h-32 mx-auto rounded-lg overflow-hidden border-2 border-border bg-muted">
-                  <img
-                    src={profile.profile_image}
-                    alt="Profile preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={clearProfileImage}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Upload Area */}
-              <div className="flex gap-2">
+            
+            {/* Image Preview */}
+            {profile.profile_image && (
+              <div className="relative w-32 h-32 mx-auto rounded-lg overflow-hidden border-2 border-border bg-muted">
+                <img
+                  src={profile.profile_image}
+                  alt="Profile preview"
+                  className="w-full h-full object-cover"
+                />
                 <button
                   type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={uploadingImage || loading}
-                  className="flex-1 p-3 border-2 border-dashed border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  onClick={clearProfileImage}
+                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                 >
-                  <Upload className="w-4 h-4" />
-                  <span className="text-sm">{uploadingImage ? 'Uploading...' : 'Upload Photo'}</span>
+                  <X className="w-4 h-4" />
                 </button>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif"
-                  onChange={handleImageUpload}
-                  disabled={uploadingImage || loading}
-                  className="hidden"
-                />
               </div>
+            )}
 
-              {/* Upload Progress Bar */}
-              {uploadingImage && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Uploading...</span>
-                    <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="h-2" />
+            {/* Upload Area */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploadingImage || loading}
+                className="flex-1 p-3 border-2 border-dashed border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span className="text-sm">{uploadingImage ? 'Uploading...' : 'Upload Photo'}</span>
+              </button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif"
+                onChange={handleImageUpload}
+                disabled={uploadingImage || loading}
+                className="hidden"
+              />
+            </div>
+
+            {/* Upload Progress Bar */}
+            {uploadingImage && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Uploading...</span>
+                  <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
                 </div>
-              )}
-
-              {/* Manual URL Input */}
-              <div>
-                <Label htmlFor="profile-image-url" className="text-xs text-muted-foreground">Or paste image URL</Label>
-                <Input
-                  id="profile-image-url"
-                  value={profile.profile_image || ''}
-                  onChange={(e) => handleChange('profile_image', e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  disabled={loading}
-                />
+                <Progress value={uploadProgress} className="h-2" />
               </div>
+            )}
+
+            {/* Manual URL Input */}
+            <div>
+              <Label htmlFor="profile-image-url" className="text-xs text-muted-foreground">Or paste image URL</Label>
+              <Input
+                id="profile-image-url"
+                value={profile.profile_image || ''}
+                onChange={(e) => handleChange('profile_image', e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                disabled={loading}
+                className="bg-input border-border"
+              />
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="sm:col-span-2">
-            <Label htmlFor="bio">Bio</Label>
-            <p className="text-sm text-gray-600 mb-2">Describe your expertise, experience, and what clients should expect during training sessions</p>
-            <textarea
-              id="bio"
-              value={profile.bio || ''}
-              onChange={(e) => handleChange('bio', e.target.value)}
-              placeholder="Share your expertise and training philosophy..."
-              className="w-full p-2 border border-border rounded-md bg-input"
-              rows={4}
-            />
-          </div>
+      {/* ABOUT YOU SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">About You</CardTitle>
+          <CardDescription>Share your expertise and training approach</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Label htmlFor="bio">Bio</Label>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Describe your expertise, experience, and what clients should expect during training sessions</p>
+          <textarea
+            id="bio"
+            value={profile.bio || ''}
+            onChange={(e) => handleChange('bio', e.target.value)}
+            placeholder="Share your expertise and training philosophy..."
+            className="w-full p-3 border border-border rounded-md bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary"
+            rows={4}
+          />
+        </CardContent>
+      </Card>
 
-          {/* Area of Residence Selector */}
-          <div className="sm:col-span-2">
-            <MapLocationSelector
-              initialLocation={areaLocation}
-              onChange={(location) => setAreaLocation(location)}
-            />
-          </div>
+      {/* LOCATION & SERVICE AREA SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Service Location & Radius</CardTitle>
+          <CardDescription>Where you offer your services</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MapLocationSelector
+            initialLocation={areaLocation}
+            onChange={(location) => setAreaLocation(location)}
+          />
+        </CardContent>
+      </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:col-span-2">
+      {/* RATES & PAYOUT SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Rates & Payout</CardTitle>
+          <CardDescription>Your hourly rates and payment information</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="hourly_rate">Default Hourly Rate (Ksh)</Label>
               <Input
@@ -724,6 +761,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 value={profile.hourly_rate ?? ''}
                 onChange={(e) => handleChange('hourly_rate', Number(e.target.value))}
                 placeholder="e.g., 300 or 500"
+                className="bg-input border-border"
               />
             </div>
             <div>
@@ -737,74 +775,79 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                   disabled
                   className="bg-muted cursor-not-allowed"
                 />
-                <div className="text-xs text-muted-foreground">
-                  <p>💡 Auto-calculated: {calculatedServiceRadius} km (based on your location)</p>
-                </div>
+                <p className="text-xs text-muted-foreground">💡 Auto-calculated: {calculatedServiceRadius} km (based on your location)</p>
               </div>
             </div>
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
             <Label htmlFor="mpesa_number">M-Pesa Payout Number (required)</Label>
             <Input
               id="mpesa_number"
               value={profile.mpesa_number || ''}
               onChange={(e) => handleChange('mpesa_number', e.target.value)}
               placeholder="e.g., 254712345678 or 0712345678"
+              className="bg-input border-border"
             />
-            <p className="text-xs text-muted-foreground mt-1">Payments will be sent directly to this number after each completed session.</p>
+            <p className="text-xs text-muted-foreground mt-2">Payments will be sent directly to this number after each completed session.</p>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-3 sm:col-span-2">
-            <Label>Service Categories (required)</Label>
-            <p className="text-sm text-muted-foreground">Select the categories of services you offer. These are defined by the platform administrator.</p>
-            {categoriesLoading ? (
-              <div className="text-sm text-muted-foreground">Loading categories...</div>
-            ) : categories.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No categories available. Please ask the administrator to create some.</div>
-            ) : (
-              <div className="space-y-3">
-                <Input
-                  type="text"
-                  placeholder="Search categories..."
-                  value={categorySearchTerm}
-                  onChange={(e) => setCategorySearchTerm(e.target.value)}
-                  className="bg-input border-border"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {categories.filter(cat =>
+      {/* SERVICE CATEGORIES SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Service Categories</CardTitle>
+          <CardDescription>What you're certified and trained to teach (required)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {categoriesLoading ? (
+            <div className="text-sm text-muted-foreground text-center py-8">Loading categories...</div>
+          ) : categories.length === 0 ? (
+            <div className="text-sm text-muted-foreground text-center py-8">No categories available. Please ask the administrator to create some.</div>
+          ) : (
+            <div className="space-y-4">
+              <Input
+                type="text"
+                placeholder="Search categories..."
+                value={categorySearchTerm}
+                onChange={(e) => setCategorySearchTerm(e.target.value)}
+                className="bg-input border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                {categories.filter(cat =>
+                  cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+                  (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                ).length} of {categories.length} categories
+              </p>
+              <div className="space-y-3 border border-border rounded-lg p-4 max-h-96 overflow-y-auto">
+                {categories
+                  .filter(cat =>
                     cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
                     (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
-                  ).length} of {categories.length} categories
-                </p>
-                <div className="space-y-3 border border-border rounded-md p-4">
-                  {categories
-                    .filter(cat =>
-                      cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
-                      (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
-                    )
-                    .map((category) => (
-                    <div key={category.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-b-0">
+                  )
+                  .map((category) => (
+                    <div key={category.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-b-0 last:pb-0">
                       <input
                         type="checkbox"
                         id={`category_${category.id}`}
                         checked={selectedCategoryIds.includes(category.id)}
                         onChange={(e) => handleCategoryChange(category.id, e.target.checked)}
                         disabled={loading}
-                        className="mt-1"
+                        className="mt-1 cursor-pointer"
                       />
-                      <div className="flex-1">
-                        <label htmlFor={`category_${category.id}`} className="flex-1 cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`category_${category.id}`} className="cursor-pointer">
                           <div className="flex items-center gap-2">
-                            {category.icon && <span className="text-xl">{category.icon}</span>}
-                            <span className="font-medium text-foreground">{category.name}</span>
+                            {category.icon && <span className="text-xl flex-shrink-0">{category.icon}</span>}
+                            <span className="font-medium text-foreground break-words">{category.name}</span>
                           </div>
                           {category.description && (
                             <p className="text-xs text-muted-foreground mt-1">{category.description}</p>
                           )}
                         </label>
                         {selectedCategoryIds.includes(category.id) && (
-                          <div className="mt-2 ml-6">
+                          <div className="mt-3 ml-6">
                             <label htmlFor={`price_${category.id}`} className="text-xs font-medium text-foreground">
                               Hourly Rate (Ksh)
                             </label>
@@ -820,99 +863,129 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                               }))}
                               disabled={loading}
                               placeholder="e.g., 1500"
-                              className="w-full mt-1 px-2 py-1 border border-border rounded text-sm bg-input"
+                              className="w-full mt-1 px-2 py-1 border border-border rounded text-sm bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary"
                             />
                           </div>
                         )}
                       </div>
                     </div>
                   ))}
-                </div>
               </div>
-            )}
-            {selectedCategoryIds.length === 0 && (
-              <p className="text-xs text-destructive">Please select at least one category</p>
-            )}
-          </div>
-
-          {/* Registration Path Section */}
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-border">
-            <Label className="font-semibold">Registration Path</Label>
-            <div className="space-y-2">
-              {!pathLocked ? (
-                <>
-                  <p className="text-sm text-muted-foreground">How are you registered with the platform?</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: registrationPath === 'direct' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => setRegistrationPath('direct')}>
-                      <input type="radio" name="registration-path" value="direct" checked={registrationPath === 'direct'} onChange={() => setRegistrationPath('direct')} />
-                      <div>
-                        <p className="font-medium text-sm">Direct Registration</p>
-                        <p className="text-xs text-muted-foreground">Registered independently with full documentation</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all" style={{borderColor: registrationPath === 'sponsored' ? 'var(--trainer-primary)' : 'var(--border)'}} onClick={() => setRegistrationPath('sponsored')}>
-                      <input type="radio" name="registration-path" value="sponsored" checked={registrationPath === 'sponsored'} onChange={() => setRegistrationPath('sponsored')} />
-                      <div>
-                        <p className="font-medium text-sm">Sponsored Registration</p>
-                        <p className="text-xs text-muted-foreground">Registered under an approved sponsor (10% commission)</p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="p-3 bg-background rounded border border-border">
-                  <p className="text-sm font-medium text-foreground">
-                    Registration Path: <span className="capitalize text-trainer-primary">{registrationPath}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">🔒 Your registration path is locked after document submission.</p>
-                </div>
+              {selectedCategoryIds.length === 0 && (
+                <p className="text-xs text-destructive font-medium">Please select at least one category</p>
               )}
             </div>
-          </div>
+          )}
+        </CardContent>
+      </Card>
 
-          {/* Sponsorship Section - Show for all trainers, but required for sponsored path */}
-          <SponsorSelector
-            currentSponsorId={sponsorId}
-            currentSponsorName={sponsorName}
-            onSponsorSelected={(id, name) => {
-              setSponsorId(id)
-              setSponsorName(name)
-              handleChange('sponsor_trainer_id', id)
-            }}
-            onSponsorRemoved={() => {
-              setSponsorId(null)
-              setSponsorName(null)
-              handleChange('sponsor_trainer_id', null)
-            }}
-            required={registrationPath === 'sponsored'}
-            registrationPath={registrationPath}
+      {/* REGISTRATION PATH SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Registration Path</CardTitle>
+          <CardDescription>How you're registered with the platform</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!pathLocked ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">How are you registered with the platform?</p>
+              <div className="space-y-2">
+                <div 
+                  className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-muted/50" 
+                  style={{borderColor: registrationPath === 'direct' ? 'var(--trainer-primary)' : 'var(--border)'}} 
+                  onClick={() => setRegistrationPath('direct')}
+                >
+                  <input 
+                    type="radio" 
+                    name="registration-path" 
+                    value="direct" 
+                    checked={registrationPath === 'direct'} 
+                    onChange={() => setRegistrationPath('direct')}
+                    className="cursor-pointer"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Direct Registration</p>
+                    <p className="text-xs text-muted-foreground">Registered independently with full documentation</p>
+                  </div>
+                </div>
+                <div 
+                  className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-muted/50" 
+                  style={{borderColor: registrationPath === 'sponsored' ? 'var(--trainer-primary)' : 'var(--border)'}} 
+                  onClick={() => setRegistrationPath('sponsored')}
+                >
+                  <input 
+                    type="radio" 
+                    name="registration-path" 
+                    value="sponsored" 
+                    checked={registrationPath === 'sponsored'} 
+                    onChange={() => setRegistrationPath('sponsored')}
+                    className="cursor-pointer"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Sponsored Registration</p>
+                    <p className="text-xs text-muted-foreground">Registered under an approved sponsor (10% commission)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-muted rounded border border-border">
+              <p className="text-sm font-medium text-foreground">
+                Registration Path: <span className="capitalize text-trainer-primary">{registrationPath}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">🔒 Your registration path is locked after document submission.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* SPONSORSHIP SECTION */}
+      <SponsorSelector
+        currentSponsorId={sponsorId}
+        currentSponsorName={sponsorName}
+        onSponsorSelected={(id, name) => {
+          setSponsorId(id)
+          setSponsorName(name)
+          handleChange('sponsor_trainer_id', id)
+        }}
+        onSponsorRemoved={() => {
+          setSponsorId(null)
+          setSponsorName(null)
+          handleChange('sponsor_trainer_id', null)
+        }}
+        required={registrationPath === 'sponsored'}
+        registrationPath={registrationPath}
+      />
+
+      {/* VERIFICATION DOCUMENTS SECTION */}
+      <VerificationDocumentsForm
+        onComplete={() => {
+          toast({
+            title: 'Success',
+            description: 'Your verification documents have been submitted for review.',
+          })
+        }}
+      />
+
+      {/* AVAILABILITY SECTION */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">Availability</CardTitle>
+          <CardDescription>When you're available for training sessions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AvailabilitySelector
+            value={profile.availability}
+            onChange={(availability) => handleChange('availability', availability)}
           />
+        </CardContent>
+      </Card>
 
-          {/* Verification Documents Section */}
-          <div className="sm:col-span-2">
-            <VerificationDocumentsForm
-              onComplete={() => {
-                toast({
-                  title: 'Success',
-                  description: 'Your verification documents have been submitted for review.',
-                })
-              }}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label>Availability</Label>
-            <AvailabilitySelector
-              value={profile.availability}
-              onChange={(availability) => handleChange('availability', availability)}
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end sm:col-span-2">
-            <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>
-            <Button onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Profile'}</Button>
-          </div>
-        </div>
+      {/* FORM ACTIONS */}
+      <div className="flex gap-2 justify-end sticky bottom-0 bg-background p-4 border-t border-border rounded-lg">
+        <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>
+        <Button onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save Profile'}</Button>
+      </div>
     </div>
   )
 }
