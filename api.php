@@ -1084,9 +1084,35 @@ switch ($action) {
 
         $email = $conn->real_escape_string($input['email']);
         $password = $input['password'];
-        $firstName = isset($input['first_name']) ? $conn->real_escape_string($input['first_name']) : '';
-        $lastName = isset($input['last_name']) ? $conn->real_escape_string($input['last_name']) : '';
-        $phone = isset($input['phone']) ? $conn->real_escape_string($input['phone']) : NULL;
+
+        // Handle both full_name (from frontend) and first_name/last_name (legacy)
+        $firstName = '';
+        $lastName = '';
+        if (isset($input['full_name'])) {
+            $fullName = trim($input['full_name']);
+            $lastSpacePos = strrpos($fullName, ' ');
+            if ($lastSpacePos !== false) {
+                $firstName = substr($fullName, 0, $lastSpacePos);
+                $lastName = substr($fullName, $lastSpacePos + 1);
+            } else {
+                $firstName = $fullName;
+                $lastName = '';
+            }
+            $firstName = $conn->real_escape_string($firstName);
+            $lastName = $conn->real_escape_string($lastName);
+        } else {
+            $firstName = isset($input['first_name']) ? $conn->real_escape_string($input['first_name']) : '';
+            $lastName = isset($input['last_name']) ? $conn->real_escape_string($input['last_name']) : '';
+        }
+
+        // Handle both phone_number (from frontend) and phone (legacy)
+        $phone = NULL;
+        if (isset($input['phone_number'])) {
+            $phone = $conn->real_escape_string($input['phone_number']);
+        } elseif (isset($input['phone'])) {
+            $phone = $conn->real_escape_string($input['phone']);
+        }
+
         $country = isset($input['country']) ? $conn->real_escape_string($input['country']) : NULL;
         $userType = isset($input['user_type']) ? $conn->real_escape_string($input['user_type']) : 'client';
         $registrationPath = isset($input['registration_path']) ? $conn->real_escape_string($input['registration_path']) : 'direct';
@@ -4241,6 +4267,11 @@ switch ($action) {
         $params = [];
         $types = "";
 
+        // Track if we need to update the users table
+        $userUpdates = [];
+        $userParams = [];
+        $userTypes = "";
+
         foreach ($input as $key => $value) {
             if ($key === 'user_id' || $key === 'action') continue;
 
@@ -4261,6 +4292,36 @@ switch ($action) {
                 $params[] = $value;
                 $types .= is_numeric($value) && strpos($value, '.') === false ? "i" : "s";
             }
+
+            // Sync full_name to users table as first_name and last_name
+            if ($key === 'full_name') {
+                $fullName = trim($value);
+                $lastSpacePos = strrpos($fullName, ' ');
+                $firstName = '';
+                $lastName = '';
+                if ($lastSpacePos !== false) {
+                    $firstName = substr($fullName, 0, $lastSpacePos);
+                    $lastName = substr($fullName, $lastSpacePos + 1);
+                } else {
+                    $firstName = $fullName;
+                    $lastName = '';
+                }
+
+                $userUpdates[] = "`first_name` = ?";
+                $userParams[] = $firstName;
+                $userTypes .= "s";
+
+                $userUpdates[] = "`last_name` = ?";
+                $userParams[] = $lastName;
+                $userTypes .= "s";
+            }
+
+            // Sync phone_number to users table as phone
+            if ($key === 'phone_number') {
+                $userUpdates[] = "`phone` = ?";
+                $userParams[] = $value;
+                $userTypes .= "s";
+            }
         }
 
         if (empty($updates)) {
@@ -4279,6 +4340,23 @@ switch ($action) {
 
         if ($stmt->execute()) {
             $stmt->close();
+
+            // Also update the users table if there are any changes to sync
+            if (!empty($userUpdates)) {
+                $userParams[] = $userId;
+                $userTypes .= "s";
+
+                $userSql = "UPDATE users SET " . implode(", ", $userUpdates) . " WHERE id = ?";
+                $userStmt = $conn->prepare($userSql);
+
+                if (count($userParams) > 0) {
+                    $userStmt->bind_param($userTypes, ...$userParams);
+                }
+
+                $userStmt->execute();
+                $userStmt->close();
+            }
+
             logEvent('profile_updated', ['user_id' => $userId]);
             respond("success", "Profile updated successfully.", ["affected_rows" => $conn->affected_rows]);
         } else {
