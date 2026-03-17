@@ -25,10 +25,15 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
       .then((data: any) => {
         if (data) {
           setProfile(data)
+        } else {
+          // Initialize empty profile if user doesn't have one yet
+          setProfile({})
         }
       })
       .catch((error: any) => {
         console.warn('Failed to load profile', error)
+        // Initialize empty profile on error so user can still edit
+        setProfile({})
       })
       .finally(() => setLoading(false))
   }, [userId])
