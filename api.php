@@ -4227,7 +4227,7 @@ switch ($action) {
             }
         }
 
-        respond("success", "Profile fetched successfully.", ["data" => $profile]);
+        respond("success", "Profile fetched successfully.", $profile);
         break;
 
     // UPDATE PROFILE (custom wrapper)
