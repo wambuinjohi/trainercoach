@@ -2658,8 +2658,6 @@ switch ($action) {
         if (isset($_FILES['file'])) {
             error_log('[VERIFICATION_DOCUMENT_UPLOAD] File received: ' . json_encode($_FILES['file'], JSON_PARTIAL_OUTPUT_ON_ERROR));
             $file = $_FILES['file'];
-            // Accept common MIME type variations for images and PDF
-            $allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
 
             // Check for upload errors
             if ($file['error'] !== 0) {
@@ -2679,17 +2677,6 @@ switch ($action) {
             // Check file size (5MB max)
             if ($file['size'] > 5 * 1024 * 1024) {
                 respond("error", "File too large (max 5MB).", null, 400);
-            }
-
-            // Validate MIME type with fallback to file extension check
-            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
-            $mimeTypeValid = in_array($file['type'], $allowedMimes);
-            $extensionValid = in_array($fileExtension, $allowedExtensions);
-
-            if (!$mimeTypeValid && !$extensionValid) {
-                error_log("[VERIFICATION_DOCUMENT_UPLOAD] MIME type validation failed. MIME: {$file['type']}, Extension: {$fileExtension}");
-                respond("error", "Invalid file type. Only JPG, PNG, and PDF are allowed.", null, 400);
             }
 
             // Use same uploads directory as profile images
