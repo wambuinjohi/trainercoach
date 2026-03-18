@@ -98,6 +98,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     lng: 36.8219, // Default to Nairobi, Kenya
     label: ''
   })
+  const [hadExistingCoordinates, setHadExistingCoordinates] = useState(false)
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
   const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
@@ -162,6 +163,10 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                   lng: coords.lng || 36.8219,
                   label: cachedData.area_of_residence || ''
                 })
+                // Mark that existing coordinates were found in cache
+                if (coords.lat && coords.lng && cachedData.area_of_residence) {
+                  setHadExistingCoordinates(true)
+                }
               } catch (e) {
                 console.warn('Could not parse cached area_coordinates:', e)
               }
@@ -224,6 +229,10 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 lng: coords.lng || 36.8219,
                 label: profileData.area_of_residence || ''
               })
+              // Mark that existing coordinates were found
+              if (coords.lat && coords.lng && profileData.area_of_residence) {
+                setHadExistingCoordinates(true)
+              }
             } catch (e) {
               console.warn('Could not parse area_coordinates:', e)
             }
@@ -414,18 +423,24 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
-      // Validate residence location (GPS) - required
-      if (!areaLocation.label || areaLocation.label.trim() === '') {
+      // Validate residence location (GPS)
+      // Allow save if:
+      // 1. Coordinates exist (are not the default Nairobi values)
+      // 2. Either coordinates were just set (with a label) OR existing coordinates are being preserved
+      const isDefaultLocation = areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219
+      const hasValidCoordinates = areaLocation.lat && areaLocation.lng && !isDefaultLocation
+
+      // If coordinates haven't been set at all (still at default), require the trainer to set them
+      if (!hasValidCoordinates && !hadExistingCoordinates) {
         toast({ title: 'Location required', description: 'Please select your residence location (GPS coordinates).', variant: 'destructive' })
         setLoading(false)
         return
       }
 
-      // Validate that location coordinates are valid (not default values)
-      if (areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219 && !areaLocation.label) {
-        toast({ title: 'Location required', description: 'Please set your residence location on the map.', variant: 'destructive' })
-        setLoading(false)
-        return
+      // If we have existing coordinates and nothing was changed, allow proceeding with existing coordinates
+      if (!hasValidCoordinates && hadExistingCoordinates) {
+        // Keep using the existing coordinates that were loaded - no error needed
+        console.log('[Profile Save] Preserving existing coordinates:', areaLocation)
       }
 
       // Validate discipline certificate or sponsor - must have at least one
@@ -480,6 +495,34 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         bio: profile.bio || null,
       }
 
+      // Upload profile image if a new one was selected
+      let profileImageUrl = profile.profile_image || null
+      if ((profile as any)._profile_image_file) {
+        try {
+          console.log('[Profile Save] Uploading profile image...')
+          const imageResponse = await apiService.uploadProfileImage(userId, (profile as any)._profile_image_file)
+          if (imageResponse?.file_url) {
+            profileImageUrl = imageResponse.file_url
+            console.log('[Profile Save] Profile image uploaded:', profileImageUrl)
+            toast({
+              title: 'Image uploaded',
+              description: 'Profile photo uploaded successfully.',
+            })
+          } else {
+            throw new Error('No image URL returned from upload')
+          }
+        } catch (imageErr) {
+          console.error('Profile image upload failed:', imageErr)
+          toast({
+            title: 'Image upload failed',
+            description: imageErr instanceof Error ? imageErr.message : 'Could not upload profile photo',
+            variant: 'destructive'
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       // Save to API
       try {
         const detectedTimezone = detectDeviceTimezone()
@@ -490,7 +533,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           service_radius: serviceRadiusNum,
           availability: JSON.stringify(availabilityVal),
           timezone: detectedTimezone,
-          profile_image: profile.profile_image || null,
+          profile_image: profileImageUrl,
           bio: profile.bio || null,
           payout_details: payoutDetails ? JSON.stringify(payoutDetails) : null,
           area_of_residence: areaLocation.label || null,
@@ -505,7 +548,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         }
         console.log('[Profile Save] ========== SAVING PROFILE ==========')
         console.log('[Profile Save] User ID:', userId)
-        console.log('[Profile Save] Profile image being saved:', profile.profile_image)
+        console.log('[Profile Save] Profile image being saved:', profileImageUrl)
         console.log('[Profile Save] Full payload:', updatePayload)
         const response = await apiService.updateUserProfile(userId, updatePayload)
         console.log('[Profile Save] API response:', response)
@@ -606,10 +649,74 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Basic Information</CardTitle>
-          <CardDescription className="text-xs">Your name and profile bio</CardDescription>
+          <CardDescription className="text-xs">Your name, profile photo, and bio</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {/* Profile Image */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Profile Photo</Label>
+              <div className="flex gap-4 items-start">
+                {/* Image Preview */}
+                <div className="flex-shrink-0">
+                  {profile.profile_image ? (
+                    <div className="relative">
+                      <img
+                        src={profile.profile_image}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-lg object-cover border-2 border-border"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-lg bg-muted border-2 border-border flex items-center justify-center">
+                      <span className="text-xs text-muted-foreground">No photo</span>
+                    </div>
+                  )}
+                </div>
+                {/* Upload Input */}
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    id="profile-image"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        // Validate file size (max 5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast({
+                            title: 'File too large',
+                            description: 'Profile photo must be smaller than 5MB.',
+                            variant: 'destructive'
+                          })
+                          return
+                        }
+
+                        // Store file for uploading during save
+                        handleChange('_profile_image_file', file)
+
+                        // Show preview
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          const preview = event.target?.result as string
+                          // Store preview temporarily for display
+                          handleChange('_profile_image_preview', preview)
+                          toast({
+                            title: 'Image selected',
+                            description: 'Your profile photo will be uploaded when you save.',
+                          })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                    disabled={loading}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">JPG, PNG, GIF or WebP (max 5MB)</p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="name">Full name <span className="text-red-600">*</span></Label>
               <Input

@@ -96,7 +96,10 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
           uploadedAt: disciplineDoc.uploaded_at,
           rejectionReason: disciplineDoc.rejection_reason
         })
-        onDisciplineCertificateStatusChange?.(disciplineDoc.status === 'approved')
+        // Accept both 'pending' (awaiting review) and 'approved' certificates
+        // Only reject if status is explicitly 'rejected'
+        const hasCertificate = disciplineDoc.status !== 'rejected' && !!disciplineDoc.file_url
+        onDisciplineCertificateStatusChange?.(hasCertificate)
       } else {
         setCertificateStatus({ status: 'pending' })
         onDisciplineCertificateStatusChange?.(false)
@@ -243,7 +246,9 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
     }
   }
 
-  const hasDisciplineCertificate = certificateStatus.status === 'approved'
+  // Accept both pending (awaiting review) and approved certificates
+  // Only reject if status is explicitly 'rejected' or no certificate uploaded
+  const hasDisciplineCertificate = certificateStatus.fileUrl && certificateStatus.status !== 'rejected'
   const shouldShowSponsorRequired = !hasDisciplineCertificate
 
   if (certificateLoading) {
@@ -269,9 +274,9 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
         <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
           <AlertCircle className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 dark:text-blue-200">
-            {shouldShowSponsorRequired 
-              ? 'You don\'t have an approved discipline certificate. You must select a sponsor trainer to proceed.'
-              : 'You have an approved discipline certificate. Sponsor selection is optional.'}
+            {shouldShowSponsorRequired
+              ? 'You don\'t have a discipline certificate. You must select a sponsor trainer to proceed.'
+              : 'You have a discipline certificate (pending or approved). Sponsor selection is optional.'}
           </AlertDescription>
         </Alert>
 
@@ -280,9 +285,13 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
           <div className="flex items-center justify-between">
             <h4 className="font-semibold text-sm">Discipline Certificate</h4>
             {hasDisciplineCertificate && (
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+              <Badge className={`${
+                certificateStatus.status === 'approved'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+              }`}>
                 <Check className="h-3 w-3 mr-1" />
-                Approved
+                {certificateStatus.status === 'approved' ? 'Approved' : 'Pending Review'}
               </Badge>
             )}
           </div>
@@ -351,8 +360,8 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
             </div>
           )}
 
-          {/* Upload area - only show if not approved */}
-          {certificateStatus.status !== 'approved' && (
+          {/* Upload area - only show if rejected or missing */}
+          {(!certificateStatus.fileUrl || certificateStatus.status === 'rejected') && (
             <div className="space-y-3">
               {/* Preview Section */}
               {preview && (

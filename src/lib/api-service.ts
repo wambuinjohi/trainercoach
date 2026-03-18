@@ -679,6 +679,53 @@ export async function setTrainerAccountStatus(userId: string, status: string, to
   return apiRequest('trainer_set_account_status', { user_id: userId, status }, { headers })
 }
 
+export async function uploadProfileImage(trainerId: string, file: File, onProgress?: (progress: number) => void) {
+  const formData = new FormData()
+  formData.append('action', 'profile_image_upload')
+  formData.append('trainer_id', trainerId)
+  formData.append('file', file)
+
+  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    // Track upload progress
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100)
+          onProgress(progress)
+        }
+      })
+    }
+
+    xhr.addEventListener('load', () => {
+      try {
+        const response = JSON.parse(xhr.responseText)
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(response)
+        } else {
+          reject(new Error(response?.message || `Upload failed with status ${xhr.status}`))
+        }
+      } catch (e) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          reject(new Error('Failed to parse response'))
+        } else {
+          reject(new Error(`Upload failed: ${xhr.responseText || 'Unknown error'}`))
+        }
+      }
+    })
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload'))
+    })
+
+    xhr.open('POST', apiBaseUrl, true)
+    xhr.send(formData)
+  })
+}
+
 export async function uploadVerificationDocument(trainerId: string, documentType: string, file: File, idNumber?: string, onProgress?: (progress: number) => void, additionalData?: Record<string, any>) {
   const formData = new FormData()
   formData.append('action', 'verification_document_upload')
