@@ -1,4 +1,5 @@
 import { apiRequest, withAuth } from './api'
+import { getApiBaseUrl } from './api-config'
 import { calculateDistance, filterTrainersByServiceRadius, sortTrainersByDistance, Coordinates, isValidCoordinates } from './location-utils'
 
 // ============================================================================
@@ -680,12 +681,19 @@ export async function setTrainerAccountStatus(userId: string, status: string, to
 }
 
 export async function uploadProfileImage(trainerId: string, file: File, onProgress?: (progress: number) => void) {
-  const formData = new FormData()
-  formData.append('action', 'profile_image_upload')
-  formData.append('trainer_id', trainerId)
-  formData.append('file', file)
+  console.log('[uploadProfileImage] File details:', {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: file.lastModified
+  })
 
-  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+  const formData = new FormData()
+  formData.append('action', 'file_upload')
+  formData.append('files[]', file)
+
+  const apiBaseUrl = getApiBaseUrl()
+  console.log('[uploadProfileImage] Uploading to:', apiBaseUrl)
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -703,12 +711,28 @@ export async function uploadProfileImage(trainerId: string, file: File, onProgre
     xhr.addEventListener('load', () => {
       try {
         const response = JSON.parse(xhr.responseText)
+        console.log('[uploadProfileImage] Response:', response)
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(response)
+          // Transform file_upload response to match expected format
+          // Backend wraps response in data: { status, message, data: { uploaded: [{ url: '...' }], errors: [...] } }
+          const uploadData = response.data || response
+
+          if (uploadData.uploaded && uploadData.uploaded.length > 0) {
+            resolve({
+              file_url: uploadData.uploaded[0].url
+            })
+          } else if (uploadData.errors && uploadData.errors.length > 0) {
+            // Backend rejected the file - provide specific error message
+            console.error('[uploadProfileImage] Backend errors:', uploadData.errors)
+            reject(new Error(uploadData.errors[0]))
+          } else {
+            reject(new Error('No file URL in upload response'))
+          }
         } else {
           reject(new Error(response?.message || `Upload failed with status ${xhr.status}`))
         }
       } catch (e) {
+        console.error('[uploadProfileImage] Error parsing response:', e, 'Response text:', xhr.responseText)
         if (xhr.status >= 200 && xhr.status < 300) {
           reject(new Error('Failed to parse response'))
         } else {
@@ -744,7 +768,7 @@ export async function uploadVerificationDocument(trainerId: string, documentType
     })
   }
 
-  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+  const apiBaseUrl = getApiBaseUrl()
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()

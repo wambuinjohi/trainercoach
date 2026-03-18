@@ -121,8 +121,9 @@ export default function DocumentReviewPage() {
     try {
       setActionLoading(true)
       await apiService.verifyDocument(document.id, 'approved', undefined)
-      
-      setDocuments(documents.filter(d => d.id !== document.id))
+
+      // Reload documents to update all counts (pending, approved, rejected)
+      await loadDocuments()
       toast({ title: 'Success', description: 'Document approved' })
       setConfirmModal({ ...confirmModal, open: false })
     } catch (error) {
@@ -142,8 +143,9 @@ export default function DocumentReviewPage() {
     try {
       setActionLoading(true)
       await apiService.verifyDocument(document.id, 'rejected', reason)
-      
-      setDocuments(documents.filter(d => d.id !== document.id))
+
+      // Reload documents to update all counts (pending, approved, rejected)
+      await loadDocuments()
       toast({ title: 'Success', description: 'Document rejected' })
       setConfirmModal({ ...confirmModal, open: false })
       setRejectionReason('')
