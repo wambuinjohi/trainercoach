@@ -98,6 +98,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     lng: 36.8219, // Default to Nairobi, Kenya
     label: ''
   })
+  const [hadExistingCoordinates, setHadExistingCoordinates] = useState(false)
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
   const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
@@ -162,6 +163,10 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                   lng: coords.lng || 36.8219,
                   label: cachedData.area_of_residence || ''
                 })
+                // Mark that existing coordinates were found in cache
+                if (coords.lat && coords.lng && cachedData.area_of_residence) {
+                  setHadExistingCoordinates(true)
+                }
               } catch (e) {
                 console.warn('Could not parse cached area_coordinates:', e)
               }
@@ -224,6 +229,10 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 lng: coords.lng || 36.8219,
                 label: profileData.area_of_residence || ''
               })
+              // Mark that existing coordinates were found
+              if (coords.lat && coords.lng && profileData.area_of_residence) {
+                setHadExistingCoordinates(true)
+              }
             } catch (e) {
               console.warn('Could not parse area_coordinates:', e)
             }
@@ -414,16 +423,17 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
-      // Validate residence location (GPS) - required
-      if (!areaLocation.label || areaLocation.label.trim() === '') {
-        toast({ title: 'Location required', description: 'Please select your residence location (GPS coordinates).', variant: 'destructive' })
-        setLoading(false)
-        return
-      }
+      // Validate residence location (GPS)
+      // Allow save if:
+      // 1. New coordinates were set with a label, OR
+      // 2. Existing coordinates are being preserved (hadExistingCoordinates = true)
+      const hasNewCoordinates = areaLocation.label && areaLocation.label.trim() !== '' &&
+        !(areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219)
+      const isPreservingExistingCoordinates = hadExistingCoordinates &&
+        areaLocation.lat && areaLocation.lng && areaLocation.label
 
-      // Validate that location coordinates are valid (not default values)
-      if (areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219 && !areaLocation.label) {
-        toast({ title: 'Location required', description: 'Please set your residence location on the map.', variant: 'destructive' })
+      if (!hasNewCoordinates && !isPreservingExistingCoordinates) {
+        toast({ title: 'Location required', description: 'Please select your residence location (GPS coordinates).', variant: 'destructive' })
         setLoading(false)
         return
       }
