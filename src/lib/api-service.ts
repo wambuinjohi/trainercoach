@@ -714,16 +714,17 @@ export async function uploadProfileImage(trainerId: string, file: File, onProgre
         console.log('[uploadProfileImage] Response:', response)
         if (xhr.status >= 200 && xhr.status < 300) {
           // Transform file_upload response to match expected format
-          // file_upload returns: { uploaded: [{ url: '...' }], errors: [...] }
-          // We need to return: { file_url: '...' }
-          if (response.uploaded && response.uploaded.length > 0) {
+          // Backend wraps response in data: { status, message, data: { uploaded: [{ url: '...' }], errors: [...] } }
+          const uploadData = response.data || response
+
+          if (uploadData.uploaded && uploadData.uploaded.length > 0) {
             resolve({
-              file_url: response.uploaded[0].url
+              file_url: uploadData.uploaded[0].url
             })
-          } else if (response.errors && response.errors.length > 0) {
+          } else if (uploadData.errors && uploadData.errors.length > 0) {
             // Backend rejected the file - provide specific error message
-            console.error('[uploadProfileImage] Backend errors:', response.errors)
-            reject(new Error(response.errors[0]))
+            console.error('[uploadProfileImage] Backend errors:', uploadData.errors)
+            reject(new Error(uploadData.errors[0]))
           } else {
             reject(new Error('No file URL in upload response'))
           }
