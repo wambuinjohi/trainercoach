@@ -8,7 +8,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { useGeolocation } from '@/hooks/use-geolocation'
-import { MapPin } from 'lucide-react'
+import { MapPin, Upload } from 'lucide-react'
 import { reverseGeocode } from '@/lib/location'
 
 export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -18,6 +18,8 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<any>({})
   const [updatingLocation, setUpdatingLocation] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -60,6 +62,41 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
     }
     loadProfile()
   }, [userId])
+
+  const handleImageUpload = async (file: File) => {
+    if (!userId) return
+    setUploadingImage(true)
+    try {
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Upload file
+      const response = await apiService.uploadClientProfileImage(userId, file)
+      if (response.image_url) {
+        setProfile(prev => ({
+          ...prev,
+          profile_image: response.image_url
+        }))
+        toast({
+          title: 'Image uploaded',
+          description: 'Profile picture uploaded successfully'
+        })
+      }
+    } catch (err) {
+      console.error('Failed to upload image', err)
+      toast({
+        title: 'Error',
+        description: 'Failed to upload image. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   const updateLocationFromGPS = async () => {
     setUpdatingLocation(true)
@@ -188,27 +225,26 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
               </div>
               <div>
                 <Label>Profile Picture</Label>
-                {profile.profile_image && (
+                {(imagePreview || profile.profile_image) && (
                   <div className="mb-3 flex justify-center">
-                    <img src={profile.profile_image} alt="Profile preview" className="h-32 w-32 rounded-lg object-cover border border-border" />
+                    <img src={imagePreview || profile.profile_image} alt="Profile preview" className="h-32 w-32 rounded-lg object-cover border border-border" />
                   </div>
                 )}
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (event) => {
-                        const dataUrl = event.target?.result as string
-                        setProfile({ ...profile, profile_image: dataUrl })
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        handleImageUpload(file)
                       }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="bg-input border-border"
-                />
+                    }}
+                    disabled={uploadingImage}
+                    className="bg-input border-border"
+                  />
+                  {uploadingImage && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>
