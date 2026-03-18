@@ -234,6 +234,7 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
                   <Input
                     type="file"
                     accept="image/*"
+                    capture="user"
                     onChange={(e) => {
                       const file = e.target.files?.[0]
                       if (file) {
