@@ -425,17 +425,22 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
 
       // Validate residence location (GPS)
       // Allow save if:
-      // 1. New coordinates were set with a label, OR
-      // 2. Existing coordinates are being preserved (hadExistingCoordinates = true)
-      const hasNewCoordinates = areaLocation.label && areaLocation.label.trim() !== '' &&
-        !(areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219)
-      const isPreservingExistingCoordinates = hadExistingCoordinates &&
-        areaLocation.lat && areaLocation.lng && areaLocation.label
+      // 1. Coordinates exist (are not the default Nairobi values)
+      // 2. Either coordinates were just set (with a label) OR existing coordinates are being preserved
+      const isDefaultLocation = areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219
+      const hasValidCoordinates = areaLocation.lat && areaLocation.lng && !isDefaultLocation
 
-      if (!hasNewCoordinates && !isPreservingExistingCoordinates) {
+      // If coordinates haven't been set at all (still at default), require the trainer to set them
+      if (!hasValidCoordinates && !hadExistingCoordinates) {
         toast({ title: 'Location required', description: 'Please select your residence location (GPS coordinates).', variant: 'destructive' })
         setLoading(false)
         return
+      }
+
+      // If we have existing coordinates and nothing was changed, allow proceeding with existing coordinates
+      if (!hasValidCoordinates && hadExistingCoordinates) {
+        // Keep using the existing coordinates that were loaded - no error needed
+        console.log('[Profile Save] Preserving existing coordinates:', areaLocation)
       }
 
       // Validate discipline certificate or sponsor - must have at least one
