@@ -126,7 +126,6 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
         full_name: profile.full_name || null,
         phone_number: profile.phone_number || null,
         profile_image: profile.profile_image || null,
-        bio: profile.bio || null,
         area_of_residence: (profile.location || profile.location_label || profile.area_of_residence || '') || null,
         area_coordinates: areaCoordinates,
         location_lat: profile.location_lat || null,
@@ -188,12 +187,28 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
                 </p>
               </div>
               <div>
-                <Label>Profile image URL</Label>
-                <Input value={profile.profile_image || ''} onChange={(e) => setProfile({ ...profile, profile_image: e.target.value })} />
-              </div>
-              <div>
-                <Label>Bio</Label>
-                <textarea className="w-full p-2 border border-border rounded-md bg-input" value={profile.bio || ''} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={4} />
+                <Label>Profile Picture</Label>
+                {profile.profile_image && (
+                  <div className="mb-3 flex justify-center">
+                    <img src={profile.profile_image} alt="Profile preview" className="h-32 w-32 rounded-lg object-cover border border-border" />
+                  </div>
+                )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string
+                        setProfile({ ...profile, profile_image: dataUrl })
+                      }
+                      reader.readAsDataURL(file)
+                    }
+                  }}
+                  className="bg-input border-border"
+                />
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>

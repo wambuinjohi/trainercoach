@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useGeolocation } from '@/hooks/use-geolocation'
+import { reverseGeocode } from '@/lib/location'
 import { Loader2, User, Dumbbell, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import AuthLogo from '@/components/auth/AuthLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -40,11 +41,27 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
   // Sync geolocation result to form data
   useEffect(() => {
     if (geoLocation?.lat != null && geoLocation?.lng != null) {
-      setFormData(prev => ({
-        ...prev,
-        locationLat: geoLocation.lat,
-        locationLng: geoLocation.lng,
-      }))
+      const syncLocation = async () => {
+        setFormData(prev => ({
+          ...prev,
+          locationLat: geoLocation.lat,
+          locationLng: geoLocation.lng,
+        }))
+
+        // Try to get human-readable location from coordinates
+        try {
+          const result = await reverseGeocode(geoLocation.lat, geoLocation.lng)
+          if (result?.label) {
+            setFormData(prev => ({
+              ...prev,
+              locationLabel: result.label || '',
+            }))
+          }
+        } catch (err) {
+          console.warn('Failed to reverse geocode location', err)
+        }
+      }
+      syncLocation()
     }
   }, [geoLocation])
 
