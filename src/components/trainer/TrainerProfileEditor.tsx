@@ -9,7 +9,7 @@ import { MediaUploadSection } from './MediaUploadSection'
 import { MapLocationSelector } from './MapLocationSelector'
 import { AvailabilitySelector } from './AvailabilitySelector'
 import { VerificationDocumentsForm } from './VerificationDocumentsForm'
-import { SponsorSelector } from './SponsorSelector'
+import { DisciplineAndSponsorSection } from './DisciplineAndSponsorSection'
 import { detectDeviceTimezone } from '@/lib/timezone'
 import * as apiService from '@/lib/api-service'
 import { apiRequest, withAuth } from '@/lib/api'
@@ -101,6 +101,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
   const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
+  const [hasDisciplineCertificate, setHasDisciplineCertificate] = useState(false)
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -383,6 +384,13 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
     }
     setLoading(true)
     try {
+      // Validate name - required
+      if (!name || name.trim() === '') {
+        toast({ title: 'Name required', description: 'Please enter your full name.', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
       // Validate categories
       if (selectedCategoryIds.length === 0) {
         toast({ title: 'Category required', description: 'Please select at least one service category.', variant: 'destructive' })
@@ -390,18 +398,43 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         return
       }
 
-      // Validate sponsor for sponsored trainers
-      if (registrationPath === 'sponsored' && !sponsorId) {
-        toast({ title: 'Sponsor required', description: 'Please select a sponsor trainer for your sponsored registration.', variant: 'destructive' })
+      // Validate hourly rate - required
+      const hourlyRateRaw = profile.hourly_rate == null ? '' : profile.hourly_rate
+      const hourlyRateNum = hourlyRateRaw === '' ? 0 : Number(hourlyRateRaw)
+      if (!Number.isFinite(hourlyRateNum) || hourlyRateNum <= 0) {
+        toast({ title: 'Invalid hourly rate', description: 'Please enter a valid hourly rate greater than 0.', variant: 'destructive' })
         setLoading(false)
         return
       }
 
-      // Hourly rate validation
-      const hourlyRateRaw = profile.hourly_rate == null ? '' : profile.hourly_rate
-      const hourlyRateNum = hourlyRateRaw === '' ? 0 : Number(hourlyRateRaw)
-      if (!Number.isFinite(hourlyRateNum) || hourlyRateNum < 0) {
-        toast({ title: 'Invalid hourly rate', description: 'Enter a non-negative number for hourly rate.', variant: 'destructive' })
+      // Validate M-Pesa number - required
+      if (!profile.mpesa_number || profile.mpesa_number.trim() === '') {
+        toast({ title: 'M-Pesa number required', description: 'Please enter your M-Pesa number.', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
+      // Validate residence location (GPS) - required
+      if (!areaLocation.label || areaLocation.label.trim() === '') {
+        toast({ title: 'Location required', description: 'Please select your residence location (GPS coordinates).', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
+      // Validate that location coordinates are valid (not default values)
+      if (areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219 && !areaLocation.label) {
+        toast({ title: 'Location required', description: 'Please set your residence location on the map.', variant: 'destructive' })
+        setLoading(false)
+        return
+      }
+
+      // Validate discipline certificate or sponsor - must have at least one
+      if (!hasDisciplineCertificate && !sponsorId) {
+        toast({
+          title: 'Discipline certificate or sponsor required',
+          description: 'Please either upload a discipline certificate or select a sponsor trainer.',
+          variant: 'destructive'
+        })
         setLoading(false)
         return
       }
@@ -578,7 +611,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         <CardContent>
           <div className="space-y-6">
             <div>
-              <Label htmlFor="name">Full name</Label>
+              <Label htmlFor="name">Full name <span className="text-red-600">*</span></Label>
               <Input
                 id="name"
                 value={name}
@@ -615,7 +648,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <Label htmlFor="hourly_rate">Default Hourly Rate</Label>
+              <Label htmlFor="hourly_rate">Default Hourly Rate <span className="text-red-600">*</span></Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Ksh</span>
                 <Input
@@ -644,7 +677,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
               <p className="text-xs text-muted-foreground mt-2">Auto-calculated from location</p>
             </div>
             <div>
-              <Label htmlFor="mpesa_number">M-Pesa Number</Label>
+              <Label htmlFor="mpesa_number">M-Pesa Number <span className="text-red-600">*</span></Label>
               <Input
                 id="mpesa_number"
                 value={profile.mpesa_number || ''}
@@ -652,7 +685,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                 placeholder="0712345678"
                 className="bg-input border-border"
               />
-              <p className="text-xs text-muted-foreground mt-2">For payouts</p>
+              <p className="text-xs text-muted-foreground mt-2">For payouts (required)</p>
             </div>
           </div>
         </CardContent>
@@ -661,7 +694,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       {/* SERVICE CATEGORIES SECTION */}
       <Card className="border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Service Categories</CardTitle>
+          <CardTitle className="text-lg">Service Categories <span className="text-red-600">*</span></CardTitle>
           <CardDescription className="text-xs">What you're certified and trained to teach (required)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -807,20 +840,37 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         {/* SERVICE LOCATION SECTION */}
         <Card className="border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Service Location</CardTitle>
-            <CardDescription className="text-xs">Where you offer services</CardDescription>
+            <CardTitle className="text-lg">Residence Location (GPS) <span className="text-red-600">*</span></CardTitle>
+            <CardDescription className="text-xs">Your GPS coordinates for service area and residence verification (required)</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <MapLocationSelector
               initialLocation={areaLocation}
               onChange={(location) => setAreaLocation(location)}
             />
+            {areaLocation.label && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs font-medium text-blue-900 mb-2">📍 Coordinates Set:</p>
+                <div className="space-y-1 text-xs text-blue-800">
+                  <p><strong>Location:</strong> {areaLocation.label}</p>
+                  <p><strong>Latitude:</strong> {areaLocation.lat.toFixed(6)}</p>
+                  <p><strong>Longitude:</strong> {areaLocation.lng.toFixed(6)}</p>
+                </div>
+              </div>
+            )}
+            {(!areaLocation.label || (areaLocation.lat === -1.2921 && areaLocation.lng === 36.8219)) && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs font-medium text-amber-900">⚠️ Please select a location on the map above</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* SPONSORSHIP SECTION */}
-      <SponsorSelector
+      {/* DISCIPLINE & SPONSORSHIP SECTION */}
+      <DisciplineAndSponsorSection
+        onDisciplineCertificateStatusChange={(hasApproved) => setHasDisciplineCertificate(hasApproved)}
+        registrationPath={registrationPath}
         currentSponsorId={sponsorId}
         currentSponsorName={sponsorName}
         onSponsorSelected={(id, name) => {
@@ -833,8 +883,6 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           setSponsorName(null)
           handleChange('sponsor_trainer_id', null)
         }}
-        required={registrationPath === 'sponsored'}
-        registrationPath={registrationPath}
       />
 
       {/* VERIFICATION DOCUMENTS SECTION */}

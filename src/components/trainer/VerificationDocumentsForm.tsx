@@ -30,21 +30,15 @@ const requiredDocuments: Document[] = [
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'GPS location confirmation of your address will be captured separately',
+    description: 'GPS location confirmation of your address will be captured from your profile location',
     status: 'pending'
   },
   {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
-    description: 'Must be uploaded within 90 days of issuance',
+    description: 'Optional: Must be valid and uploaded within 90 days of issuance',
     status: 'pending',
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    type: 'discipline_certificate',
-    label: 'Discipline Certificate',
-    description: 'Upload your professional discipline certificate or license',
-    status: 'pending'
   }
 ]
 
@@ -242,11 +236,15 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const handleSubmitForApproval = async () => {
     if (!userId) return
 
-    const allSubmitted = documents.every(d => d.status !== 'pending')
-    if (!allSubmitted) {
+    // Only proof_of_residence is truly required. Good conduct is optional.
+    const requiredDocsSubmitted = documents
+      .filter(d => d.type !== 'certificate_of_good_conduct') // Good conduct is optional
+      .every(d => d.status !== 'pending')
+
+    if (!requiredDocsSubmitted) {
       toast({
         title: 'Incomplete',
-        description: 'Please upload all required documents',
+        description: 'Please complete all required documents',
         variant: 'destructive'
       })
       return
@@ -254,7 +252,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
     setLoading(true)
     try {
-      // Check if documents are all submitted
+      // Check if required documents are submitted
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
       if (checkResponse?.data?.all_submitted) {
         toast({
@@ -263,7 +261,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        throw new Error('Not all documents have been submitted')
+        throw new Error('Not all required documents have been submitted')
       }
     } catch (error) {
       toast({
@@ -276,8 +274,14 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  const allApproved = documents.every(d => d.status === 'approved')
-  const allSubmitted = documents.every(d => d.status !== 'pending')
+  // All approved means proof_of_residence is approved (good conduct is optional)
+  const proofOfResidenceApproved = documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
+  const allApproved = proofOfResidenceApproved
+
+  // All submitted means only required documents submitted (good conduct optional)
+  const allSubmitted = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .every(d => d.status !== 'pending')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -313,12 +317,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         </CardContent>
       </Card>
 
-      {/* Other Documents */}
+      {/* Additional Documents */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Additional Trainer Documents
+            Residence & Conduct Documentation
             {registrationPath === 'sponsored' && (
               <Badge variant="outline" className="ml-2">
                 Sponsored Path
@@ -349,13 +353,16 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           {/* Progress Bar */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm font-semibold">Upload Progress</Label>
+              <Label className="text-sm font-semibold">Upload Progress (Required Documents)</Label>
               <span className="text-sm text-gray-600">
-                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
+                {documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length} of {documents.filter(d => d.type !== 'certificate_of_good_conduct').length}
               </span>
             </div>
             <Progress
-              value={(documents.filter(d => d.status !== 'pending').length / documents.length) * 100}
+              value={documents.filter(d => d.type !== 'certificate_of_good_conduct').length > 0
+                ? (documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length / documents.filter(d => d.type !== 'certificate_of_good_conduct').length) * 100
+                : 0
+              }
               className="h-2"
             />
           </div>
@@ -436,7 +443,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
                       <Clock className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
-                        Certificate must be valid within 90 days of issuance
+                        Optional: If uploaded, certificate must be valid within 90 days of issuance
                       </AlertDescription>
                     </Alert>
                   )}
