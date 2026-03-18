@@ -1,4 +1,5 @@
 import { apiRequest, withAuth } from './api'
+import { getApiBaseUrl } from './api-config'
 import { calculateDistance, filterTrainersByServiceRadius, sortTrainersByDistance, Coordinates, isValidCoordinates } from './location-utils'
 
 // ============================================================================
@@ -685,7 +686,7 @@ export async function uploadProfileImage(trainerId: string, file: File, onProgre
   formData.append('trainer_id', trainerId)
   formData.append('file', file)
 
-  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+  const apiBaseUrl = getApiBaseUrl()
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -744,7 +745,7 @@ export async function uploadVerificationDocument(trainerId: string, documentType
     })
   }
 
-  const apiBaseUrl = (typeof window !== 'undefined' && window.location.origin) + '/api.php'
+  const apiBaseUrl = getApiBaseUrl()
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
