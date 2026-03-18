@@ -682,9 +682,8 @@ export async function setTrainerAccountStatus(userId: string, status: string, to
 
 export async function uploadProfileImage(trainerId: string, file: File, onProgress?: (progress: number) => void) {
   const formData = new FormData()
-  formData.append('action', 'profile_image_upload')
-  formData.append('trainer_id', trainerId)
-  formData.append('file', file)
+  formData.append('action', 'file_upload')
+  formData.append('files[]', file)
 
   const apiBaseUrl = getApiBaseUrl()
 
@@ -705,7 +704,16 @@ export async function uploadProfileImage(trainerId: string, file: File, onProgre
       try {
         const response = JSON.parse(xhr.responseText)
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(response)
+          // Transform file_upload response to match expected format
+          // file_upload returns: { uploaded: [{ url: '...' }] }
+          // We need to return: { file_url: '...' }
+          if (response.uploaded && response.uploaded.length > 0) {
+            resolve({
+              file_url: response.uploaded[0].url
+            })
+          } else {
+            reject(new Error('No file URL in upload response'))
+          }
         } else {
           reject(new Error(response?.message || `Upload failed with status ${xhr.status}`))
         }
