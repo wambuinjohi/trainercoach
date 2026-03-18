@@ -495,6 +495,34 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         bio: profile.bio || null,
       }
 
+      // Upload profile image if a new one was selected
+      let profileImageUrl = profile.profile_image || null
+      if ((profile as any)._profile_image_file) {
+        try {
+          console.log('[Profile Save] Uploading profile image...')
+          const imageResponse = await apiService.uploadProfileImage(userId, (profile as any)._profile_image_file)
+          if (imageResponse?.file_url) {
+            profileImageUrl = imageResponse.file_url
+            console.log('[Profile Save] Profile image uploaded:', profileImageUrl)
+            toast({
+              title: 'Image uploaded',
+              description: 'Profile photo uploaded successfully.',
+            })
+          } else {
+            throw new Error('No image URL returned from upload')
+          }
+        } catch (imageErr) {
+          console.error('Profile image upload failed:', imageErr)
+          toast({
+            title: 'Image upload failed',
+            description: imageErr instanceof Error ? imageErr.message : 'Could not upload profile photo',
+            variant: 'destructive'
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       // Save to API
       try {
         const detectedTimezone = detectDeviceTimezone()
@@ -505,7 +533,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
           service_radius: serviceRadiusNum,
           availability: JSON.stringify(availabilityVal),
           timezone: detectedTimezone,
-          profile_image: profile.profile_image || null,
+          profile_image: profileImageUrl,
           bio: profile.bio || null,
           payout_details: payoutDetails ? JSON.stringify(payoutDetails) : null,
           area_of_residence: areaLocation.label || null,
@@ -520,7 +548,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
         }
         console.log('[Profile Save] ========== SAVING PROFILE ==========')
         console.log('[Profile Save] User ID:', userId)
-        console.log('[Profile Save] Profile image being saved:', profile.profile_image)
+        console.log('[Profile Save] Profile image being saved:', profileImageUrl)
         console.log('[Profile Save] Full payload:', updatePayload)
         const response = await apiService.updateUserProfile(userId, updatePayload)
         console.log('[Profile Save] API response:', response)
@@ -654,13 +682,28 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
                     onChange={(e) => {
                       const file = e.target.files?.[0]
                       if (file) {
+                        // Validate file size (max 5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast({
+                            title: 'File too large',
+                            description: 'Profile photo must be smaller than 5MB.',
+                            variant: 'destructive'
+                          })
+                          return
+                        }
+
+                        // Store file for uploading during save
+                        handleChange('_profile_image_file', file)
+
+                        // Show preview
                         const reader = new FileReader()
                         reader.onload = (event) => {
-                          const imageData = event.target?.result as string
-                          handleChange('profile_image', imageData)
+                          const preview = event.target?.result as string
+                          // Store preview temporarily for display
+                          handleChange('_profile_image_preview', preview)
                           toast({
                             title: 'Image selected',
-                            description: 'Your profile photo will be updated when you save.',
+                            description: 'Your profile photo will be uploaded when you save.',
                           })
                         }
                         reader.readAsDataURL(file)
