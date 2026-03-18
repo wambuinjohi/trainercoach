@@ -8,6 +8,7 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { useGeolocation } from '@/hooks/use-geolocation'
+import { useFileUpload } from '@/hooks/use-file-upload'
 import { MapPin } from 'lucide-react'
 import { reverseGeocode } from '@/lib/location'
 
@@ -18,6 +19,26 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<any>({})
   const [updatingLocation, setUpdatingLocation] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const { upload: uploadFiles, isLoading: uploadingImage } = useFileUpload({
+    maxFileSize: 5 * 1024 * 1024, // 5MB for profile images
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'gif'],
+    onSuccess: (files) => {
+      if (files.length > 0) {
+        setProfile(prev => ({
+          ...prev,
+          profile_image: files[0].url
+        }))
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Upload failed',
+        description: error,
+        variant: 'destructive'
+      })
+    }
+  })
 
   useEffect(() => {
     if (!userId) return
@@ -60,6 +81,18 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
     }
     loadProfile()
   }, [userId])
+
+  const handleImageUpload = async (file: File) => {
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Upload using the standard file upload hook
+    await uploadFiles([file])
+  }
 
   const updateLocationFromGPS = async () => {
     setUpdatingLocation(true)
@@ -126,7 +159,6 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
         full_name: profile.full_name || null,
         phone_number: profile.phone_number || null,
         profile_image: profile.profile_image || null,
-        bio: profile.bio || null,
         area_of_residence: (profile.location || profile.location_label || profile.area_of_residence || '') || null,
         area_coordinates: areaCoordinates,
         location_lat: profile.location_lat || null,
@@ -188,12 +220,28 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
                 </p>
               </div>
               <div>
-                <Label>Profile image URL</Label>
-                <Input value={profile.profile_image || ''} onChange={(e) => setProfile({ ...profile, profile_image: e.target.value })} />
-              </div>
-              <div>
-                <Label>Bio</Label>
-                <textarea className="w-full p-2 border border-border rounded-md bg-input" value={profile.bio || ''} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={4} />
+                <Label>Profile Picture</Label>
+                {(imagePreview || profile.profile_image) && (
+                  <div className="mb-3 flex justify-center">
+                    <img src={imagePreview || profile.profile_image} alt="Profile preview" className="h-32 w-32 rounded-lg object-cover border border-border" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        handleImageUpload(file)
+                      }
+                    }}
+                    disabled={uploadingImage}
+                    className="bg-input border-border"
+                  />
+                  {uploadingImage && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => onClose?.()} disabled={loading}>Cancel</Button>

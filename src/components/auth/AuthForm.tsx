@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useGeolocation } from '@/hooks/use-geolocation'
+import { reverseGeocode } from '@/lib/location'
 import { Loader2, User, Dumbbell, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import AuthLogo from '@/components/auth/AuthLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -40,11 +41,31 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
   // Sync geolocation result to form data
   useEffect(() => {
     if (geoLocation?.lat != null && geoLocation?.lng != null) {
-      setFormData(prev => ({
-        ...prev,
-        locationLat: geoLocation.lat,
-        locationLng: geoLocation.lng,
-      }))
+      const syncLocation = async () => {
+        setFormData(prev => ({
+          ...prev,
+          locationLat: geoLocation.lat,
+          locationLng: geoLocation.lng,
+        }))
+
+        // Try to get human-readable location from coordinates
+        try {
+          const result = await reverseGeocode(geoLocation.lat, geoLocation.lng)
+          if (result?.label) {
+            setFormData(prev => ({
+              ...prev,
+              locationLabel: result.label || '',
+            }))
+            toast({ title: 'Location captured', description: `Location set to ${result.label}` })
+          } else {
+            toast({ title: 'GPS coordinates captured', description: `You can now proceed with GPS coordinates (${geoLocation.lat.toFixed(4)}, ${geoLocation.lng.toFixed(4)})` })
+          }
+        } catch (err) {
+          console.warn('Failed to reverse geocode location', err)
+          toast({ title: 'GPS coordinates captured', description: `You can now proceed with GPS coordinates (${geoLocation.lat.toFixed(4)}, ${geoLocation.lng.toFixed(4)})` })
+        }
+      }
+      syncLocation()
     }
   }, [geoLocation])
 
@@ -84,7 +105,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
       toast({ title: 'PINs do not match', description: 'Please ensure your PINs match', variant: 'destructive' })
       return
     }
-    if (!formData.locationLabel.trim()) {
+    if (!formData.locationLabel.trim() && (formData.locationLat == null || formData.locationLng == null)) {
       toast({ title: 'Location required', description: 'Please enter your locality or use GPS', variant: 'destructive' })
       return
     }
