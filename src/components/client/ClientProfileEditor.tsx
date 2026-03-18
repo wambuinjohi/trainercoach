@@ -8,7 +8,8 @@ import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 import { useGeolocation } from '@/hooks/use-geolocation'
-import { MapPin, Upload } from 'lucide-react'
+import { useFileUpload } from '@/hooks/use-file-upload'
+import { MapPin } from 'lucide-react'
 import { reverseGeocode } from '@/lib/location'
 
 export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -18,8 +19,26 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<any>({})
   const [updatingLocation, setUpdatingLocation] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const { upload: uploadFiles, isLoading: uploadingImage } = useFileUpload({
+    maxFileSize: 5 * 1024 * 1024, // 5MB for profile images
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'gif'],
+    onSuccess: (files) => {
+      if (files.length > 0) {
+        setProfile(prev => ({
+          ...prev,
+          profile_image: files[0].url
+        }))
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Upload failed',
+        description: error,
+        variant: 'destructive'
+      })
+    }
+  })
 
   useEffect(() => {
     if (!userId) return
@@ -64,38 +83,15 @@ export const ClientProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClos
   }, [userId])
 
   const handleImageUpload = async (file: File) => {
-    if (!userId) return
-    setUploadingImage(true)
-    try {
-      // Create preview
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-
-      // Upload file
-      const response = await apiService.uploadClientProfileImage(userId, file)
-      if (response.image_url) {
-        setProfile(prev => ({
-          ...prev,
-          profile_image: response.image_url
-        }))
-        toast({
-          title: 'Image uploaded',
-          description: 'Profile picture uploaded successfully'
-        })
-      }
-    } catch (err) {
-      console.error('Failed to upload image', err)
-      toast({
-        title: 'Error',
-        description: 'Failed to upload image. Please try again.',
-        variant: 'destructive'
-      })
-    } finally {
-      setUploadingImage(false)
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string)
     }
+    reader.readAsDataURL(file)
+
+    // Upload using the standard file upload hook
+    await uploadFiles([file])
   }
 
   const updateLocationFromGPS = async () => {
