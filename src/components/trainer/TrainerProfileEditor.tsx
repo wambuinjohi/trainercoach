@@ -616,10 +616,59 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Basic Information</CardTitle>
-          <CardDescription className="text-xs">Your name and profile bio</CardDescription>
+          <CardDescription className="text-xs">Your name, profile photo, and bio</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {/* Profile Image */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Profile Photo</Label>
+              <div className="flex gap-4 items-start">
+                {/* Image Preview */}
+                <div className="flex-shrink-0">
+                  {profile.profile_image ? (
+                    <div className="relative">
+                      <img
+                        src={profile.profile_image}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-lg object-cover border-2 border-border"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-lg bg-muted border-2 border-border flex items-center justify-center">
+                      <span className="text-xs text-muted-foreground">No photo</span>
+                    </div>
+                  )}
+                </div>
+                {/* Upload Input */}
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    id="profile-image"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          const imageData = event.target?.result as string
+                          handleChange('profile_image', imageData)
+                          toast({
+                            title: 'Image selected',
+                            description: 'Your profile photo will be updated when you save.',
+                          })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                    disabled={loading}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">JPG, PNG, GIF or WebP (max 5MB)</p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="name">Full name <span className="text-red-600">*</span></Label>
               <Input
