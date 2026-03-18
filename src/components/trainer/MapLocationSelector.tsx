@@ -217,7 +217,7 @@ export const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({ initia
               type="button"
               variant="outline"
               onClick={getCurrentLocation}
-              disabled={loading || !areaLabel.trim()}
+              disabled={loading}
               className="flex-1"
             >
               {loading ? (
