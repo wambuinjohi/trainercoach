@@ -34,7 +34,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col md:flex-row h-screen bg-background">
       <AdminSidebar 
         value={currentPage} 
         onChange={(page) => {
