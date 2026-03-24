@@ -21,11 +21,15 @@ export const TrainerSignupWithProfileModal: React.FC<TrainerSignupWithProfileMod
     const trainerStep2 = localStorage.getItem('trainer_signup_step2') === 'true'
     const clientStep2 = localStorage.getItem('client_signup_step2') === 'true'
 
+    console.log('TrainerSignupWithProfileModal useEffect:', { userType, trainerStep2, clientStep2 })
+
     if (trainerStep2 && userType === 'trainer') {
       // Redirect trainer to step 2 onboarding page
+      console.log('Redirecting trainer to /signup-step2')
       window.location.href = '/signup-step2'
     } else if (clientStep2 && userType === 'client') {
       // Redirect client to step 2 profile upload page
+      console.log('Redirecting client to /signup-client-step2')
       window.location.href = '/signup-client-step2'
     }
   }, [userType])

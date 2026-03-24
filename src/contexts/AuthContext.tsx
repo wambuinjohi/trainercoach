@@ -353,14 +353,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Flag for step 2 onboarding
         if (userTypeParam === 'trainer') {
           localStorage.setItem('trainer_signup_step2', 'true');
+          console.log('Set trainer_signup_step2 flag to true');
         } else if (userTypeParam === 'client') {
           localStorage.setItem('client_signup_step2', 'true');
+          console.log('Set client_signup_step2 flag to true');
         }
 
         // Store detected timezone
         const timezone = detectDeviceTimezone();
         setStoredTimezone(timezone);
 
+        console.log('Signup completed successfully for userType:', userTypeParam);
         return;
       } catch (error) {
         if (attempt === maxRetries) {

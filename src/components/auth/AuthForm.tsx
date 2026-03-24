@@ -113,6 +113,8 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     setIsLoading(true)
     try {
       const sanitizedPhone = sanitizePhone(formData.phone)
+      console.log('Starting signup for:', { email: formData.email, userType: formData.userType })
+
       await signUp(formData.email.trim().toLowerCase(), formData.password, formData.userType, {
         full_name: formData.fullName.trim(),
         phone_number: sanitizedPhone,
@@ -122,9 +124,16 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_lng: formData.locationLng ?? undefined,
       })
 
+      console.log('Signup successful, calling onSuccess callback')
       onSuccess?.(formData.userType)
     } catch (error) {
       console.error('Sign up error:', error)
+      setError(error instanceof Error ? error.message : 'Sign up failed. Please try again.')
+      toast({
+        title: 'Sign up failed',
+        description: error instanceof Error ? error.message : 'Please check your details and try again.',
+        variant: 'destructive'
+      })
     } finally {
       setIsLoading(false)
     }
