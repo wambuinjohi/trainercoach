@@ -76,6 +76,17 @@ export const TrainerDashboard: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
+  // Check for step 2 onboarding flag and redirect if needed
+  useEffect(() => {
+    const hasStep2Flag = localStorage.getItem('trainer_signup_step2') === 'true'
+    console.log('[TrainerDashboard] Check step 2 flag:', hasStep2Flag)
+
+    if (hasStep2Flag && userType === 'trainer') {
+      console.log('[TrainerDashboard] Redirecting to signup-step2')
+      window.location.href = '/signup-step2'
+    }
+  }, [userType])
+
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
   const openPromote = () => {
