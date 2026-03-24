@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { apiRequest, withAuth } from '@/lib/api'
+import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface SessionStartConfirmModalProps {
@@ -44,19 +45,13 @@ export const SessionStartConfirmModal: React.FC<SessionStartConfirmModalProps> =
 
     setLoading(true)
     try {
-      await apiRequest(
-        'update',
-        {
-          table: 'bookings',
-          data: {
-            client_confirmed_start: true,
-            trainer_marked_start: false,
-            session_start_confirmed_at: new Date().toISOString(),
-          },
-          where: `id = '${booking.id}'`,
-        },
-        { headers: withAuth() }
-      )
+      await apiService.updateBooking(booking.id, {
+        status: 'in_session',
+        session_phase: 'session_active',
+        client_confirmed_start: true,
+        trainer_marked_start: false,
+        session_start_confirmed_at: new Date().toISOString(),
+      })
 
       if (timeoutId) clearTimeout(timeoutId)
 

@@ -19,6 +19,7 @@ import {
 const BOOKING_STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   in_session: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  awaiting_completion: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
   completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 }
@@ -124,7 +125,10 @@ export default function BookingsPage() {
     })
   }
 
-  const getStatusBadgeColor = (status: string) => {
+  const getStatusBadgeColor = (status: string, sessionPhase?: string) => {
+    if (status === 'in_session' && sessionPhase === 'awaiting_completion') {
+      return BOOKING_STATUS_COLORS.awaiting_completion
+    }
     return BOOKING_STATUS_COLORS[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 
@@ -197,8 +201,10 @@ export default function BookingsPage() {
                       <td className="p-2 text-sm">{formatDate(booking.session_date)}</td>
                       <td className="p-2 text-sm font-semibold">{formatCurrency(booking.amount || booking.total_amount || 0)}</td>
                       <td className="p-2">
-                        <Badge className={getStatusBadgeColor(booking.status)}>
-                          {booking.status?.replace('_', ' ') || 'unknown'}
+                        <Badge className={getStatusBadgeColor(booking.status, booking.session_phase)}>
+                          {booking.status === 'in_session' && booking.session_phase === 'awaiting_completion'
+                            ? 'awaiting completion'
+                            : booking.status?.replace('_', ' ') || 'unknown'}
                         </Badge>
                       </td>
                       <td className="p-2 text-sm">{formatDate(booking.created_at)}</td>

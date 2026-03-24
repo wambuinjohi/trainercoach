@@ -200,7 +200,7 @@ export const ClientDashboard: React.FC = () => {
 
         // Check for pending session end confirmation (status = 'ending' or similar)
         const sessionPending = bookingsData.data.find((b: any) =>
-          b.status === 'ending' || b.status === 'in_session' && b.trainer_marked_end
+          b.status === 'in_session' && (b.session_phase === 'awaiting_completion' || b.trainer_marked_end)
         )
 
         if (sessionPending) {
@@ -835,7 +835,8 @@ export const ClientDashboard: React.FC = () => {
     const groupedByStatus = {
       pending: sortedBookings.filter(b => b.status === 'pending'),
       confirmed: sortedBookings.filter(b => b.status === 'confirmed'),
-      in_session: sortedBookings.filter(b => b.status === 'in_session'),
+      in_session: sortedBookings.filter(b => b.status === 'in_session' && b.session_phase !== 'awaiting_completion'),
+      awaiting_completion: sortedBookings.filter(b => b.status === 'in_session' && b.session_phase === 'awaiting_completion'),
       completed: sortedBookings.filter(b => b.status === 'completed'),
       cancelled: sortedBookings.filter(b => b.status === 'cancelled'),
     }
@@ -855,7 +856,9 @@ export const ClientDashboard: React.FC = () => {
               booking.status === 'cancelled' ? 'destructive' :
               'secondary'
             }>
-              {booking.status?.replace('_', ' ').charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ') || 'Pending'}
+              {booking.status === 'in_session' && booking.session_phase === 'awaiting_completion'
+                ? 'Awaiting completion'
+                : booking.status?.replace('_', ' ').charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ') || 'Pending'}
             </Badge>
           </div>
 
@@ -956,6 +959,16 @@ export const ClientDashboard: React.FC = () => {
                   In Session
                 </h2>
                 {groupedByStatus.in_session.map(b => renderBookingCard(b, false))}
+              </div>
+            )}
+
+            {groupedByStatus.awaiting_completion.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  Awaiting Completion
+                </h2>
+                {groupedByStatus.awaiting_completion.map(b => renderBookingCard(b, false))}
               </div>
             )}
 

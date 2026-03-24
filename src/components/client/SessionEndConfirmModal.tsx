@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { apiRequest, withAuth } from '@/lib/api'
+import * as apiService from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface SessionEndConfirmModalProps {
@@ -59,26 +60,63 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
     }
   }, [])
 
+  const settleCompletion = async (autoCompleted: boolean) => {
+    try {
+      const trainerProfile = await apiRequest('profile_get', { user_id: booking.trainer_id }, { headers: withAuth() })
+      const trainerData = trainerProfile?.data || trainerProfile || {}
+      const payoutDetails = typeof trainerData.payout_details === 'string'
+        ? JSON.parse(trainerData.payout_details)
+        : (trainerData.payout_details || {})
+      const trainerMpesaNumber = payoutDetails.mpesa_number || trainerData.mpesa_number || trainerData.phone_number || trainerData.phone
+      const trainerNetAmount = Number(booking.trainer_net_amount || booking.total_amount || 0)
+
+      if (trainerMpesaNumber && trainerNetAmount > 0) {
+        await apiService.initiateTrainerPayout({
+          booking_id: booking.id,
+          trainer_id: booking.trainer_id,
+          trainer_mpesa_number: trainerMpesaNumber,
+          amount: trainerNetAmount,
+          reason: autoCompleted ? 'session_auto_completed' : 'session_completion',
+        })
+      }
+
+      await apiRequest('notifications_insert', {
+        notifications: [{
+          user_id: booking.trainer_id,
+          booking_id: booking.id,
+          title: autoCompleted ? 'Session auto-completed' : 'Session completed',
+          body: autoCompleted
+            ? 'The session was automatically completed after no response from the client.'
+            : 'The client confirmed the session is complete.',
+          action_type: 'complete_session',
+          type: 'session',
+          created_at: new Date().toISOString(),
+          read: false,
+        }]
+      }, { headers: withAuth() })
+    } catch (err) {
+      console.warn('Completion side effects failed', err)
+    }
+  }
+
   const handleAutoComplete = async () => {
     if (!user || !booking?.id) return
-    
+
     try {
-      await apiRequest(
-        'booking_update',
-        {
-          booking_id: booking.id,
-          status: 'completed',
-          auto_completed: true,
-          completed_at: new Date().toISOString(),
-        },
-        { headers: withAuth() }
-      )
-      
+      await apiService.updateBooking(booking.id, {
+        status: 'completed',
+        session_phase: 'completed',
+        auto_completed: true,
+        completed_at: new Date().toISOString(),
+      })
+
+      await settleCompletion(true)
+
       toast({
         title: 'Session Auto-Completed',
         description: 'Session has been automatically marked as completed after no response.',
       })
-      
+
       onDismiss?.()
     } catch (err) {
       console.error('Auto-complete error:', err)
@@ -95,24 +133,22 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
     
     setLoading(true)
     try {
-      await apiRequest(
-        'booking_update',
-        {
-          booking_id: booking.id,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        },
-        { headers: withAuth() }
-      )
-      
+      await apiService.updateBooking(booking.id, {
+        status: 'completed',
+        session_phase: 'completed',
+        completed_at: new Date().toISOString(),
+      })
+
+      await settleCompletion(false)
+
       if (timeoutId) clearTimeout(timeoutId)
       if (autoCompleteTimeout) clearTimeout(autoCompleteTimeout)
-      
+
       toast({
         title: 'Session Confirmed',
         description: 'Your session has been marked as complete.',
       })
-      
+
       onConfirm?.()
       onDismiss?.()
     } catch (err: any) {

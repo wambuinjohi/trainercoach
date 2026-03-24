@@ -87,14 +87,56 @@ export const TrainerDashboard: React.FC = () => {
     window.location.href = '/'
   }
 
-  const acceptBooking = (id: string) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed' } : b))
-    toast({ title: 'Booking accepted', description: 'You accepted the booking.' })
+  const acceptBooking = async (id: string) => {
+    const booking = bookings.find(b => b.id === id)
+    if (!booking) return
+
+    try {
+      await apiService.updateBooking(id, { status: 'confirmed', session_phase: 'waiting_start' })
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed', session_phase: 'waiting_start' } : b))
+      await apiRequest('notifications_insert', {
+        notifications: [{
+          user_id: booking.client_id,
+          booking_id: id,
+          title: 'Booking confirmed',
+          body: `${profileData.name} confirmed your booking. You can keep coordinating in-app for safety and complaint follow-up.`,
+          action_type: 'view_booking',
+          type: 'booking',
+          created_at: new Date().toISOString(),
+          read: false,
+        }]
+      }, { headers: withAuth() })
+      toast({ title: 'Booking accepted', description: 'You accepted the booking.' })
+    } catch (err) {
+      console.error('Accept booking failed', err)
+      toast({ title: 'Error', description: 'Failed to accept booking', variant: 'destructive' })
+    }
   }
 
-  const declineBooking = (id: string) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b))
-    toast({ title: 'Booking declined', description: 'You declined the booking.', variant: 'destructive' })
+  const declineBooking = async (id: string) => {
+    const booking = bookings.find(b => b.id === id)
+    if (!booking) return
+
+    try {
+      await apiService.updateBooking(id, { status: 'cancelled' })
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b))
+      await apiRequest('notifications_insert', {
+        notifications: [{
+          user_id: booking.client_id,
+          booking_id: id,
+          title: 'Booking declined',
+          body: `${profileData.name} could not take this booking. Please search for another trainer.`,
+          action_type: 'view_booking',
+          type: 'booking',
+          created_at: new Date().toISOString(),
+          read: false,
+        }]
+      }, { headers: withAuth() })
+      toast({ title: 'Booking declined', description: 'You declined the booking.', variant: 'destructive' })
+    } catch (err) {
+      console.error('Decline booking failed', err)
+      toast({ title: 'Error', description: 'Failed to decline booking', variant: 'destructive' })
+    }
   }
 
   const isBookingArchived = (booking: any) => {
@@ -109,76 +151,76 @@ export const TrainerDashboard: React.FC = () => {
     const booking = bookings.find(b => b.id === id)
     if (!booking) return
 
-    let newStatus = ''
-    if (booking.status === 'confirmed') {
-      newStatus = 'in_session'
-    } else if (booking.status === 'in_session') {
-      newStatus = 'completed'
-    } else {
-      return
-    }
+    const isAwaitingCompletion = booking.status === 'in_session' && booking.session_phase === 'awaiting_completion'
 
     try {
-      // Persist to database
-      await apiService.updateBooking(id, {
-        status: newStatus,
-        ...(newStatus === 'in_session' && { trainer_marked_start: true, in_session_at: new Date().toISOString() }),
-        ...(newStatus === 'completed' && { completed_at: new Date().toISOString() })
-      })
+      if (booking.status === 'confirmed') {
+        await apiService.updateBooking(id, {
+          status: 'in_session',
+          session_phase: 'session_active',
+          trainer_marked_start: true,
+          trainer_marked_end: false,
+          started_at: new Date().toISOString(),
+        })
 
-      // Update local state
-      setBookings(prev => prev.map(b => {
-        if (b.id !== id) return b
-        return { ...b, status: newStatus }
-      }))
+        setBookings(prev => prev.map(b => (
+          b.id === id
+            ? { ...b, status: 'in_session', session_phase: 'session_active', trainer_marked_start: true, trainer_marked_end: false }
+            : b
+        )))
 
-      // Send notification to client if session completed
-      if (newStatus === 'completed') {
-        try {
-          const nowIso = new Date().toISOString()
-          const notifRows: any[] = [
-            {
-              user_id: booking.client_id,
-              booking_id: id,
-              title: 'Session Complete',
-              body: `Your session with ${profileData.name} has ended. Please rate your experience!`,
-              action_type: 'rate',
-              type: 'success',
-              created_at: nowIso,
-              read: false
-            }
-          ]
-          await apiRequest('notifications_insert', { notifications: notifRows }, { headers: withAuth() })
-        } catch (err) {
-          console.warn('Failed to send completion notification', err)
-        }
+        await apiRequest('notifications_insert', {
+          notifications: [{
+            user_id: booking.client_id,
+            booking_id: id,
+            title: 'Session starting',
+            body: `${profileData.name} marked the session as started. Please confirm from your app when you are ready.`,
+            action_type: 'start_session',
+            type: 'session',
+            created_at: new Date().toISOString(),
+            read: false,
+          }]
+        }, { headers: withAuth() })
 
-        // Initiate automatic payout to trainer's MPESA account
-        try {
-          const payoutDetails = typeof profileData.payout_details === 'string'
-            ? JSON.parse(profileData.payout_details)
-            : (profileData.payout_details || {})
-
-          const trainerMpesaNumber = payoutDetails.mpesa_number || profileData.phone
-          const trainerNetAmount = booking.trainer_net_amount || 0
-
-          if (trainerMpesaNumber && trainerNetAmount > 0) {
-            await apiService.initiateTrainerPayout({
-              booking_id: id,
-              trainer_id: user?.id || '',
-              trainer_mpesa_number: trainerMpesaNumber,
-              amount: trainerNetAmount,
-              reason: 'session_completion'
-            })
-          }
-        } catch (err) {
-          console.warn('Failed to initiate automatic payout', err)
-          // Don't fail the session completion if payout fails - it can be retried
-        }
+        toast({ title: 'Session started', description: 'The client has been notified.' })
+        return
       }
 
-      const msg = newStatus === 'in_session' ? 'Session started' : 'Session completed'
-      toast({ title: 'Success', description: msg })
+      if (booking.status === 'in_session' && !isAwaitingCompletion) {
+        await apiService.updateBooking(id, {
+          status: 'in_session',
+          session_phase: 'awaiting_completion',
+          trainer_marked_end: true,
+          ended_at: new Date().toISOString(),
+        })
+
+        setBookings(prev => prev.map(b => (
+          b.id === id
+            ? { ...b, status: 'in_session', session_phase: 'awaiting_completion', trainer_marked_end: true }
+            : b
+        )))
+
+        await apiRequest('notifications_insert', {
+          notifications: [{
+            user_id: booking.client_id,
+            booking_id: id,
+            title: 'Session ended by trainer',
+            body: `${profileData.name} marked the session as ended. Please confirm completion in your app.`,
+            action_type: 'complete_session',
+            type: 'session',
+            created_at: new Date().toISOString(),
+            read: false,
+          }]
+        }, { headers: withAuth() })
+
+        toast({ title: 'Session ended', description: 'Waiting for client confirmation.' })
+        return
+      }
+
+      if (isAwaitingCompletion) {
+        toast({ title: 'Waiting on client', description: 'The client still needs to confirm session completion.' })
+        return
+      }
     } catch (err) {
       console.error('Failed to update booking', err)
       toast({ title: 'Error', description: 'Failed to update session status', variant: 'destructive' })
@@ -594,7 +636,9 @@ export const TrainerDashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            <Badge variant={b.status === 'confirmed' ? 'default' : 'secondary'}>{b.status || 'pending'}</Badge>
+            <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'in_session' ? 'secondary' : 'secondary'}>
+              {b.status === 'in_session' && b.session_phase === 'awaiting_completion' ? 'Awaiting completion' : b.status || 'pending'}
+            </Badge>
           </div>
           <div className={`text-sm mt-2 ${isArchived ? 'text-muted-foreground line-through' : 'text-muted-foreground'}`}>
             {b.session_date || 'TBD'} at {b.session_time || ''}
@@ -604,7 +648,9 @@ export const TrainerDashboard: React.FC = () => {
               <Button size="sm" onClick={() => openChat(b)}>Chat</Button>
               {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => acceptBooking(b.id)}>Accept</Button>}
               {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => declineBooking(b.id)}>Decline</Button>}
-              {(b.status === 'confirmed' || b.status === 'in_session') && <Button size="sm" onClick={() => startSession(b.id)}>Start/End</Button>}
+              {b.status === 'confirmed' && <Button size="sm" onClick={() => startSession(b.id)}>Start Session</Button>}
+              {b.status === 'in_session' && b.session_phase !== 'awaiting_completion' && <Button size="sm" onClick={() => startSession(b.id)}>End Session</Button>}
+              {b.status === 'in_session' && b.session_phase === 'awaiting_completion' && <Button size="sm" variant="secondary" onClick={() => startSession(b.id)}>Awaiting Client</Button>}
             </div>
           )}
         </CardContent>
