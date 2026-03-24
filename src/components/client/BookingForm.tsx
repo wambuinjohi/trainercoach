@@ -171,6 +171,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       duration_hours: 1,
       total_sessions: sessions,
       status: 'pending',
+      session_phase: 'waiting_start',
       base_service_amount: baseServiceAmount,
       notes,
       client_location_label: (clientLocation.label || null),
@@ -203,12 +204,30 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         const trainerUserId = trainer.id
         const nowIso = new Date().toISOString()
         const notifRows: any[] = [
-          { user_id: user.id, title: 'Booking submitted', body: `Your booking with trainer has been created for ${date} ${time}.`, created_at: nowIso, read: false },
-          { user_id: trainerUserId, title: 'New booking request', body: `A client requested ${date} ${time}.`, created_at: nowIso, read: false },
+          {
+            user_id: user.id,
+            booking_id: bookingData?.id || null,
+            title: 'Booking submitted',
+            body: `Your session request for ${date} at ${time} has been created. Use in-app chat for safe communication and complaint follow-up.`,
+            action_type: 'view_booking',
+            type: 'booking',
+            created_at: nowIso,
+            read: false,
+          },
+          {
+            user_id: trainerUserId,
+            booking_id: bookingData?.id || null,
+            title: 'New booking request',
+            body: `A client requested ${date} at ${time}. Please review the booking and continue the conversation in-app if needed.`,
+            action_type: 'view_booking',
+            type: 'booking',
+            created_at: nowIso,
+            read: false,
+          },
         ]
         try {
           const admins = await apiRequest('profiles_get_by_type', { user_type: 'admin' }, { headers: withAuth() })
-          for (const a of (admins || [])) notifRows.push({ user_id: a.user_id, title: 'New booking', body: `Booking from ${user.email || user.id} to trainer ${trainer.name || trainer.id}.`, created_at: nowIso, read: false })
+          for (const a of (admins || [])) notifRows.push({ user_id: a.user_id, booking_id: bookingData?.id || null, title: 'New booking', body: `Booking from ${user.email || user.id} to trainer ${trainer.name || trainer.id}.`, action_type: 'view_booking', type: 'booking', created_at: nowIso, read: false })
         } catch {}
         if (notifRows.length) await apiRequest('notifications_insert', { notifications: notifRows }, { headers: withAuth() })
       } catch (err) {
@@ -291,7 +310,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         if (!success) {
           // mark failed
           try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
-          try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'pending' }, { headers: withAuth() }) } catch {}
+          try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'pending', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
           toast({ title: 'Payment not completed', description: 'You can retry from your dashboard', variant: 'destructive' })
           setLoading(false)
           return
@@ -299,7 +318,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
         paymentRecord = { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
         try { await apiRequest('payment_insert', paymentRecord, { headers: withAuth() }) } catch {}
-        try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed' }, { headers: withAuth() }) } catch {}
+        try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
       } else {
         // Mock immediate success
         paymentRecord = {
@@ -322,7 +341,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           console.warn('Payment insert exception', err)
         }
         if (bookingData?.id) {
-          try { await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed' }, { headers: withAuth() }) } catch {}
+          try { await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
         }
       }
 

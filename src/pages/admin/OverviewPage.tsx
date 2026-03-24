@@ -88,17 +88,17 @@ export default function OverviewPage() {
         const documents = Array.isArray(documentsData) ? documentsData : (documentsData?.data && Array.isArray(documentsData.data) ? documentsData.data : [])
 
         // Calculate stats
-        const approvedTrainers = users.filter((u: any) => u.user_type === 'trainer').length
+        const approvedTrainers = users.filter((u: any) => u.user_type === 'trainer' && (u.is_approved || u.account_status === 'approved')).length
         const totalUsers = users.length
         const totalClients = users.filter((u: any) => u.user_type === 'client').length
         const totalAdmins = users.filter((u: any) => u.user_type === 'admin').length
         const totalBookings = bookings.length
 
         // Calculate revenue
-        const totalRevenue = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
+        const totalRevenue = bookings.reduce((sum: number, b: any) => sum + ((b.status === 'completed' ? b.amount : 0) || 0), 0)
 
         // Count pending approvals
-        const pendingApprovals = users.filter((u: any) => u.approval_status === 'pending').length
+        const pendingApprovals = users.filter((u: any) => u.user_type === 'trainer' && (!u.is_approved || u.account_status === 'pending_approval')).length
 
         // Count pending documents
         const pendingDocuments = documents.filter((d: any) => d.status === 'pending').length

@@ -274,7 +274,17 @@ export interface SponsorCommission {
 // ============================================================================
 
 export type NotificationType = 'booking' | 'payment' | 'session' | 'document' | 'approval' | 'system'
-export type NotificationAction = 'view_booking' | 'confirm_payment' | 'start_session' | 'complete_session' | 'upload_documents' | 'review_application'
+export type NotificationAction =
+  | 'view_booking'
+  | 'confirm_payment'
+  | 'start_session'
+  | 'complete_session'
+  | 'upload_documents'
+  | 'review_application'
+  | 'review_trainer'
+  | 'review_app'
+  | 'confirm_next_session'
+  | 'report_issue'
 
 export interface Notification {
   id: string
