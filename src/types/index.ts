@@ -3,7 +3,33 @@
 // ============================================================================
 
 export type UserType = 'client' | 'trainer' | 'admin'
+
+/**
+ * AccountStatus tracks the approval lifecycle for trainer accounts
+ *
+ * State Transitions:
+ * registered → profile_incomplete (required after signup)
+ * profile_incomplete → pending_approval (once profile is minimally complete)
+ * pending_approval → approved (admin approves after document review) | rejected (admin rejects)
+ * approved → suspended (admin suspension for violations)
+ * suspended → approved (admin can reinstate)
+ *
+ * Client accounts are automatically 'approved' upon signup
+ */
 export type AccountStatus = 'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'
+
+/**
+ * TrainerApprovalPhase provides fine-grained sub-state during approval process
+ * Used to guide trainer through required steps
+ *
+ * profile_setup: Trainer has registered, setting up profile
+ * documents_pending: Profile done, waiting for trainer to upload documents
+ * documents_reviewing: Documents uploaded, admin is reviewing
+ * awaiting_approval: Documents approved, awaiting final admin approval
+ * approved: Trainer fully approved and active
+ */
+export type TrainerApprovalPhase = 'profile_setup' | 'documents_pending' | 'documents_reviewing' | 'awaiting_approval' | 'approved'
+
 export type RegistrationPath = 'direct' | 'sponsored'
 
 export interface User {
@@ -137,7 +163,34 @@ export interface DisciplineRecommendation {
 // BOOKING & SESSION TYPES
 // ============================================================================
 
+/**
+ * BookingStatus represents the overall lifecycle state of a booking
+ *
+ * State Transitions:
+ * pending → confirmed (trainer accepts) | cancelled (either party cancels)
+ * confirmed → in_session (system auto-transitions or manual)
+ * in_session → completed (trainer marks end)
+ * completed → (terminal state)
+ * cancelled, client_no_show → (terminal states)
+ *
+ * Actors:
+ * - 'pending': waiting for trainer response (trainer can accept/decline)
+ * - 'confirmed': ready for session (both parties have confirmed time)
+ * - 'in_session': session is active or awaiting confirmation
+ * - 'completed': session finished, both parties confirmed
+ * - 'cancelled': cancelled by client or trainer before start
+ * - 'client_no_show': trainer marked client didn't arrive
+ */
 export type BookingStatus = 'pending' | 'confirmed' | 'in_session' | 'completed' | 'cancelled' | 'client_no_show'
+
+/**
+ * BookingSessionPhase provides fine-grained sub-state during 'in_session' status
+ *
+ * waiting_start: Session time arrived, awaiting trainer confirmation to start
+ * session_active: Trainer has confirmed start, session is underway
+ * awaiting_completion: Trainer has marked end, awaiting client confirmation
+ * completed: Both parties have confirmed session completion
+ */
 export type BookingSessionPhase = 'waiting_start' | 'session_active' | 'awaiting_completion' | 'completed'
 
 export interface Booking {
@@ -169,6 +222,15 @@ export interface Booking {
   group_size?: number
   group_size_tier_name?: string
   pricing_model_used?: string
+
+  // Confirmation tracking
+  trainer_marked_start?: boolean // Trainer confirmed session start
+  trainer_marked_end?: boolean // Trainer confirmed session end
+  client_confirmed_completion?: boolean // Client confirmed session was completed
+
+  // Issue tracking
+  reported_issue_count?: number // Number of issues/disputes raised for this booking
+
   created_at?: string
   updated_at?: string
   completed_at?: string
@@ -222,6 +284,19 @@ export interface TrainerVerification {
 // ============================================================================
 
 export type PaymentMethod = 'mpesa' | 'wallet' | 'bank_transfer' | 'mock'
+
+/**
+ * PaymentStatus tracks payment and payout state
+ *
+ * Booking Payment Flow:
+ * pending → completed (M-Pesa/wallet payment succeeds) | failed (payment declined/timeout)
+ * completed → (terminal, unless refunded)
+ * completed → refunded (admin issues refund)
+ *
+ * Payout Flow (for trainer earnings):
+ * pending → completed (M-Pesa/bank transfer processed)
+ * completed → (terminal, unless rolled back)
+ */
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 
 export interface Payment {
@@ -273,18 +348,80 @@ export interface SponsorCommission {
 // NOTIFICATION TYPES
 // ============================================================================
 
-export type NotificationType = 'booking' | 'payment' | 'session' | 'document' | 'approval' | 'system'
+export type NotificationType = 'booking' | 'payment' | 'session' | 'document' | 'approval' | 'chat' | 'review' | 'dispute' | 'system'
+
+/**
+ * NotificationAction defines what action a notification is prompting the user to take
+ *
+ * Booking Actions:
+ * - 'booking_created': New booking requested (for trainer)
+ * - 'booking_confirmed': Trainer accepted booking (for client)
+ * - 'booking_declined': Trainer declined booking (for client)
+ * - 'view_booking': General action to view booking details
+ *
+ * Payment Actions:
+ * - 'payment_initiated': Payment process started (for client)
+ * - 'payment_completed': Payment successful (for trainer, admin)
+ * - 'payment_failed': Payment failed (for client)
+ *
+ * Session Actions:
+ * - 'start_session': Trainer should confirm session start
+ * - 'session_started': Trainer confirmed start (for client)
+ * - 'complete_session': Trainer should confirm session end
+ * - 'awaiting_completion': Client should confirm session was completed
+ * - 'session_completed': Session finished (for both parties)
+ *
+ * Review Actions:
+ * - 'review_requested': Client should review trainer (for client)
+ * - 'review_submitted': Trainer received review (for trainer)
+ * - 'review_trainer': Legacy action to review trainer
+ *
+ * Document/Approval Actions:
+ * - 'upload_documents': Trainer should upload verification docs (for trainer)
+ * - 'review_application': Admin should review trainer application (for admin)
+ * - 'document_approved': Document approved (for trainer)
+ * - 'document_rejected': Document rejected (for trainer)
+ * - 'trainer_approved': Trainer fully approved (for trainer)
+ *
+ * Chat/Issue Actions:
+ * - 'new_message': New message received (for recipient)
+ * - 'report_issue': User should report an issue
+ * - 'issue_reported': Issue was reported (for admin)
+ * - 'dispute_resolved': Dispute closed (for both parties)
+ *
+ * Other:
+ * - 'confirm_next_session': Client should confirm they want next booking
+ * - 'review_app': Client should review the app
+ * - 'system_announcement': System notification
+ */
 export type NotificationAction =
   | 'view_booking'
-  | 'confirm_payment'
+  | 'booking_created'
+  | 'booking_confirmed'
+  | 'booking_declined'
+  | 'payment_initiated'
+  | 'payment_completed'
+  | 'payment_failed'
   | 'start_session'
+  | 'session_started'
   | 'complete_session'
-  | 'upload_documents'
-  | 'review_application'
+  | 'awaiting_completion'
+  | 'session_completed'
+  | 'review_requested'
+  | 'review_submitted'
   | 'review_trainer'
   | 'review_app'
-  | 'confirm_next_session'
+  | 'upload_documents'
+  | 'review_application'
+  | 'document_approved'
+  | 'document_rejected'
+  | 'trainer_approved'
+  | 'new_message'
   | 'report_issue'
+  | 'issue_reported'
+  | 'dispute_resolved'
+  | 'confirm_next_session'
+  | 'system_announcement'
 
 export interface Notification {
   id: string
@@ -298,6 +435,82 @@ export interface Notification {
   read: boolean
   created_at?: string
   read_at?: string
+}
+
+// ============================================================================
+// DISPUTE & ISSUE TYPES
+// ============================================================================
+
+export type DisputeStatus = 'pending' | 'investigating' | 'resolved' | 'closed'
+export type IssueStatus = 'open' | 'investigating' | 'resolved' | 'closed'
+export type DisputeResolution = 'refund' | 'no_action' | 'warning' | 'suspension' | 'reversal'
+
+/**
+ * DisputeAction tracks audit trail for disputes and issues
+ * Records every status change, note, and action with timestamp and actor attribution
+ */
+export interface DisputeAction {
+  id: string
+  dispute_id: string
+  action_type: 'created' | 'status_changed' | 'note_added' | 'closed' | 'resolution_issued'
+  actor_id: string
+  actor_role: 'admin' | 'trainer' | 'client' | 'system'
+  timestamp: string // ISO timestamp
+  old_value?: string | Record<string, any>
+  new_value?: string | Record<string, any>
+  details?: Record<string, any> // e.g., { old_status, new_status, reason, amount }
+  created_at?: string
+}
+
+/**
+ * Dispute represents a reported issue or complaint between client and trainer
+ * Can be created by either party and requires admin resolution
+ */
+export interface Dispute {
+  id: string
+  booking_id: string
+  client_id: string
+  trainer_id: string
+  reporter_id: string // Who filed the dispute
+  status: DisputeStatus
+  resolution?: DisputeResolution
+  issue_description: string
+  admin_notes?: string
+  closure_reason?: string
+  closure_evidence?: string
+  refund_amount?: number
+  affected_parties?: ('client' | 'trainer')[]
+  action_history?: DisputeAction[]
+  created_at?: string
+  updated_at?: string
+  resolved_at?: string
+  closed_at?: string
+  closed_by?: string
+}
+
+/**
+ * Issue represents a problem reported by a user (trainer or client)
+ * Less formal than a dispute, used for general complaints
+ */
+export interface Issue {
+  id: string
+  user_id: string
+  user_type: 'client' | 'trainer'
+  booking_id?: string
+  booking_reference?: string // If not a direct booking record
+  status: IssueStatus
+  title: string
+  description: string
+  category?: string
+  priority?: 'low' | 'medium' | 'high' | 'critical'
+  admin_notes?: string
+  closure_notes?: string
+  action_history?: DisputeAction[]
+  created_at?: string
+  updated_at?: string
+  resolved_at?: string
+  closed_at?: string
+  closed_by?: string
 }
 
 // ============================================================================
