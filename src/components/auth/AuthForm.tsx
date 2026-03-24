@@ -124,6 +124,23 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_lng: formData.locationLng ?? undefined,
       })
 
+      console.log('Signup successful, checking for step 2 redirect')
+
+      // Check if step 2 flag was set and redirect immediately
+      const trainerStep2 = localStorage.getItem('trainer_signup_step2') === 'true'
+      const clientStep2 = localStorage.getItem('client_signup_step2') === 'true'
+
+      if (trainerStep2 && formData.userType === 'trainer') {
+        console.log('Redirecting to trainer step 2')
+        window.location.href = '/signup-step2'
+        return
+      } else if (clientStep2 && formData.userType === 'client') {
+        console.log('Redirecting to client step 2')
+        window.location.href = '/signup-client-step2'
+        return
+      }
+
+      // Otherwise call onSuccess callback
       console.log('Signup successful, calling onSuccess callback')
       onSuccess?.(formData.userType)
     } catch (error) {
