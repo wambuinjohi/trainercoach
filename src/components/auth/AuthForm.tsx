@@ -121,6 +121,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_lat: formData.locationLat ?? undefined,
         location_lng: formData.locationLng ?? undefined,
       })
+
       onSuccess?.(formData.userType)
     } catch (error) {
       console.error('Sign up error:', error)

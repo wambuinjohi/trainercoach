@@ -28,6 +28,7 @@ import Terms from "./pages/Terms";
 import UploadDemo from "./pages/UploadDemo";
 import PasswordReset from "./pages/PasswordReset";
 import ResetPasswords from "./pages/ResetPasswords";
+import SignupStep2 from "./pages/SignupStep2";
 import MpesaMigration from "./pages/MpesaMigration";
 import ApiDiagnostics from "./pages/ApiDiagnostics";
 import OverviewPage from "./pages/admin/OverviewPage";
@@ -109,10 +110,11 @@ const AppRoutes = () => (
         else window.location.href = "/client";
       }} />} />
       <Route path="/signup" element={<TrainerSignupWithProfileModal onSuccess={(type) => {
+        // Note: Trainers are redirected by the component itself after step 2 onboarding
         if (type === 'admin') window.location.href = "/admin";
-        else if (type === 'trainer') window.location.href = "/trainer";
-        else window.location.href = "/client";
+        else if (type !== 'trainer') window.location.href = "/client";
       }} />} />
+      <Route path="/signup-step2" element={<SignupStep2 />} />
       <Route path="/password-reset" element={<PasswordReset />} />
       <Route path="/reset-passwords" element={<ResetPasswords />} />
       <Route path="/setup" element={<AdminSetup />} />

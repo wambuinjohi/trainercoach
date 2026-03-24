@@ -350,9 +350,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSignupData(signupDataToStore);
         localStorage.setItem('signup_data', JSON.stringify(signupDataToStore));
 
-        // Flag for new trainer signup to auto-open profile editor modal
+        // Flag for trainer signup step 2 onboarding
         if (userTypeParam === 'trainer') {
-          localStorage.setItem('trainer_signup_new', 'true');
+          localStorage.setItem('trainer_signup_step2', 'true');
         }
 
         // Store detected timezone
@@ -375,7 +375,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearSignupData = () => {
     setSignupData(null);
     localStorage.removeItem('signup_data');
-    localStorage.removeItem('trainer_signup_new');
+    localStorage.removeItem('trainer_signup_step2');
   };
 
   const signOut = async () => {
@@ -386,7 +386,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('app-user-type');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('signup_data');
-    localStorage.removeItem('trainer_signup_new');
+    localStorage.removeItem('trainer_signup_step2');
   };
 
   return (
