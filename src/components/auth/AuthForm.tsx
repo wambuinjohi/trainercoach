@@ -121,6 +121,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
         location_lat: formData.locationLat ?? undefined,
         location_lng: formData.locationLng ?? undefined,
       })
+
       onSuccess?.(formData.userType)
     } catch (error) {
       console.error('Sign up error:', error)
@@ -264,7 +265,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                 </div>
 
                 <Button type="submit" className="w-full border border-trainer-primary bg-transparent text-trainer-primary hover:bg-trainer-primary/10 disabled:bg-transparent" disabled={isLoading}>
-                  {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account...</> : 'Create Account'}
+                  {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{formData.userType === 'trainer' ? 'Creating account...' : 'Setting up...'}</> : 'Next'}
                 </Button>
               </form>
             </TabsContent>
