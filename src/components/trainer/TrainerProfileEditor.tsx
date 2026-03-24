@@ -78,25 +78,30 @@ const cleanAndParseArray = (value: any): string[] => {
   return []
 }
 
-export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { user } = useAuth()
+interface TrainerProfileEditorProps {
+  onClose?: () => void
+  isNewSignup?: boolean
+}
+
+export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onClose, isNewSignup = false }) => {
+  const { user, signupData } = useAuth()
   const userId = user?.id
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<Partial<TrainerProfile>>({})
-  const [name, setName] = useState('')
+  const [name, setName] = useState(signupData?.full_name || '')
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [categoryPricing, setCategoryPricing] = useState<Record<number, number>>({})
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categorySearchTerm, setCategorySearchTerm] = useState('')
-  const [sponsorId, setSponsorId] = useState<string | null>(null)
+  const [sponsorId, setSponsorId] = useState<string | null>(signupData?.sponsor_trainer_id || null)
   const [sponsorName, setSponsorName] = useState<string | null>(null)
-  const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
+  const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>(signupData?.registration_path || 'direct')
   const [pathLocked, setPathLocked] = useState(false)
   const [areaLocation, setAreaLocation] = useState<{ lat: number; lng: number; label: string }>({
-    lat: -1.2921,
-    lng: 36.8219, // Default to Nairobi, Kenya
-    label: ''
+    lat: signupData?.location_lat || -1.2921,
+    lng: signupData?.location_lng || 36.8219, // Default to Nairobi, Kenya
+    label: signupData?.location_label || ''
   })
   const [hadExistingCoordinates, setHadExistingCoordinates] = useState(false)
   const [calculatedServiceRadius] = useState(() => getDefaultServiceRadius())
@@ -137,6 +142,15 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       console.log('[Profile Load] Waiting for userId...')
       return
     }
+
+    // For new signups, skip API loading and just use signup data
+    if (isNewSignup) {
+      console.log('[Profile Load] New signup mode - using signup data only')
+      setLoading(false)
+      setDocumentsLoading(false)
+      return
+    }
+
     setLoading(true)
     setSelectedCategoryIds([])
     setCategoryPricing({})
@@ -354,7 +368,7 @@ export const TrainerProfileEditor: React.FC<{ onClose?: () => void }> = ({ onClo
       }
     }
     loadProfile()
-  }, [userId])
+  }, [userId, isNewSignup])
 
   const handleChange = (field: string, value: any) => {
     console.log(`[Profile Change] Field "${field}" changing:`, { from: profile[field], to: value })

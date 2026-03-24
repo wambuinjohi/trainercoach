@@ -1,23 +1,22 @@
 import React, { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { TrainerProfileEditor } from './TrainerProfileEditor'
 import { VerificationDocumentsForm } from './VerificationDocumentsForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 
 /**
  * Step 2 of trainer onboarding after personal details signup.
  * Full page layout with:
- * 1. Edit Modal - triggered for trainer details (bio, rates, categories, location, etc.)
- * 2. Main page - for verification documents upload and onboarding info
+ * 1. Profile Form - pre-filled with signup data (bio, rates, categories, location, etc.)
+ * 2. Documents Upload - verification documents
  *
  * After both are completed, redirects to trainer dashboard.
  */
 export const TrainerOnboardingStep2: React.FC = () => {
-  const { user, userType } = useAuth()
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editModalCompleted, setEditModalCompleted] = useState(false)
+  const { user, userType, signupData } = useAuth()
+  const [profileCompleted, setProfileCompleted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   // Initialize on component mount
@@ -25,15 +24,13 @@ export const TrainerOnboardingStep2: React.FC = () => {
     // Verify we're a trainer and have the step2 flag
     const hasStep2Flag = localStorage.getItem('trainer_signup_step2') === 'true'
 
-    console.log('TrainerOnboardingStep2 mounted:', { userType, hasStep2Flag })
+    console.log('TrainerOnboardingStep2 mounted:', { userType, hasStep2Flag, signupData })
 
     if (userType === 'trainer' && hasStep2Flag) {
       // Small delay to ensure auth context is ready
       const timer = setTimeout(() => {
         setIsLoading(false)
-        // Auto-open edit modal on first load
-        setShowEditModal(true)
-      }, 500)
+      }, 300)
       return () => clearTimeout(timer)
     } else if (userType === 'trainer') {
       // If no step2 flag, redirect to dashboard
@@ -46,9 +43,9 @@ export const TrainerOnboardingStep2: React.FC = () => {
     }
   }, [userType])
 
-  const handleEditModalClose = () => {
-    setShowEditModal(false)
-    setEditModalCompleted(true)
+  const handleProfileSaved = () => {
+    // Profile form was saved
+    setProfileCompleted(true)
   }
 
   const handleDocumentsComplete = () => {
@@ -73,7 +70,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         {/* Progress indicator */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Trainer Profile</h1>
@@ -82,39 +79,32 @@ export const TrainerOnboardingStep2: React.FC = () => {
           </p>
         </div>
 
-        {/* Step 1: Profile Details */}
-        <Card className="mb-6">
+        {/* Step 1: Profile Form */}
+        <Card className="mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Step 1: Profile Details</CardTitle>
-                <CardDescription>Bio, rates, categories, and location</CardDescription>
+                <CardTitle className="text-lg">Step 1: Complete Your Details</CardTitle>
+                <CardDescription>Bio, service rates, categories, and location</CardDescription>
               </div>
-              {editModalCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {profileCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
             </div>
           </CardHeader>
           <CardContent>
-            {editModalCompleted ? (
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p>✓ Your profile details have been saved</p>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="text-trainer-primary hover:underline font-medium"
-                >
-                  Edit profile
-                </button>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                <p className="mb-3">Click the button below to complete your profile information</p>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="px-4 py-2 bg-trainer-primary text-white rounded-lg hover:bg-trainer-primary/90 font-medium"
-                >
-                  Complete Your Details
-                </button>
-              </div>
+            {/* Show signup data loaded notification */}
+            {signupData && (
+              <Alert className="mb-6 bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700 ml-2">
+                  <strong>Profile Data Loaded</strong><br />
+                  Name: {signupData.full_name}<br />
+                  Area: {signupData.location_label || 'Location pending'}
+                </AlertDescription>
+              </Alert>
             )}
+
+            {/* Inline Profile Editor Form */}
+            <TrainerProfileEditor onClose={handleProfileSaved} isNewSignup={true} />
           </CardContent>
         </Card>
 
@@ -122,7 +112,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
-            <CardDescription>ID, proof of residence, and conduct certificate</CardDescription>
+            <CardDescription>Upload your ID, proof of residence, and conduct certificate</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -143,28 +133,6 @@ export const TrainerOnboardingStep2: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Edit Profile Modal */}
-      <Dialog open={showEditModal} onOpenChange={(open) => {
-        if (!open) {
-          handleEditModalClose()
-        }
-      }}>
-        <DialogContent className="w-full rounded-none sm:rounded-lg max-w-full sm:max-w-2xl max-h-[100vh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
-          <DialogHeader className="sticky top-0 bg-background z-10 pb-4 border-b">
-            <DialogTitle className="text-lg sm:text-2xl">Complete Your Details</DialogTitle>
-            <DialogDescription className="text-xs sm:text-base mt-1">
-              Add your bio, service rates, categories, and service location
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-4 sm:mt-6">
-            <TrainerProfileEditor
-              onClose={handleEditModalClose}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
