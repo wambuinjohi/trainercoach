@@ -69,6 +69,22 @@ export interface PendingSessionsMetrics {
   total: number
 }
 
+export interface AnalyticsSeriesPoint {
+  rawDate: string
+  revenue: number
+  bookings: number
+  aov: number
+}
+
+const toNumber = (value: unknown): number => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+const getBookingRevenueValue = (booking: Record<string, any>) => {
+  return toNumber(booking.total_amount ?? booking.amount ?? booking.base_service_amount)
+}
+
 /**
  * Get booking status distribution
  */
@@ -455,6 +471,47 @@ export async function getActivityFeed(limit: number = 50): Promise<ActivityEvent
   } catch (error) {
     console.warn('Activity log not available, falling back to synthetic feed:', error)
     return null
+  }
+}
+
+/**
+ * Get booking revenue and count over time for admin charts
+ */
+export async function getAnalyticsTimeSeries(): Promise<AnalyticsSeriesPoint[]> {
+  try {
+    const bookings = await apiRequest('select', {
+      table: 'bookings',
+      columns: 'id, created_at, total_amount, amount, base_service_amount',
+      order: 'created_at ASC',
+      limit: '5000',
+    }, { headers: withAuth() })
+
+    if (!bookings || !Array.isArray(bookings)) {
+      return []
+    }
+
+    const buckets = new Map<string, { revenue: number; bookings: number }>()
+
+    for (const booking of bookings) {
+      const date = booking?.created_at ? new Date(booking.created_at) : null
+      if (!date || Number.isNaN(date.getTime())) continue
+
+      const key = date.toISOString().split('T')[0]
+      const bucket = buckets.get(key) || { revenue: 0, bookings: 0 }
+      bucket.revenue += getBookingRevenueValue(booking)
+      bucket.bookings += 1
+      buckets.set(key, bucket)
+    }
+
+    return Array.from(buckets.entries()).map(([rawDate, data]) => ({
+      rawDate,
+      revenue: Number(data.revenue.toFixed(2)),
+      bookings: data.bookings,
+      aov: data.bookings ? Number((data.revenue / data.bookings).toFixed(2)) : 0,
+    }))
+  } catch (error) {
+    console.error('Failed to get analytics time series:', error)
+    return []
   }
 }
 

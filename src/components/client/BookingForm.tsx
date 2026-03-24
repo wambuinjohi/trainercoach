@@ -10,6 +10,7 @@ import { loadSettings } from '@/lib/settings'
 import { toast } from '@/hooks/use-toast'
 import { calculateFeeBreakdown } from '@/lib/fee-calculations'
 import * as apiService from '@/lib/api-service'
+import { completeMockPayment, processBookingPayment } from '@/lib/payment-service'
 import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig, type GroupTier } from '@/lib/group-pricing-utils'
 
 export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void }> = ({ trainer, trainerProfile, onDone }) => {
@@ -27,27 +28,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig | null>(null)
   const [selectedGroupTierName, setSelectedGroupTierName] = useState<string>('')
   const [trainerCategoryId, setTrainerCategoryId] = useState<number | null>(null)
-
-  const normalizePhoneNumber = (phoneInput: string): string => {
-    let normalized = phoneInput.trim().replace(/\s+/g, '')
-
-    // Remove leading +
-    if (normalized.startsWith('+')) {
-      normalized = normalized.slice(1)
-    }
-
-    // Convert 07 or 01 to 254 (Kenya format)
-    if (normalized.startsWith('07') || normalized.startsWith('01')) {
-      normalized = '254' + normalized.slice(1)
-    }
-
-    // Add country code if not present
-    if (!normalized.startsWith('254') && (normalized.startsWith('7') || normalized.startsWith('1'))) {
-      normalized = '254' + normalized
-    }
-
-    return normalized
-  }
 
   const computeBaseAmount = () => {
     if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
@@ -191,7 +171,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     try {
       // create booking using new booking_create action with server-side fee calculation
       const bookingResponse = await apiRequest('booking_create', payload, { headers: withAuth() })
-      const bookingData = { id: bookingResponse?.booking_id }
+      const bookingId = bookingResponse?.booking_id
+      if (!bookingId) {
+        throw new Error('Booking creation did not return a booking id')
+      }
+      const bookingData = { id: bookingId }
       const clientTotal = bookingResponse?.total_amount || 0
       const baseServiceAmount = bookingResponse?.base_service_amount || 0
       const transportFee = bookingResponse?.transport_fee || 0
@@ -234,114 +218,72 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         console.warn('Notification insert failed', err)
       }
 
+      const paymentCreatedAt = new Date().toISOString()
+      const paymentBaseRecord = {
+        booking_id: bookingData.id,
+        client_id: user.id,
+        trainer_id: trainer.id,
+        amount: clientTotal,
+        base_service_amount: baseServiceAmount,
+        transport_fee: transportFee,
+        platform_fee: platformFee,
+        vat_amount: vatAmount,
+        trainer_net_amount: trainerNetAmount,
+        status: 'completed' as const,
+        created_at: paymentCreatedAt,
+      }
+
       let paymentRecord: any = null
 
       if (payMethod === 'mpesa') {
-        if (!mpesaPhone.trim()) { toast({ title: 'Phone required', description: 'Enter your M-Pesa phone number (e.g., 2547XXXXXXX)', variant: 'destructive' }); throw new Error('phone required') }
+        if (!mpesaPhone.trim()) {
+          toast({ title: 'Phone required', description: 'Enter your M-Pesa phone number (e.g., 2547XXXXXXX)', variant: 'destructive' })
+          throw new Error('phone required')
+        }
+
         toast({ title: 'M-Pesa STK', description: 'Check your phone and enter PIN to approve.' })
 
-        let initResult: any = null
-        try {
-          const normalizedPhone = normalizePhoneNumber(mpesaPhone)
-          initResult = await apiRequest('mpesa_stk_initiate', {
-            phone: normalizedPhone,
-            amount: clientTotal,
-            account_reference: bookingData?.id || 'booking',
-            booking_id: bookingData?.id || null,
-            client_id: user.id || null,
-            trainer_id: trainer.id
-          }, { headers: withAuth() })
-          console.log('STK initiate response:', initResult)
-        } catch (e: any) {
-          console.error('STK initiate error:', e)
-          const errorMsg = e.message || 'Failed to initiate STK push'
+        const paymentResult = await processBookingPayment({
+          phone: mpesaPhone,
+          amount: clientTotal,
+          bookingId,
+          clientId: user.id,
+          trainerId: trainer.id,
+          accountReference: bookingId,
+          paymentRecord: paymentBaseRecord,
+        })
 
-          // Check if M-Pesa is not configured on backend
-          if (errorMsg.includes('access token') || errorMsg.includes('credentials') || errorMsg.includes('not configured')) {
+        if (!paymentResult.success) {
+          const errorMessage = paymentResult.error || 'Payment not completed'
+          if (errorMessage.includes('not configured')) {
             toast({
               title: 'M-Pesa not available',
               description: 'M-Pesa is not currently configured. Please use the Mock payment method for testing.',
               variant: 'destructive'
             })
           } else {
-            toast({ title: 'Payment error', description: errorMsg, variant: 'destructive' })
+            toast({
+              title: 'Payment not completed',
+              description: errorMessage,
+              variant: 'destructive'
+            })
           }
-          throw e
-        }
-
-        if (!initResult) {
-          const msg = 'No response from payment server';
-          console.error(msg, { initResult })
-          toast({ title: 'Payment error', description: msg, variant: 'destructive' });
-          throw new Error(msg)
-        }
-
-        const checkoutId = initResult?.checkout_request_id || ''
-        if (!checkoutId) {
-          const debugMsg = `Missing CheckoutRequestID. Response: ${JSON.stringify(initResult).substring(0, 200)}`
-          console.error(debugMsg)
-          toast({
-            title: 'Payment error',
-            description: 'M-Pesa credentials may not be configured. Please contact support.',
-            variant: 'destructive'
-          });
-          throw new Error('no checkout id')
-        }
-
-        // Poll for result
-        let success = false
-        let attempts = 0
-        let lastResult: any = null
-        while (attempts < 20) {
-          await new Promise(r => setTimeout(r, 3000))
-          try {
-            const qResult = await apiRequest('mpesa_stk_query', { checkout_request_id: checkoutId }, { headers: withAuth() })
-            lastResult = qResult
-            const rc = Number((qResult?.result_code) || -1)
-            if (rc === 0) { success = true; break }
-            // Pending codes: 1, 1032 (cancelled), 1037 (timeout) -> continue polling for a short while
-            if (rc === 1032) break
-          } catch (e) {
-            console.error('STK query error:', e)
-          }
-          attempts += 1
-        }
-
-        if (!success) {
-          // mark failed
-          try { await apiRequest('payment_insert', { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'failed', method: 'mpesa', created_at: new Date().toISOString() }, { headers: withAuth() }) } catch {}
-          try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'pending', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
-          toast({ title: 'Payment not completed', description: 'You can retry from your dashboard', variant: 'destructive' })
-          setLoading(false)
           return
         }
 
-        paymentRecord = { booking_id: bookingData?.id || null, client_id: user.id, trainer_id: trainer.id, amount: clientTotal, base_service_amount: baseServiceAmount, transport_fee: transportFee, platform_fee: platformFee, vat_amount: vatAmount, trainer_net_amount: trainerNetAmount, status: 'completed', method: 'mpesa', created_at: new Date().toISOString() }
-        try { await apiRequest('payment_insert', paymentRecord, { headers: withAuth() }) } catch {}
-        try { if (bookingData?.id) await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
-      } else {
-        // Mock immediate success
         paymentRecord = {
-          booking_id: bookingData?.id || null,
-          client_id: user.id,
-          trainer_id: trainer.id,
-          amount: clientTotal,
-          base_service_amount: baseServiceAmount,
-          transport_fee: transportFee,
-          platform_fee: platformFee,
-          vat_amount: vatAmount,
-          trainer_net_amount: trainerNetAmount,
-          status: 'completed',
+          ...paymentBaseRecord,
+          method: 'mpesa',
+        }
+      } else {
+        const mockResult = await completeMockPayment(paymentBaseRecord, bookingId)
+        if (!mockResult.success) {
+          throw new Error(mockResult.error || 'Failed to record payment')
+        }
+
+        paymentRecord = {
+          ...paymentBaseRecord,
           method: 'mock',
-          created_at: new Date().toISOString(),
-        }
-        try {
-          await apiRequest('payment_insert', paymentRecord, { headers: withAuth() })
-        } catch (err) {
-          console.warn('Payment insert exception', err)
-        }
-        if (bookingData?.id) {
-          try { await apiRequest('booking_update', { id: bookingData.id, status: 'confirmed', session_phase: 'waiting_start' }, { headers: withAuth() }) } catch {}
         }
       }
 

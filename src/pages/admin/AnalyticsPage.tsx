@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Users, Calendar, BarChart3, TrendingUp } from 'lucide-react'
-import * as apiService from '@/lib/api-service'
+import { getAnalyticsTimeSeries, getUserMetrics } from '@/lib/analytics-service'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { toast } from '@/hooks/use-toast'
 
@@ -34,41 +34,16 @@ export default function AnalyticsPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [bookingsData, usersData] = await Promise.all([
-        apiService.getAllBookings(),
-        apiService.getUsers(),
+      const [timeline, userMetrics] = await Promise.all([
+        getAnalyticsTimeSeries(),
+        getUserMetrics(),
       ])
 
-      const bookings = Array.isArray(bookingsData) ? bookingsData : bookingsData?.data || []
-      const users = Array.isArray(usersData) ? usersData : usersData?.data || []
-
-      // Build analytics points
-      const buckets = new Map<string, { revenue: number; bookings: number }>()
-      bookings.forEach((booking: any) => {
-        const date = booking.created_at ? new Date(booking.created_at) : null
-        if (!date || Number.isNaN(date.getTime())) return
-        const key = date.toISOString().split('T')[0]
-        const bucket = buckets.get(key) || { revenue: 0, bookings: 0 }
-        bucket.revenue += booking.amount || 0
-        bucket.bookings += 1
-        buckets.set(key, bucket)
-      })
-
-      const points: AnalyticsPoint[] = Array.from(buckets.entries()).map(([date, data]) => ({
-        rawDate: date,
-        revenue: data.revenue,
-        bookings: data.bookings,
-        aov: data.bookings > 0 ? data.revenue / data.bookings : 0,
-      }))
-      setAnalyticsPoints(points)
-
-      // Calculate stats
-      const trainers = users.filter((u: any) => u.user_type === 'trainer').length
-      const clients = users.filter((u: any) => u.user_type === 'client').length
+      setAnalyticsPoints(timeline)
       setStats({
-        totalUsers: users.length,
-        totalTrainers: trainers,
-        totalClients: clients,
+        totalUsers: (userMetrics?.totalClients || 0) + (userMetrics?.totalTrainers || 0) + (userMetrics?.totalAdmins || 0),
+        totalTrainers: userMetrics?.totalTrainers || 0,
+        totalClients: userMetrics?.totalClients || 0,
       })
     } catch (error) {
       console.error('Failed to load analytics:', error)

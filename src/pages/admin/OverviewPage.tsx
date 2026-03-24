@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Users, UserCheck, AlertCircle, Calendar, DollarSign, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import * as apiService from '@/lib/api-service'
+import { getActivityFeed, getAnalyticsTimeSeries, getDashboardOverview, getTrainerMetrics, type ActivityEvent } from '@/lib/analytics-service'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 
 type ActivityItem = {
@@ -61,19 +62,48 @@ export default function OverviewPage() {
     return date.toLocaleDateString()
   }
 
+  const formatActivityMessage = (event: ActivityEvent) => {
+    switch (event.eventType) {
+      case 'booking_created':
+        return 'A new booking was created'
+      case 'payment_completed':
+        return 'A payment was completed successfully'
+      case 'session_started':
+        return 'A session has started'
+      case 'session_completed':
+        return 'A session has been completed'
+      case 'review_submitted':
+        return 'A client submitted a review'
+      case 'trainer_approved':
+        return 'A trainer was approved'
+      case 'dispute_created':
+        return 'A new dispute needs attention'
+      case 'dispute_resolved':
+        return 'A dispute was resolved'
+      default:
+        return 'Platform activity was recorded'
+    }
+  }
+
+  const getActivityTone = (event: ActivityEvent): ActivityItem['tone'] => {
+    if (event.eventType === 'dispute_created') return 'alert'
+    if (event.eventType === 'payment_completed' || event.eventType === 'session_completed' || event.eventType === 'trainer_approved') return 'positive'
+    return 'neutral'
+  }
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
 
-        // Load the main data
-        const [usersData, bookingsData, issuesData] = await Promise.all([
-          apiService.getUsers(),
-          apiService.getAllBookings(),
+        const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.all([
+          getDashboardOverview(),
+          getTrainerMetrics(),
+          getAnalyticsTimeSeries(),
+          getActivityFeed(4),
           apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
         ])
 
-        // Load documents separately with error handling
         let documentsData = []
         try {
           documentsData = await apiService.listVerificationDocuments('pending')
@@ -82,33 +112,20 @@ export default function OverviewPage() {
           documentsData = []
         }
 
-        // Ensure arrays - handle various response formats
-        const users = Array.isArray(usersData) ? usersData : (usersData?.data && Array.isArray(usersData.data) ? usersData.data : [])
-        const bookings = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.data && Array.isArray(bookingsData.data) ? bookingsData.data : [])
         const documents = Array.isArray(documentsData) ? documentsData : (documentsData?.data && Array.isArray(documentsData.data) ? documentsData.data : [])
-
-        // Calculate stats
-        const approvedTrainers = users.filter((u: any) => u.user_type === 'trainer' && (u.is_approved || u.account_status === 'approved')).length
-        const totalUsers = users.length
-        const totalClients = users.filter((u: any) => u.user_type === 'client').length
-        const totalAdmins = users.filter((u: any) => u.user_type === 'admin').length
-        const totalBookings = bookings.length
-
-        // Calculate revenue
-        const totalRevenue = bookings.reduce((sum: number, b: any) => sum + ((b.status === 'completed' ? b.amount : 0) || 0), 0)
-
-        // Count pending approvals
-        const pendingApprovals = users.filter((u: any) => u.user_type === 'trainer' && (!u.is_approved || u.account_status === 'pending_approval')).length
-
-        // Count pending documents
-        const pendingDocuments = documents.filter((d: any) => d.status === 'pending').length
-
-        // Count disputes
-        const activeDisputes = issuesData?.data?.filter((i: any) => i.status !== 'resolved')?.length || 0
+        const activeDisputes = issuesData?.data?.filter((issue: any) => issue.status !== 'resolved')?.length || 0
+        const totalClients = dashboard.users?.totalClients || 0
+        const totalTrainers = trainerMetrics?.activeTrainers ?? dashboard.users?.totalTrainers ?? 0
+        const totalAdmins = dashboard.users?.totalAdmins || 0
+        const totalUsers = totalClients + (dashboard.users?.totalTrainers || 0) + totalAdmins
+        const totalBookings = dashboard.bookings?.total || 0
+        const totalRevenue = dashboard.revenue?.totalRevenue || 0
+        const pendingApprovals = dashboard.approvals?.totalPending || 0
+        const pendingDocuments = documents.filter((document: any) => document.status === 'pending').length
 
         setStats({
           totalUsers,
-          totalTrainers: approvedTrainers,
+          totalTrainers,
           totalClients,
           totalAdmins,
           totalBookings,
@@ -118,54 +135,45 @@ export default function OverviewPage() {
           pendingDocuments,
         })
 
-        // Build analytics points from bookings
-        const buckets = new Map<string, { revenue: number; bookings: number }>()
-        bookings.forEach((booking: any) => {
-          const date = booking.created_at ? new Date(booking.created_at) : null
-          if (!date || Number.isNaN(date.getTime())) return
-          const key = date.toISOString().split('T')[0]
-          const bucket = buckets.get(key) || { revenue: 0, bookings: 0 }
-          bucket.revenue += booking.amount || 0
-          bucket.bookings += 1
-          buckets.set(key, bucket)
-        })
+        setAnalyticsPoints(analyticsTimeline)
 
-        const points: AnalyticsPoint[] = Array.from(buckets.entries()).map(([date, data]) => ({
-          rawDate: date,
-          revenue: data.revenue,
-          bookings: data.bookings,
-          aov: data.bookings > 0 ? data.revenue / data.bookings : 0,
-        }))
-        setAnalyticsPoints(points)
-
-        // Set activity feed
-        const activities: ActivityItem[] = [
+        const fallbackActivities: ActivityItem[] = [
           {
-            id: '1',
+            id: 'fallback-bookings',
             timestamp: new Date().toISOString(),
             message: `${totalBookings} total bookings recorded`,
             tone: 'positive',
           },
           {
-            id: '2',
+            id: 'fallback-documents',
             timestamp: new Date(Date.now() - 3600000).toISOString(),
             message: `${pendingDocuments} verification documents pending review`,
             tone: 'alert',
           },
           {
-            id: '3',
+            id: 'fallback-approvals',
             timestamp: new Date(Date.now() - 3600000).toISOString(),
             message: `${pendingApprovals} trainer applications pending approval`,
             tone: 'alert',
           },
           {
-            id: '4',
+            id: 'fallback-disputes',
             timestamp: new Date(Date.now() - 7200000).toISOString(),
             message: `${activeDisputes} active disputes`,
             tone: 'alert',
           },
         ]
-        setActivityFeed(activities)
+
+        setActivityFeed(
+          activityEvents && activityEvents.length > 0
+            ? activityEvents.map((event) => ({
+                id: event.id,
+                timestamp: event.timestamp,
+                message: formatActivityMessage(event),
+                tone: getActivityTone(event),
+              }))
+            : fallbackActivities
+        )
       } catch (error) {
         console.error('Failed to load overview data:', error)
       } finally {

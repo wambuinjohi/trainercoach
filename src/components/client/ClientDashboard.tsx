@@ -181,35 +181,30 @@ export const ClientDashboard: React.FC = () => {
       .slice(0, 5)
   }, [searchQuery, trainers])
 
+  const getClientFlowState = (bookingList: any[]) => ({
+    pendingStart: bookingList.find((booking: any) => booking.status === 'in_session' && booking.trainer_marked_start && !booking.client_confirmed_start) || null,
+    pendingCompletion: bookingList.find((booking: any) => booking.status === 'in_session' && (booking.session_phase === 'awaiting_completion' || booking.trainer_marked_end)) || null,
+  })
+
   // Define helper functions (must be before hooks that use them)
   const loadBookings = useCallback(async () => {
     if (!user?.id) return
     try {
       const bookingsData = await apiService.getBookings(user.id, 'client')
-      if (bookingsData?.data) {
-        setBookings(bookingsData.data)
+      const bookingList = Array.isArray(bookingsData)
+        ? bookingsData
+        : (Array.isArray(bookingsData?.data) ? bookingsData.data : [])
 
-        // Check for pending session start confirmation (trainer marked start)
-        const sessionStartPending = bookingsData.data.find((b: any) =>
-          b.status === 'in_session' && b.trainer_marked_start && !b.client_confirmed_start
-        )
+      setBookings(bookingList)
 
-        if (sessionStartPending) {
-          setPendingSessionStart(sessionStartPending)
-        }
-
-        // Check for pending session end confirmation (status = 'ending' or similar)
-        const sessionPending = bookingsData.data.find((b: any) =>
-          b.status === 'in_session' && (b.session_phase === 'awaiting_completion' || b.trainer_marked_end)
-        )
-
-        if (sessionPending) {
-          setPendingSessionConfirm(sessionPending)
-        }
-      }
+      const flowState = getClientFlowState(bookingList)
+      setPendingSessionStart(flowState.pendingStart)
+      setPendingSessionConfirm(flowState.pendingCompletion)
     } catch (err) {
       console.warn('Failed to load bookings', err)
       setBookings([])
+      setPendingSessionStart(null)
+      setPendingSessionConfirm(null)
     }
   }, [user?.id])
 
