@@ -1014,6 +1014,78 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
         if ($res && $bookingId) {
              // Update booking status
              $conn->query("UPDATE bookings SET status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
+
+             // Auto-credit trainer wallet with their earnings (trainer_net_amount)
+             if (!empty($trainerId) && floatval($trainerNetAmount) > 0) {
+                 $walletId = 'wallet_' . uniqid();
+                 $walletNow = date('Y-m-d H:i:s');
+
+                 // Insert wallet transaction
+                 $walletTransactionStmt = $conn->prepare("
+                     INSERT INTO wallet_transactions (
+                         id, user_id, amount, transaction_type, booking_id, reference, description, created_at
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ");
+
+                 if ($walletTransactionStmt) {
+                     $transactionType = 'booking_completed';
+                     $reference = 'payment_booking_' . ($bookingId ?? $clientId);
+                     $description = 'Earnings from booking #' . $bookingId;
+
+                     $walletTransactionStmt->bind_param(
+                         "ssdsssss",
+                         $walletId, $trainerId, $trainerNetAmount, $transactionType,
+                         $bookingId, $reference, $description, $walletNow
+                     );
+
+                     if ($walletTransactionStmt->execute()) {
+                         // Update user wallet balance
+                         $updateWalletStmt = $conn->prepare("
+                             UPDATE user_wallets
+                             SET balance = balance + ?, available_balance = available_balance + ?, updated_at = ?
+                             WHERE user_id = ?
+                         ");
+
+                         if ($updateWalletStmt) {
+                             $updateWalletStmt->bind_param("ddss", $trainerNetAmount, $trainerNetAmount, $walletNow, $trainerId);
+                             if ($updateWalletStmt->execute()) {
+                                 error_log("[MPESA WALLET] Trainer $trainerId auto-credited: Ksh " . number_format($trainerNetAmount, 2));
+
+                                 // Log to activity_log if table exists
+                                 $logActivityStmt = $conn->prepare("
+                                     INSERT INTO activity_log (
+                                         event_type, user_id, booking_id, metadata, timestamp
+                                     ) VALUES (?, ?, ?, ?, NOW())
+                                 ");
+
+                                 if ($logActivityStmt) {
+                                     $eventType = 'trainer_earnings_credited';
+                                     $metadata = json_encode([
+                                         'payment_id' => $paymentId,
+                                         'amount' => $trainerNetAmount,
+                                         'booking_id' => $bookingId,
+                                         'client_id' => $clientId
+                                     ]);
+
+                                     $logActivityStmt->bind_param("ssss", $eventType, $trainerId, $bookingId, $metadata);
+                                     if ($logActivityStmt->execute()) {
+                                         error_log("[MPESA ACTIVITY LOG] Logged trainer earnings event for $trainerId");
+                                     } else {
+                                         error_log("[MPESA ACTIVITY LOG WARNING] Failed to log to activity_log: " . $conn->error);
+                                     }
+                                     $logActivityStmt->close();
+                                 }
+                             } else {
+                                 error_log("[MPESA WALLET ERROR] Failed to update wallet balance: " . $conn->error);
+                             }
+                             $updateWalletStmt->close();
+                         }
+                     } else {
+                         error_log("[MPESA WALLET ERROR] Failed to insert wallet transaction: " . $conn->error);
+                     }
+                     $walletTransactionStmt->close();
+                 }
+             }
         }
 
         // Send payment confirmation SMS if SMS helper is available

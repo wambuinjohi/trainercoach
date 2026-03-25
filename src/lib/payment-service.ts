@@ -219,6 +219,7 @@ export async function pollPaymentStatus(
 /**
  * Complete a payment by inserting payment record and updating booking status
  * Should be called after successful payment confirmation
+ * Also auto-credits trainer wallet with their earnings (minus commission)
  */
 export async function completePayment(
   paymentRecord: PaymentRecord,
@@ -239,6 +240,28 @@ export async function completePayment(
         },
         { headers: withAuth() }
       )
+    }
+
+    // Auto-credit trainer wallet with their earnings (trainer_net_amount minus commission)
+    // This happens immediately when payment is completed
+    if (paymentRecord.trainer_id && paymentRecord.trainer_net_amount && paymentRecord.trainer_net_amount > 0) {
+      try {
+        await apiRequest(
+          'wallet_update',
+          {
+            user_id: paymentRecord.trainer_id,
+            amount: paymentRecord.trainer_net_amount,
+            transaction_type: 'booking_completed',
+            reference: `payment_booking_${bookingId || paymentRecord.client_id}`,
+            description: `Earnings from booking${bookingId ? ` #${bookingId}` : ''}`
+          },
+          { headers: withAuth() }
+        )
+        console.log(`[Payment] Trainer ${paymentRecord.trainer_id} credited: Ksh ${paymentRecord.trainer_net_amount}`)
+      } catch (walletError: any) {
+        console.error('Failed to auto-credit trainer wallet:', walletError)
+        // Log but don't fail the payment completion - the earnings are still recorded in the payments table
+      }
     }
 
     return { success: true }
