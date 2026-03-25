@@ -75,6 +75,20 @@ const AppContent = () => {
     return isMobile ? <Explore /> : <Home />;
   }
 
+  // Check if user is in signup step 2 onboarding - don't redirect if they are
+  const trainerStep2 = localStorage.getItem('trainer_signup_step2') === 'true';
+  const clientStep2 = localStorage.getItem('client_signup_step2') === 'true';
+
+  if (trainerStep2 && userType === 'trainer') {
+    // Let trainer proceed to step 2 onboarding
+    return <Navigate to="/signup-step2" replace />;
+  }
+
+  if (clientStep2 && userType === 'client') {
+    // Let client proceed to step 2 onboarding
+    return <Navigate to="/signup-client-step2" replace />;
+  }
+
   // Route based on user type
   switch (userType) {
     case "admin":
