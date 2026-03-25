@@ -9,6 +9,7 @@ import { Send, Loader2, Users, AlertCircle, CheckCircle } from 'lucide-react'
 import { apiRequest, withAuth } from '@/lib/api'
 import { toast } from '@/hooks/use-toast'
 import * as apiService from '@/lib/api-service'
+import * as notificationService from '@/lib/notification-service'
 
 type RecipientType = 'all' | 'clients' | 'trainers' | 'admins'
 
@@ -31,22 +32,39 @@ export const AnnouncementBroadcastManager: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [previewMode, setPreviewMode] = useState(false)
 
-  // Load broadcast history
+  // Load broadcast history on mount
   useEffect(() => {
     loadBroadcastHistory()
   }, [])
 
+  const STORAGE_KEY = 'announcement_broadcast_history'
+
   const loadBroadcastHistory = async () => {
     try {
       setLoadingHistory(true)
-      // This would be a real API call to get announcement history
-      // For now, we'll use mock data
-      const mockHistory: BroadcastHistory[] = []
-      setHistory(mockHistory)
+      // Load from localStorage first
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        try {
+          const parsedHistory = JSON.parse(stored) as BroadcastHistory[]
+          setHistory(parsedHistory)
+        } catch (err) {
+          console.warn('Failed to parse stored broadcast history', err)
+          setHistory([])
+        }
+      }
     } catch (err) {
       console.warn('Failed to load broadcast history', err)
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const saveBroadcastHistory = (updatedHistory: BroadcastHistory[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory))
+    } catch (err) {
+      console.warn('Failed to save broadcast history to localStorage', err)
     }
   }
 
@@ -86,26 +104,19 @@ export const AnnouncementBroadcastManager: React.FC = () => {
         return
       }
 
-      // Create notifications for each user
-      const nowIso = new Date().toISOString()
-      const notifications = userIds.map(userId => ({
-        user_id: userId,
+      // Use centralized notification service to create announcements
+      const success = await notificationService.notifySystemAnnouncement(
         title,
-        body: message,
-        type: 'announcement',
-        action_type: 'view_announcement',
-        created_at: nowIso,
-        read: false,
-      }))
+        message,
+        userIds
+      )
 
-      // Send notifications in batches (max 100 per request)
-      const batchSize = 100
-      for (let i = 0; i < notifications.length; i += batchSize) {
-        const batch = notifications.slice(i, i + batchSize)
-        await apiRequest('notifications_insert', { notifications: batch }, { headers: withAuth() })
+      if (!success) {
+        throw new Error('Failed to send notifications')
       }
 
-      // Add to history
+      // Add to history and persist
+      const nowIso = new Date().toISOString()
       const announcement: BroadcastHistory = {
         id: `ann-${Date.now()}`,
         title,
@@ -115,7 +126,9 @@ export const AnnouncementBroadcastManager: React.FC = () => {
         recipientCount: userIds.length,
         status: 'sent',
       }
-      setHistory([announcement, ...history])
+      const updatedHistory = [announcement, ...history]
+      setHistory(updatedHistory)
+      saveBroadcastHistory(updatedHistory)
 
       toast({
         title: 'Announcement sent',
