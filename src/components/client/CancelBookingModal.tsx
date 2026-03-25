@@ -14,13 +14,16 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { toast } from '@/hooks/use-toast'
 import { apiRequest, withAuth } from '@/lib/api'
 import * as apiService from '@/lib/api-service'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, ArrowRight } from 'lucide-react'
+import { SessionTransferModal } from './SessionTransferModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface CancelBookingModalProps {
   booking: any
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  trainer?: any
 }
 
 export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
@@ -28,10 +31,13 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  trainer,
 }) => {
+  const { user } = useAuth()
   const [reason, setReason] = useState<string>('')
   const [customReason, setCustomReason] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showTransfer, setShowTransfer] = useState(false)
 
   const reasons = [
     { value: 'schedule_conflict', label: 'Schedule conflict' },
@@ -177,31 +183,56 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
           )}
         </div>
 
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1"
-          >
-            Keep Booking
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleCancel}
-            disabled={loading}
-            className="flex-1"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Cancelling...
-              </>
-            ) : (
-              'Cancel Booking'
-            )}
-          </Button>
+        <DialogFooter className="flex flex-col gap-2">
+          {trainer && (
+            <Button
+              variant="outline"
+              onClick={() => setShowTransfer(true)}
+              disabled={loading}
+              className="w-full gap-2"
+            >
+              <ArrowRight className="h-4 w-4" />
+              Transfer to Another Trainer
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1"
+            >
+              Keep Booking
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                'Cancel Booking'
+              )}
+            </Button>
+          </div>
         </DialogFooter>
+
+        {showTransfer && trainer && (
+          <SessionTransferModal
+            currentBooking={booking}
+            currentTrainer={trainer}
+            onTransfer={() => {
+              setShowTransfer(false)
+              onSuccess()
+            }}
+            onClose={() => setShowTransfer(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

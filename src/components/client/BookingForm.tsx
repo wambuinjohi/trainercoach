@@ -13,6 +13,8 @@ import { calculateFeeBreakdown } from '@/lib/fee-calculations'
 import * as apiService from '@/lib/api-service'
 import { completeMockPayment, processBookingPayment } from '@/lib/payment-service'
 import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig, type GroupTier } from '@/lib/group-pricing-utils'
+import { LocationPreferenceSelector, type LocationPreference } from './LocationPreferenceSelector'
+import { FeeBreakdownModal, type FeeBreakdown } from './FeeBreakdownModal'
 
 export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void }> = ({ trainer, trainerProfile, onDone }) => {
   const { user } = useAuth()
@@ -30,6 +32,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig | null>(null)
   const [selectedGroupTierName, setSelectedGroupTierName] = useState<string>('')
   const [trainerCategoryId, setTrainerCategoryId] = useState<number | null>(null)
+  const [locationPreference, setLocationPreference] = useState<LocationPreference | null>(null)
+  const [showLocationSelector, setShowLocationSelector] = useState(false)
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false)
 
   const computeBaseAmount = () => {
     if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
@@ -155,7 +160,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       status: 'pending',
       session_phase: 'waiting_start',
       base_service_amount: baseServiceAmount,
-      notes,
+      notes: notes || `Session location preference: ${locationPreference?.label || 'Not specified'}${locationPreference?.customLocation ? ` (${locationPreference.customLocation})` : ''}`,
+      session_location_preference: locationPreference?.type || null,
+      session_location_custom: locationPreference?.customLocation || null,
       client_location_label: (clientLocation.label || null),
       client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
       client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
@@ -431,8 +438,30 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         )}
 
         <div>
-          <Label>Notes</Label>
-          <input className="w-full p-2 border border-border rounded-md bg-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Label>Notes / Additional Info</Label>
+          <input className="w-full p-2 border border-border rounded-md bg-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requests or details..." />
+        </div>
+
+        <div>
+          <Label className="mb-2 block">Session Location Preference</Label>
+          {!showLocationSelector ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowLocationSelector(true)}
+              className="w-full justify-start"
+            >
+              {locationPreference ? `✓ ${locationPreference.label}${locationPreference.customLocation ? ` (${locationPreference.customLocation})` : ''}` : 'Select location preference'}
+            </Button>
+          ) : (
+            <div className="p-3 border border-border rounded-md bg-muted/5">
+              <LocationPreferenceSelector
+                value={locationPreference || undefined}
+                onChange={setLocationPreference}
+                onClose={() => setShowLocationSelector(false)}
+              />
+            </div>
+          )}
         </div>
 
         <div>
@@ -475,7 +504,16 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{sessions}</span></div>
           <div className="flex justify-between"><span>Base Service Amount</span><span className="font-semibold">Ksh {baseAmount}</span></div>
           <div className="border-t border-border my-2 pt-2">
-            <div className="text-xs text-muted-foreground mb-2">Fee Breakdown:</div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-muted-foreground">Fee Breakdown:</span>
+              <button
+                type="button"
+                onClick={() => setShowFeeBreakdown(true)}
+                className="text-xs text-blue-600 hover:underline font-medium"
+              >
+                View Details
+              </button>
+            </div>
             <div className="flex justify-between text-xs"><span>Platform Charge (Client)</span><span>Ksh {feeBreakdown.platformChargeClient}</span></div>
             <div className="flex justify-between text-xs"><span>Compensation Fee</span><span>Ksh {feeBreakdown.compensationFee}</span></div>
             <div className="flex justify-between text-xs text-muted-foreground"><span>Maintenance Fee (system revenue)</span><span>Ksh {feeBreakdown.maintenanceFee}</span></div>
@@ -490,6 +528,19 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
         <Button onClick={submit} disabled={loading || !!availabilityError} className="bg-gradient-primary text-white" title={availabilityError ? 'Please select a valid date and time' : ''}>{loading ? 'Processing...' : 'Confirm & Pay'}</Button>
       </div>
+      {showFeeBreakdown && (
+        <FeeBreakdownModal
+          breakdown={{
+            baseServiceAmount: baseAmount,
+            platformChargeClient: feeBreakdown.platformChargeClient,
+            compensationFee: feeBreakdown.compensationFee,
+            maintenanceFee: feeBreakdown.maintenanceFee,
+            transportFee: 0,
+            clientTotal: feeBreakdown.clientTotal,
+          }}
+          onClose={() => setShowFeeBreakdown(false)}
+        />
+      )}
     </div>
   )
 }
