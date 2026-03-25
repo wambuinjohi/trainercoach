@@ -47,6 +47,7 @@ import BookingsPage from "./pages/admin/BookingsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import DocumentReviewPage from "./pages/admin/DocumentReviewPage";
 import ResetPasswordsPage from "./pages/admin/ResetPasswordsPage";
+import BookingConfirmation from "./pages/BookingConfirmation";
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,7 @@ const AppRoutes = () => (
       }} />} />
       <Route path="/signup-step2" element={<SignupStep2 />} />
       <Route path="/signup-client-step2" element={<SignupClientStep2 />} />
+      <Route path="/booking-confirmation/:bookingId" element={<BookingConfirmation />} />
       <Route path="/password-reset" element={<PasswordReset />} />
       <Route path="/reset-passwords" element={<ResetPasswords />} />
       <Route path="/setup" element={<AdminSetup />} />
