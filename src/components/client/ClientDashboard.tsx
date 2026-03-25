@@ -38,6 +38,8 @@ import { NextSessionModal } from './NextSessionModal'
 import { LocationSelector } from './LocationSelector'
 import { SessionEndConfirmModal } from './SessionEndConfirmModal'
 import { SessionStartConfirmModal } from './SessionStartConfirmModal'
+import { CancelBookingModal } from './CancelBookingModal'
+import { RescheduleBookingModal } from './RescheduleBookingModal'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { UnratedSessionNotice } from './UnratedSessionNotice'
 
@@ -112,6 +114,8 @@ export const ClientDashboard: React.FC = () => {
   const [pendingSessionConfirm, setPendingSessionConfirm] = useState<any>(null)
   const [pendingSessionStart, setPendingSessionStart] = useState<any>(null)
   const [clientProfile, setClientProfile] = useState<any>(null)
+  const [cancellingBooking, setCancellingBooking] = useState<any>(null)
+  const [reschedulingBooking, setReschedulingBooking] = useState<any>(null)
 
   // Ref to track if trainers have been enriched with the current location to avoid infinite loops
   const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
@@ -911,6 +915,27 @@ export const ClientDashboard: React.FC = () => {
                   Next
                 </Button>
               )}
+              {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setReschedulingBooking(booking)}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Reschedule
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                    onClick={() => setCancellingBooking(booking)}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </CardContent>
@@ -1054,6 +1079,8 @@ export const ClientDashboard: React.FC = () => {
       {nextSessionBooking && <NextSessionModal previous={nextSessionBooking} onClose={() => setNextSessionBooking(null)} onBooked={() => { setNextSessionBooking(null); loadBookings() }} />}
       {pendingSessionStart && <SessionStartConfirmModal booking={pendingSessionStart} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionStart(null)} />}
       {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
+      {cancellingBooking && <CancelBookingModal booking={cancellingBooking} isOpen={!!cancellingBooking} onClose={() => setCancellingBooking(null)} onSuccess={() => loadBookings()} />}
+      {reschedulingBooking && <RescheduleBookingModal booking={reschedulingBooking} trainerProfile={null} isOpen={!!reschedulingBooking} onClose={() => setReschedulingBooking(null)} onSuccess={() => loadBookings()} />}
 
       {!modalOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">

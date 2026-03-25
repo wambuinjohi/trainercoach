@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig,
 
 export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void }> = ({ trainer, trainerProfile, onDone }) => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [sessions, setSessions] = useState<number>(1)
@@ -300,6 +302,20 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         console.warn('Zapier webhook error', err)
       }
 
+      // Navigate to booking confirmation page with booking details
+      const bookingConfirmationState = {
+        bookingId: bookingId,
+        trainerName: trainer.name || 'Trainer',
+        date,
+        time,
+        sessions,
+        totalAmount: clientTotal,
+        disciplineName: trainer.disciplineName,
+        location: clientLocation.label,
+        notes,
+      }
+
+      navigate(`/booking-confirmation/${bookingId}`, { state: bookingConfirmationState })
       onDone?.()
     } catch (err) {
       console.error('Booking error', err)
