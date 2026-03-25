@@ -42,6 +42,7 @@ import * as apiService from '@/lib/api-service'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { NotificationsCenter } from '@/components/client/NotificationsCenter'
 import { StatusIndicator } from './StatusIndicator'
+import { PromoteProfileModal } from './PromoteProfileModal'
 
 export const TrainerDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -58,6 +59,7 @@ export const TrainerDashboard: React.FC = () => {
   const [showTopUp, setShowTopUp] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showArchivedBookings, setShowArchivedBookings] = useState(false)
+  const [showPromoteModal, setShowPromoteModal] = useState(false)
   const [unreadNotificationsTrainer, setUnreadNotificationsTrainer] = useState(0)
   const [profileData, setProfileData] = useState<any>({
     name: user?.email,
@@ -90,7 +92,7 @@ export const TrainerDashboard: React.FC = () => {
   const openChat = (booking: any) => setChatBooking(booking)
   const closeChat = () => setChatBooking(null)
   const openPromote = () => {
-    toast({ title: 'Promote', description: 'Promotion features coming soon!', variant: 'default' })
+    setShowPromoteModal(true)
   }
 
   const handleLogout = async () => {
@@ -845,6 +847,12 @@ export const TrainerDashboard: React.FC = () => {
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}
       {showReport && <TrainerReportIssue onDone={() => setShowReport(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}
+      <PromoteProfileModal
+        isOpen={showPromoteModal}
+        onClose={() => setShowPromoteModal(false)}
+        onSuccess={() => setShowPromoteModal(false)}
+        currentPromotionTier={profileData.promotion_tier || 'standard'}
+      />
       {showDisputes && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 overflow-y-auto">
           <div className="w-full max-w-2xl bg-background rounded-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">

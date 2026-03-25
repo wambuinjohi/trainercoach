@@ -5704,6 +5704,122 @@ switch ($action) {
         }
         break;
 
+    // AUTO B2C PAYOUT WHEN PAYMENT COMPLETED
+    // Called automatically when a payment is completed (not manual request)
+    case 'trainer_payout_auto_b2c':
+        if (!isset($input['booking_id']) || !isset($input['trainer_id'])) {
+            respond("error", "Missing booking_id or trainer_id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+        $trainerId = $conn->real_escape_string($input['trainer_id']);
+        $amount = floatval($input['amount'] ?? 0);
+        $reason = $conn->real_escape_string($input['reason'] ?? 'payment_completed');
+
+        if ($amount <= 0) {
+            respond("error", "Amount must be greater than zero.", null, 400);
+        }
+
+        // 1. Validate booking exists and trainer matches
+        $bookingSql = "SELECT * FROM bookings WHERE id = '$bookingId' LIMIT 1";
+        $bookingResult = $conn->query($bookingSql);
+        if (!$bookingResult || $bookingResult->num_rows === 0) {
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $booking = $bookingResult->fetch_assoc();
+        if ($booking['trainer_id'] !== $trainerId) {
+            respond("error", "Trainer does not match booking trainer.", null, 400);
+        }
+
+        // 2. Ensure trainer has MPESA number in payout_details or profile
+        $profileSql = "SELECT payout_details, phone FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
+        $profileResult = $conn->query($profileSql);
+        if (!$profileResult || $profileResult->num_rows === 0) {
+            error_log("[B2C AUTO] Trainer profile not found for: $trainerId - skipping auto payout");
+            respond("error", "Trainer profile not found.", null, 404);
+        }
+
+        $profile = $profileResult->fetch_assoc();
+        $payoutDetails = json_decode($profile['payout_details'] ?? '{}', true);
+        $mpesaNumber = $payoutDetails['mpesa_number'] ?? $profile['phone'] ?? null;
+
+        if (empty($mpesaNumber)) {
+            error_log("[B2C AUTO] No MPESA number found for trainer $trainerId - skipping auto payout");
+            respond("error", "Trainer MPESA number not configured. Cannot auto-pay.", null, 400);
+        }
+
+        // Normalize phone number for MPESA B2C (254XXXXXXXXX)
+        $mpesaNumber = preg_replace('/[^0-9]/', '', $mpesaNumber);
+        if (strlen($mpesaNumber) === 10 && $mpesaNumber[0] === '0') {
+            $mpesaNumber = '254' . substr($mpesaNumber, 1);
+        } elseif (strlen($mpesaNumber) === 9) {
+            $mpesaNumber = '254' . $mpesaNumber;
+        }
+
+        // 3. Create b2c_payments record
+        $b2cId = 'b2c_' . uniqid();
+        $referenceId = 'payout_' . $bookingId;
+        $now = date('Y-m-d H:i:s');
+
+        $stmt = $conn->prepare("
+            INSERT INTO b2c_payments (
+                id, user_id, user_type, phone_number, amount, reference_id, status, initiated_at, updated_at
+            ) VALUES (?, ?, 'trainer', ?, ?, ?, 'pending', ?, ?)
+        ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare B2C payment statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("sssdsss", $b2cId, $trainerId, $mpesaNumber, $amount, $referenceId, $now, $now);
+
+        if ($stmt->execute()) {
+            $stmt->close();
+
+            // 4. Call initiateB2CPayment() from mpesa_helper.php
+            if (function_exists('getMpesaCredentials') && function_exists('initiateB2CPayment')) {
+                $creds = getMpesaCredentials();
+                if ($creds) {
+                    $b2cResult = initiateB2CPayment($creds, $mpesaNumber, $amount, 'BusinessPayment', "Automatic payout for booking $bookingId ($reason)");
+                    if ($b2cResult['success']) {
+                        // Update b2c_payments to 'initiated' status
+                        $conn->query("UPDATE b2c_payments SET status = 'initiated', updated_at = NOW() WHERE id = '$b2cId'");
+
+                        logEvent('trainer_auto_b2c_initiated', [
+                            'booking_id' => $bookingId,
+                            'trainer_id' => $trainerId,
+                            'amount' => $amount,
+                            'b2c_payment_id' => $b2cId,
+                            'reason' => $reason
+                        ]);
+
+                        error_log("[B2C AUTO] Successfully initiated payout for trainer $trainerId: Ksh " . number_format($amount, 2) . " for booking $bookingId");
+
+                        respond("success", "Trainer auto-payout initiated successfully.", [
+                            "b2c_payment_id" => $b2cId,
+                            "conversation_id" => $b2cResult['conversation_id'] ?? null
+                        ]);
+                    } else {
+                        // Mark B2C payment as failed
+                        $conn->query("UPDATE b2c_payments SET status = 'failed', updated_at = NOW() WHERE id = '$b2cId'");
+                        error_log("[B2C AUTO ERROR] Failed to initiate B2C: " . ($b2cResult['error'] ?? 'Unknown error'));
+                        respond("error", "M-Pesa B2C initiation failed: " . ($b2cResult['error'] ?? 'Unknown error'), null, 500);
+                    }
+                } else {
+                    error_log("[B2C AUTO ERROR] M-Pesa credentials not configured");
+                    respond("error", "M-Pesa credentials not configured.", null, 500);
+                }
+            } else {
+                error_log("[B2C AUTO ERROR] M-Pesa helper functions not available");
+                respond("error", "M-Pesa helper functions not available.", null, 500);
+            }
+        } else {
+            $stmt->close();
+            respond("error", "Failed to create B2C payment record: " . $conn->error, null, 500);
+        }
+        break;
+
     // SAVE ADMIN SETTINGS (including M-Pesa credentials)
     case 'settings_save':
         try {

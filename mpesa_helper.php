@@ -1014,6 +1014,143 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
         if ($res && $bookingId) {
              // Update booking status
              $conn->query("UPDATE bookings SET status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
+
+             // Auto-initiate B2C payout directly to trainer's M-Pesa account
+             // This sends trainer earnings immediately without wallet intermediate step
+             if (!empty($trainerId) && floatval($trainerNetAmount) > 0) {
+                 // Attempt to initiate B2C payout (async, doesn't block payment recording)
+                 try {
+                     $profileSql = "SELECT payout_details, phone FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
+                     $profileResult = @$conn->query($profileSql);
+
+                     if ($profileResult && $profileResult->num_rows > 0) {
+                         $profile = $profileResult->fetch_assoc();
+                         $payoutDetails = json_decode($profile['payout_details'] ?? '{}', true);
+                         $mpesaNumber = $payoutDetails['mpesa_number'] ?? $profile['phone'] ?? null;
+
+                         if (!empty($mpesaNumber)) {
+                             // Normalize phone number
+                             $mpesaNumber = preg_replace('/[^0-9]/', '', $mpesaNumber);
+                             if (strlen($mpesaNumber) === 10 && $mpesaNumber[0] === '0') {
+                                 $mpesaNumber = '254' . substr($mpesaNumber, 1);
+                             } elseif (strlen($mpesaNumber) === 9) {
+                                 $mpesaNumber = '254' . $mpesaNumber;
+                             }
+
+                             // Create B2C payment record
+                             $b2cId = 'b2c_' . uniqid();
+                             $referenceId = 'payout_' . $bookingId;
+                             $now = date('Y-m-d H:i:s');
+
+                             $b2cStmt = $conn->prepare("
+                                 INSERT INTO b2c_payments (
+                                     id, user_id, user_type, phone_number, amount, reference_id, status, initiated_at, updated_at
+                                 ) VALUES (?, ?, 'trainer', ?, ?, ?, 'pending', ?, ?)
+                             ");
+
+                             if ($b2cStmt) {
+                                 $b2cStmt->bind_param("sssdsss", $b2cId, $trainerId, $mpesaNumber, $trainerNetAmount, $referenceId, $now, $now);
+
+                                 if ($b2cStmt->execute()) {
+                                     $b2cStmt->close();
+
+                                     // Initiate B2C payment
+                                     $creds = getMpesaCredentials();
+                                     if ($creds) {
+                                         $b2cResult = initiateB2CPayment($creds, $mpesaNumber, $trainerNetAmount, 'BusinessPayment', "Automatic payout for booking $bookingId");
+                                         if ($b2cResult['success']) {
+                                             $conn->query("UPDATE b2c_payments SET status = 'initiated', updated_at = NOW() WHERE id = '$b2cId'");
+                                             error_log("[MPESA B2C AUTO] Trainer $trainerId auto-payout initiated: Ksh " . number_format($trainerNetAmount, 2) . " for booking $bookingId");
+                                         } else {
+                                             $conn->query("UPDATE b2c_payments SET status = 'failed', updated_at = NOW() WHERE id = '$b2cId'");
+                                             error_log("[MPESA B2C AUTO ERROR] Failed to initiate B2C: " . ($b2cResult['error'] ?? 'Unknown error'));
+                                         }
+                                     }
+                                 } else {
+                                     $b2cStmt->close();
+                                     error_log("[MPESA B2C AUTO ERROR] Failed to create B2C record: " . $conn->error);
+                                 }
+                             }
+                         } else {
+                             error_log("[MPESA B2C AUTO] No MPESA number for trainer $trainerId - skipping auto payout");
+                         }
+                     }
+                 } catch (Exception $e) {
+                     error_log("[MPESA B2C AUTO ERROR] Exception during B2C initiation: " . $e->getMessage());
+                 }
+             }
+
+             // Also backup wallet transaction for record keeping
+             if (!empty($trainerId) && floatval($trainerNetAmount) > 0) {
+                 $walletId = 'wallet_' . uniqid();
+                 $walletNow = date('Y-m-d H:i:s');
+
+                 // Insert wallet transaction
+                 $walletTransactionStmt = $conn->prepare("
+                     INSERT INTO wallet_transactions (
+                         id, user_id, amount, transaction_type, booking_id, reference, description, created_at
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ");
+
+                 if ($walletTransactionStmt) {
+                     $transactionType = 'booking_completed';
+                     $reference = 'payment_booking_' . ($bookingId ?? $clientId);
+                     $description = 'Earnings from booking #' . $bookingId;
+
+                     $walletTransactionStmt->bind_param(
+                         "ssdsssss",
+                         $walletId, $trainerId, $trainerNetAmount, $transactionType,
+                         $bookingId, $reference, $description, $walletNow
+                     );
+
+                     if ($walletTransactionStmt->execute()) {
+                         // Update user wallet balance
+                         $updateWalletStmt = $conn->prepare("
+                             UPDATE user_wallets
+                             SET balance = balance + ?, available_balance = available_balance + ?, updated_at = ?
+                             WHERE user_id = ?
+                         ");
+
+                         if ($updateWalletStmt) {
+                             $updateWalletStmt->bind_param("ddss", $trainerNetAmount, $trainerNetAmount, $walletNow, $trainerId);
+                             if ($updateWalletStmt->execute()) {
+                                 error_log("[MPESA WALLET] Trainer $trainerId auto-credited: Ksh " . number_format($trainerNetAmount, 2));
+
+                                 // Log to activity_log if table exists
+                                 $logActivityStmt = $conn->prepare("
+                                     INSERT INTO activity_log (
+                                         event_type, user_id, booking_id, metadata, timestamp
+                                     ) VALUES (?, ?, ?, ?, NOW())
+                                 ");
+
+                                 if ($logActivityStmt) {
+                                     $eventType = 'trainer_earnings_credited';
+                                     $metadata = json_encode([
+                                         'payment_id' => $paymentId,
+                                         'amount' => $trainerNetAmount,
+                                         'booking_id' => $bookingId,
+                                         'client_id' => $clientId
+                                     ]);
+
+                                     $logActivityStmt->bind_param("ssss", $eventType, $trainerId, $bookingId, $metadata);
+                                     if ($logActivityStmt->execute()) {
+                                         error_log("[MPESA ACTIVITY LOG] Logged trainer earnings event for $trainerId");
+                                     } else {
+                                         error_log("[MPESA ACTIVITY LOG WARNING] Failed to log to activity_log: " . $conn->error);
+                                     }
+                                     $logActivityStmt->close();
+                                 }
+                             } else {
+                                 error_log("[MPESA WALLET ERROR] Failed to update wallet balance: " . $conn->error);
+                             }
+                             $updateWalletStmt->close();
+                         }
+                     } else {
+                         error_log("[MPESA WALLET ERROR] Failed to insert wallet transaction: " . $conn->error);
+                     }
+                     $walletTransactionStmt->close();
+                 }
+             }
         }
 
         // Send payment confirmation SMS if SMS helper is available

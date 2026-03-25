@@ -219,6 +219,7 @@ export async function pollPaymentStatus(
 /**
  * Complete a payment by inserting payment record and updating booking status
  * Should be called after successful payment confirmation
+ * Also auto-credits trainer wallet with their earnings (minus commission)
  */
 export async function completePayment(
   paymentRecord: PaymentRecord,
@@ -239,6 +240,28 @@ export async function completePayment(
         },
         { headers: withAuth() }
       )
+    }
+
+    // Auto-initiate B2C payout to trainer (direct to M-Pesa, not wallet)
+    // This happens immediately when payment is completed
+    if (paymentRecord.trainer_id && bookingId && paymentRecord.trainer_net_amount && paymentRecord.trainer_net_amount > 0) {
+      try {
+        await apiRequest(
+          'trainer_payout_auto_b2c',
+          {
+            booking_id: bookingId,
+            trainer_id: paymentRecord.trainer_id,
+            amount: paymentRecord.trainer_net_amount,
+            reason: 'payment_completed'
+          },
+          { headers: withAuth() }
+        )
+        console.log(`[Payment] Initiated B2C payout for trainer ${paymentRecord.trainer_id}: Ksh ${paymentRecord.trainer_net_amount}`)
+      } catch (payoutError: any) {
+        console.error('Failed to auto-initiate B2C payout:', payoutError)
+        // Log but don't fail the payment completion - the earnings are still recorded in the payments table
+        // Manual payout can be requested later if needed
+      }
     }
 
     return { success: true }
