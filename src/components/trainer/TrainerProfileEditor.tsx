@@ -635,7 +635,7 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
   }
 
   return (
-    <div className="w-full space-y-5 pb-24">
+    <div className="space-y-5">
       {/* Loading State */}
       {(loading || documentsLoading) && !categoriesLoading && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
