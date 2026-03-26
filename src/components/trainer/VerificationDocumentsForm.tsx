@@ -44,9 +44,10 @@ const requiredDocuments: Document[] = [
 
 interface VerificationDocumentsFormProps {
   onComplete?: () => void
+  refreshTrigger?: number
 }
 
-export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete }) => {
+export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete, refreshTrigger }) => {
   const { user } = useAuth()
   const userId = user?.id
   const [documents, setDocuments] = useState<Document[]>(requiredDocuments)
@@ -62,6 +63,13 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     if (!userId) return
     loadProfileAndDocuments()
   }, [userId])
+
+  // Reload documents when refreshTrigger changes (e.g., after profile is saved)
+  useEffect(() => {
+    if (!userId || refreshTrigger === undefined) return
+    console.log('[VerificationDocuments] Refreshing documents due to trigger change:', refreshTrigger)
+    loadDocuments()
+  }, [userId, refreshTrigger])
 
   const loadProfileAndDocuments = async () => {
     try {
@@ -236,12 +244,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const handleSubmitForApproval = async () => {
     if (!userId) return
 
-    // Only proof_of_residence is truly required. Good conduct is optional.
-    const requiredDocsSubmitted = documents
+    // Check if all required documents are uploaded (have fileUrl or are auto-generated like proof_of_residence)
+    const requiredDocsUploaded = documents
       .filter(d => d.type !== 'certificate_of_good_conduct') // Good conduct is optional
-      .every(d => d.status !== 'pending')
+      .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
 
-    if (!requiredDocsSubmitted) {
+    if (!requiredDocsUploaded) {
       toast({
         title: 'Incomplete',
         description: 'Please complete all required documents',
@@ -282,6 +290,18 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const allSubmitted = documents
     .filter(d => d.type !== 'certificate_of_good_conduct')
     .every(d => d.status !== 'pending')
+
+  // All required documents uploaded (have fileUrl) - proof_of_residence is auto-generated from location
+  const allRequiredUploaded = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
+
+  // Ready to submit: all required docs are uploaded and not all approved yet
+  // Show button when user can click to formally submit for review
+  const readyToSubmit = allRequiredUploaded && !allApproved &&
+    documents
+      .filter(d => d.type !== 'certificate_of_good_conduct')
+      .every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -577,10 +597,10 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           </div>
 
           {/* Submit Button */}
-          {allSubmitted && !allApproved && (
+          {readyToSubmit && (
             <Button
               onClick={handleSubmitForApproval}
-              disabled={loading || !allSubmitted}
+              disabled={loading}
               className="w-full"
             >
               {loading ? (
