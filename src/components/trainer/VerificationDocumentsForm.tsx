@@ -345,7 +345,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </Alert>
           )}
 
-          {!allApproved && allSubmitted && (
+          {!allApproved && anySubmitted && (
             <Alert className="bg-blue-50 border-blue-200">
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
