@@ -1006,16 +1006,6 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
         }}
       />
 
-      {/* VERIFICATION DOCUMENTS SECTION */}
-      <VerificationDocumentsForm
-        onComplete={() => {
-          toast({
-            title: 'Success',
-            description: 'Your verification documents have been submitted for review.',
-          })
-        }}
-      />
-
       {/* AVAILABILITY SECTION */}
       <Card className="border-border">
         <CardHeader className="pb-3">
