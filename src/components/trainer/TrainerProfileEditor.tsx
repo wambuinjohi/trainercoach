@@ -8,11 +8,9 @@ import { toast } from '@/hooks/use-toast'
 import { MediaUploadSection } from './MediaUploadSection'
 import { MapLocationSelector } from './MapLocationSelector'
 import { AvailabilitySelector } from './AvailabilitySelector'
-import { VerificationDocumentsForm } from './VerificationDocumentsForm'
 import { DisciplineAndSponsorSection } from './DisciplineAndSponsorSection'
 import { detectDeviceTimezone } from '@/lib/timezone'
 import * as apiService from '@/lib/api-service'
-import { apiRequest, withAuth } from '@/lib/api'
 import { getDefaultServiceRadius } from '@/lib/location-utils'
 
 interface TrainerProfile {
@@ -80,10 +78,11 @@ const cleanAndParseArray = (value: any): string[] => {
 
 interface TrainerProfileEditorProps {
   onClose?: () => void
+  onSaveSuccess?: () => void
   isNewSignup?: boolean
 }
 
-export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onClose, isNewSignup = false }) => {
+export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onClose, onSaveSuccess, isNewSignup = false }) => {
   const { user, signupData } = useAuth()
   const userId = user?.id
   const [loading, setLoading] = useState(false)
@@ -140,14 +139,6 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
   useEffect(() => {
     if (!userId) {
       console.log('[Profile Load] Waiting for userId...')
-      return
-    }
-
-    // For new signups, skip API loading and just use signup data
-    if (isNewSignup) {
-      console.log('[Profile Load] New signup mode - using signup data only')
-      setLoading(false)
-      setDocumentsLoading(false)
       return
     }
 
@@ -578,25 +569,51 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
         return
       }
 
-      // Save to localStorage as fallback
-      localStorage.setItem(`trainer_profile_${userId}`, JSON.stringify(profileData))
+      const updatedProfileCache = {
+        ...profileData,
+        full_name: name,
+        hourly_rate: hourlyRateNum,
+        service_radius: serviceRadiusNum,
+        availability: availabilityVal ?? null,
+        payout_details: payoutDetails ?? null,
+        profile_image: profileImageUrl,
+        bio: profile.bio || null,
+        area_of_residence: areaLocation.label || null,
+        area_coordinates: { lat: areaLocation.lat, lng: areaLocation.lng },
+        location_lat: areaLocation.lat,
+        location_lng: areaLocation.lng,
+        location_label: areaLocation.label || null,
+        mpesa_number: profile.mpesa_number || null,
+        registration_path: registrationPath,
+        sponsor_trainer_id: sponsorId,
+      }
 
-      // Get previous categories to determine what changed
+      setProfile(prev => ({
+        ...prev,
+        ...updatedProfileCache,
+        _profile_image_file: undefined,
+        _profile_image_preview: undefined,
+      }))
+      localStorage.setItem(`trainer_profile_${userId}`, JSON.stringify(updatedProfileCache))
+
       const previousCategoriesData = await apiService.getTrainerCategories(userId)
-      // Handle both direct array response and wrapped response with .data property
-      const previousCategoryList = Array.isArray(previousCategoriesData) ? previousCategoriesData : (previousCategoriesData?.data && Array.isArray(previousCategoriesData.data) ? previousCategoriesData.data : [])
-      const previousCategoryIds = previousCategoryList.map((cat: any) => cat.category_id || cat.cat_id) || []
+      const previousCategoryList = Array.isArray(previousCategoriesData)
+        ? previousCategoriesData
+        : (previousCategoriesData?.data && Array.isArray(previousCategoriesData.data) ? previousCategoriesData.data : [])
+      const previousCategoryIds = previousCategoryList
+        .map((cat: any) => cat.category_id || cat.cat_id || cat.id)
+        .filter((id: unknown): id is number => typeof id === 'number' && id > 0)
 
-      // Determine which categories to add and remove
       const categoriesToAdd = selectedCategoryIds.filter(id => !previousCategoryIds.includes(id))
       const categoriesToRemove = previousCategoryIds.filter(id => !selectedCategoryIds.includes(id))
+      const categorySaveErrors: string[] = []
 
-      // Save category changes
       for (const categoryId of categoriesToAdd) {
         try {
           await apiService.addTrainerCategory(userId, categoryId)
         } catch (catErr) {
           console.warn(`Failed to add category ${categoryId}:`, catErr)
+          categorySaveErrors.push(`Could not add category ${categoryId}`)
         }
       }
 
@@ -605,26 +622,47 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
           await apiService.removeTrainerCategory(userId, categoryId)
         } catch (catErr) {
           console.warn(`Failed to remove category ${categoryId}:`, catErr)
+          categorySaveErrors.push(`Could not remove category ${categoryId}`)
         }
       }
 
-      // Save category pricing for all selected categories
       for (const categoryId of selectedCategoryIds) {
-        const price = categoryPricing[categoryId]
-        if (price && price > 0) {
+        const price = categoryPricing[categoryId] || hourlyRateNum
+        if (price > 0) {
           try {
-            await apiRequest('trainer_category_pricing_set', {
-              trainer_id: userId,
-              category_id: categoryId,
-              hourly_rate: price
-            }, { headers: withAuth() })
+            await apiService.setTrainerCategoryPricing(userId, categoryId, Number(price))
           } catch (pricingErr) {
             console.warn(`Failed to save pricing for category ${categoryId}:`, pricingErr)
+            categorySaveErrors.push(`Could not save pricing for category ${categoryId}`)
           }
         }
       }
 
+      if (categorySaveErrors.length > 0) {
+        throw new Error(categorySaveErrors[0])
+      }
+
+      const refreshedCategoriesData = await apiService.getTrainerCategories(userId)
+      const refreshedCategoryList = Array.isArray(refreshedCategoriesData)
+        ? refreshedCategoriesData
+        : (refreshedCategoriesData?.data && Array.isArray(refreshedCategoriesData.data) ? refreshedCategoriesData.data : [])
+      const refreshedCategoryIds = refreshedCategoryList
+        .map((cat: any) => cat.category_id || cat.cat_id || cat.id)
+        .filter((id: unknown): id is number => typeof id === 'number' && id > 0)
+      const refreshedPricing: Record<number, number> = {}
+
+      for (const cat of refreshedCategoryList) {
+        const catId = cat.category_id || cat.cat_id || cat.id
+        if (typeof catId === 'number' && catId > 0) {
+          refreshedPricing[catId] = Number(cat.hourly_rate || hourlyRateNum)
+        }
+      }
+
+      setSelectedCategoryIds(refreshedCategoryIds)
+      setCategoryPricing(refreshedPricing)
+
       toast({ title: 'Saved', description: 'Profile updated successfully.' })
+      onSaveSuccess?.()
       onClose?.()
     } catch (err) {
       console.error('Save profile error', err)
@@ -633,6 +671,8 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
       setLoading(false)
     }
   }
+
+  const displayedProfileImage = (profile as any)._profile_image_preview || profile.profile_image
 
   return (
     <div className="space-y-5">
@@ -673,10 +713,10 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
               <div className="flex gap-4 items-start">
                 {/* Image Preview */}
                 <div className="flex-shrink-0">
-                  {profile.profile_image ? (
+                  {displayedProfileImage ? (
                     <div className="relative">
                       <img
-                        src={profile.profile_image}
+                        src={displayedProfileImage}
                         alt="Profile"
                         className="w-24 h-24 rounded-lg object-cover border-2 border-border"
                       />
@@ -1021,9 +1061,15 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
       </Card>
 
       {/* FORM ACTIONS */}
-      <div className="flex gap-2 justify-end sticky bottom-0 bg-background/95 p-4 border-t border-border rounded-lg backdrop-blur-sm">
-        <Button variant="outline" onClick={() => onClose?.()} disabled={loading} size="sm">Cancel</Button>
-        <Button onClick={save} disabled={loading} size="sm">{loading ? 'Saving...' : 'Save Profile'}</Button>
+      <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+        {!isNewSignup && onClose && (
+          <Button variant="outline" onClick={() => onClose?.()} disabled={loading} size="sm">
+            Cancel
+          </Button>
+        )}
+        <Button onClick={save} disabled={loading} size="sm" className="sm:min-w-32">
+          {loading ? 'Saving...' : 'Save Profile'}
+        </Button>
       </div>
     </div>
   )
