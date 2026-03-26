@@ -13,6 +13,8 @@ import AuthLogo from '@/components/auth/AuthLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { toast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
+import { isValidEmail, isValidPhoneFormat, normalizePhoneNumber } from '@/lib/validation'
+import * as apiService from '@/lib/api-service'
 
 interface AuthFormProps {
   onSuccess?: (userType?: string) => void
@@ -37,6 +39,8 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   // Sync geolocation result to form data
   useEffect(() => {
@@ -70,7 +74,21 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
   }, [geoLocation])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Apply phone formatting in real-time
+    if (field === 'phone') {
+      const normalized = normalizePhoneNumber(value)
+      // Only update if value actually changed after normalization
+      const formatted = value === '' ? '' : normalized
+      setFormData(prev => ({ ...prev, [field]: formatted }))
+      // Clear phone error when user starts typing
+      setPhoneError(null)
+    } else if (field === 'email') {
+      setFormData(prev => ({ ...prev, [field]: value }))
+      // Clear email error when user starts typing
+      setEmailError(null)
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -88,15 +106,12 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     }
   }
 
-  const sanitizePhone = (input: string) => {
-    if (!input) return ''
-    let p = String(input).trim().replace(/[^0-9]/g, '')
-    if (p.startsWith('0')) p = '254' + p.replace(/^0+/, '')
-    return p
-  }
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
+    setEmailError(null)
+    setPhoneError(null)
+
+    // Validate PIN
     if (formData.password.length !== 4) {
       toast({ title: 'Invalid PIN', description: 'Please enter a 4-digit PIN', variant: 'destructive' })
       return
@@ -105,19 +120,72 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
       toast({ title: 'PINs do not match', description: 'Please ensure your PINs match', variant: 'destructive' })
       return
     }
+
+    // Validate location
     if (!formData.locationLabel.trim() && (formData.locationLat == null || formData.locationLng == null)) {
       toast({ title: 'Location required', description: 'Please enter your locality or use GPS', variant: 'destructive' })
       return
     }
 
+    // Validate email format
+    const trimmedEmail = formData.email.trim().toLowerCase()
+    if (!isValidEmail(trimmedEmail)) {
+      toast({ title: 'Invalid Email', description: 'Please enter a valid email address', variant: 'destructive' })
+      setEmailError('Invalid email format')
+      return
+    }
+
+    // Check if email already exists
     setIsLoading(true)
     try {
-      const sanitizedPhone = sanitizePhone(formData.phone)
-      console.log('Starting signup for:', { email: formData.email, userType: formData.userType })
+      const emailExists = await apiService.checkEmailExists(trimmedEmail)
+      if (emailExists?.exists) {
+        toast({ title: 'Email Already In Use', description: 'This email is already registered. Please sign in or use a different email.', variant: 'destructive' })
+        setEmailError('Email already in use')
+        setIsLoading(false)
+        return
+      }
+    } catch (error) {
+      console.error('Error checking email:', error)
+      // Continue even if check fails
+    }
 
-      await signUp(formData.email.trim().toLowerCase(), formData.password, formData.userType, {
+    // Validate phone format
+    if (!formData.phone.trim()) {
+      toast({ title: 'Phone Required', description: 'Please enter a phone number', variant: 'destructive' })
+      setPhoneError('Phone number is required')
+      setIsLoading(false)
+      return
+    }
+
+    if (!isValidPhoneFormat(formData.phone)) {
+      toast({ title: 'Invalid Phone', description: 'Please enter a valid Kenyan phone number (07XX XXX XXX or +254...)', variant: 'destructive' })
+      setPhoneError('Invalid phone format')
+      setIsLoading(false)
+      return
+    }
+
+    // Check if phone already exists
+    try {
+      const phoneExists = await apiService.checkPhoneExists(formData.phone)
+      if (phoneExists?.exists) {
+        toast({ title: 'Phone Already In Use', description: 'This phone number is already registered. Please sign in or use a different number.', variant: 'destructive' })
+        setPhoneError('Phone already in use')
+        setIsLoading(false)
+        return
+      }
+    } catch (error) {
+      console.error('Error checking phone:', error)
+      // Continue even if check fails
+    }
+
+    // All validations passed, proceed with signup
+    try {
+      console.log('Starting signup for:', { email: trimmedEmail, userType: formData.userType })
+
+      await signUp(trimmedEmail, formData.password, formData.userType, {
         full_name: formData.fullName.trim(),
-        phone_number: sanitizedPhone,
+        phone_number: formData.phone,
         location: formData.locationLabel.trim() || undefined,
         location_label: formData.locationLabel.trim() || undefined,
         location_lat: formData.locationLat ?? undefined,
@@ -249,12 +317,14 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} required className="bg-input border-border" />
+                  <Input id="phone" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} required className={`bg-input border-border ${phoneError ? 'border-destructive' : ''}`} />
+                  {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
-                  <Input id="signup-email" type="email" placeholder="Enter your email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} required className="bg-input border-border" />
+                  <Input id="signup-email" type="email" placeholder="Enter your email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} required className={`bg-input border-border ${emailError ? 'border-destructive' : ''}`} />
+                  {emailError && <p className="text-xs text-destructive">{emailError}</p>}
                 </div>
 
                 <div className="space-y-2">

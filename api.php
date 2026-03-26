@@ -2004,6 +2004,40 @@ switch ($action) {
         respond("success", "User type fetched.", ["user_type" => $row['user_type'] ?? 'client']);
         break;
 
+    // CHECK IF EMAIL EXISTS
+    case 'check_email_exists':
+        if (!isset($input['email'])) {
+            respond("error", "Email is required.", null, 400);
+        }
+
+        $email = $conn->real_escape_string($input['email']);
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+
+        $exists = $result->num_rows > 0;
+        respond("success", "Email check complete.", ["exists" => $exists]);
+        break;
+
+    // CHECK IF PHONE EXISTS
+    case 'check_phone_exists':
+        if (!isset($input['phone_number'])) {
+            respond("error", "Phone number is required.", null, 400);
+        }
+
+        $phone = $conn->real_escape_string($input['phone_number']);
+        $stmt = $conn->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
+        $stmt->bind_param("s", $phone);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+
+        $exists = $result->num_rows > 0;
+        respond("success", "Phone check complete.", ["exists" => $exists]);
+        break;
+
     // REQUEST PASSWORD RESET
     case 'request_password_reset':
         if (!isset($input['email'])) {

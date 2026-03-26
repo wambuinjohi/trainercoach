@@ -40,6 +40,10 @@ export async function resetPasswordWithToken(
   })
 }
 
+export async function checkEmailExists(email: string) {
+  return apiRequest('check_email_exists', { email })
+}
+
 export async function checkPhoneExists(phone: string) {
   return apiRequest('check_phone_exists', { phone_number: phone })
 }
