@@ -44,7 +44,7 @@ const DOCUMENT_TYPES: Array<{
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
     description: 'Government-issued certificate of good conduct (within 90 days)',
-    required: true
+    required: false
   }
 ]
 
