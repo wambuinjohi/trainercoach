@@ -283,6 +283,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     .filter(d => d.type !== 'certificate_of_good_conduct')
     .every(d => d.status !== 'pending')
 
+  // Ready to submit: all required docs uploaded and none are rejected
+  const readyToSubmit = allSubmitted && !allApproved &&
+    documents
+      .filter(d => d.type !== 'certificate_of_good_conduct')
+      .every(d => d.status !== 'rejected')
+
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
     const seconds = Math.floor((ms % 60000) / 1000)
@@ -577,10 +583,10 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           </div>
 
           {/* Submit Button */}
-          {allSubmitted && !allApproved && (
+          {readyToSubmit && (
             <Button
               onClick={handleSubmitForApproval}
-              disabled={loading || !allSubmitted}
+              disabled={loading}
               className="w-full"
             >
               {loading ? (

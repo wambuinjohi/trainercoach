@@ -1,6 +1,7 @@
 import React from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { TrainerProfileEditor } from './TrainerProfileEditor'
+import { VerificationDocumentsForm } from './VerificationDocumentsForm'
 import { X } from 'lucide-react'
 
 interface ProfileEditorModalProps {
@@ -9,6 +10,14 @@ interface ProfileEditorModalProps {
 }
 
 export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose }) => {
+  const handleDocumentsComplete = () => {
+    // Close the modal and redirect to trainer dashboard
+    onClose()
+    setTimeout(() => {
+      window.location.href = '/trainer'
+    }, 500)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-full rounded-none sm:rounded-lg max-w-full sm:max-w-2xl md:max-w-3xl max-h-[100vh] sm:max-h-[95vh] overflow-y-auto p-0 flex flex-col">
@@ -29,7 +38,10 @@ export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, 
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-          <TrainerProfileEditor onClose={onClose} />
+          <div className="space-y-8">
+            <TrainerProfileEditor onClose={onClose} />
+            <VerificationDocumentsForm onComplete={handleDocumentsComplete} />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
