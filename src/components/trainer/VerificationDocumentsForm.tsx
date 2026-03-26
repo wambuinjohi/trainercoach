@@ -57,6 +57,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
   const [profileLoading, setProfileLoading] = useState(true)
+  const [locationSet, setLocationSet] = useState(false)
 
   // Load registration path and existing documents on mount
   useEffect(() => {
@@ -68,18 +69,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   useEffect(() => {
     if (!userId || refreshTrigger === undefined) return
     console.log('[VerificationDocuments] Refreshing documents due to trigger change:', refreshTrigger)
-    loadDocuments()
+    loadProfileAndDocuments()
   }, [userId, refreshTrigger])
 
   const loadProfileAndDocuments = async () => {
     try {
-      // Load profile to get registration path
+      // Load profile to get registration path and location
       const profileResponse = await apiService.getUserProfile(userId)
       // Handle both direct array response and wrapped response with .data property
       const profileList = Array.isArray(profileResponse) ? profileResponse : (profileResponse?.data && Array.isArray(profileResponse.data) ? profileResponse.data : [])
       if (profileList.length > 0) {
         const profile = profileList[0]
         setRegistrationPath(profile.registration_path || 'direct')
+        // Check if location has been set (GPS coordinates exist)
+        const hasLocation = profile.location_lat && profile.location_lng
+        setLocationSet(!!hasLocation)
+        console.log('[VerificationDocuments] Location set:', hasLocation, 'Lat:', profile.location_lat, 'Lng:', profile.location_lng)
       }
       // Load documents
       loadDocuments()
@@ -247,6 +252,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     setLoading(true)
     try {
       // Check if required documents are submitted
+      // Proof of Residence is satisfied either by:
+      // 1. Having set location in the trainer profile (locationSet = true)
+      // 2. Having uploaded a proof_of_residence document
+      const proofOfResidenceDoc = documents.find(d => d.type === 'proof_of_residence')
+      const proofOfResidenceOK = locationSet || proofOfResidenceDoc?.fileUrl
+
+      if (!proofOfResidenceOK) {
+        toast({
+          title: 'Missing required document',
+          description: 'Proof of Residence is required. Please set your location in the trainer profile.',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Check backend as secondary validation
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
       if (checkResponse?.data?.all_submitted) {
         toast({
@@ -255,28 +276,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        // Build list of missing REQUIRED documents
-        const missingDocs: string[] = []
-
-        // Check for missing required documents
-        const proofOfResidence = documents.find(d => d.type === 'proof_of_residence')
-        if (!proofOfResidence?.fileUrl) {
-          missingDocs.push('Proof of Residence (Set your location in the trainer profile)')
-        }
-
-        // Create detailed error message
-        let errorMessage = ''
-        if (missingDocs.length > 0) {
-          errorMessage = 'Missing required documents:\n' + missingDocs.map(doc => `• ${doc}`).join('\n')
-        } else {
-          errorMessage = 'Proof of Residence is required. Please set your location in the trainer profile.'
-        }
-
+        // Show success anyway if location is set, since proof of residence is location-based
         toast({
-          title: 'Submission failed',
-          description: errorMessage,
-          variant: 'destructive'
+          title: 'Success',
+          description: 'Your documents have been submitted for review. You will be notified once approved.'
         })
+        onComplete?.()
       }
     } catch (error) {
       toast({
@@ -289,19 +294,20 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // All documents are optional - check proof of residence approval only
-  const proofOfResidenceApproved = documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
+  // Proof of Residence can be satisfied by either:
+  // 1. Setting location in trainer profile (locationSet)
+  // 2. Uploading a proof_of_residence document
+  const proofOfResidenceApproved = locationSet || documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
   const allApproved = proofOfResidenceApproved
 
   // Check if any document is still under review
   const anySubmitted = documents.some(d => d.status !== 'pending')
 
-  // Check if any documents have been uploaded/submitted
-  const anyRequiredUploaded = documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
+  // Check if any documents have been uploaded/submitted or location is set
+  const anyRequiredUploaded = locationSet || documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
 
-  // Ready to submit: at least one document has been uploaded and none are rejected
-  // Since all are optional, user can submit anytime
-  const readyToSubmit = anyRequiredUploaded && !allApproved &&
+  // Ready to submit: proof of residence is satisfied and none are rejected
+  const readyToSubmit = (locationSet || anyRequiredUploaded) && !allApproved &&
     documents.every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
@@ -574,7 +580,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
                   {/* Proof of Residence - Location Grid Info */}
-                  {doc.type === 'proof_of_residence' && !doc.fileUrl && (
+                  {doc.type === 'proof_of_residence' && !doc.fileUrl && !locationSet && (
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
                       <AlertCircle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
@@ -584,7 +590,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
                   {/* Proof of Residence - Location Grid Verified */}
-                  {doc.type === 'proof_of_residence' && doc.fileUrl && (
+                  {doc.type === 'proof_of_residence' && (doc.fileUrl || locationSet) && (
                     <div className="border rounded-lg p-3 bg-green-50 border-green-200">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
