@@ -30,7 +30,7 @@ const requiredDocuments: Document[] = [
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'GPS location confirmation of your address will be captured from your profile location',
+    description: 'Uses your location grid coordinates already captured in your profile. Set your location in the trainer profile section to auto-verify.',
     status: 'pending'
   },
   {
@@ -545,25 +545,25 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   )}
 
-                  {/* Proof of Residence - GPS Location Info or Preview */}
+                  {/* Proof of Residence - Location Grid Info */}
                   {doc.type === 'proof_of_residence' && !doc.fileUrl && (
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
                       <AlertCircle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
-                        Your GPS location will be captured from your profile location. Make sure to set your location in the trainer profile section.
+                        Your location grid from the trainer profile will be used as proof of residence. Set your location to automatically verify this document.
                       </AlertDescription>
                     </Alert>
                   )}
 
-                  {/* Proof of Residence - GPS Location Verified */}
+                  {/* Proof of Residence - Location Grid Verified */}
                   {doc.type === 'proof_of_residence' && doc.fileUrl && (
                     <div className="border rounded-lg p-3 bg-green-50 border-green-200">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <span className="font-medium text-green-700">GPS Location Verified</span>
+                        <span className="font-medium text-green-700">Location Grid Verified</span>
                       </div>
                       <p className="text-sm text-green-700">
-                        {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Location confirmed'}
+                        Your location coordinates have been captured and verified as proof of residence.
                       </p>
                     </div>
                   )}

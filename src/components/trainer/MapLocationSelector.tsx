@@ -260,6 +260,7 @@ export const MapLocationSelector: React.FC<MapLocationSelectorProps> = ({ initia
               <li>Or click "Use My Location" to auto-detect</li>
               <li>Enter an area name first, then select location</li>
             </ul>
+            <p className="font-semibold mt-3 mb-1 text-blue-900">💡 Your location grid will automatically verify your Proof of Residence document.</p>
           </div>
         </div>
       ) : (
