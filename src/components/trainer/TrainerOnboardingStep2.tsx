@@ -5,6 +5,7 @@ import { VerificationDocumentsForm } from './VerificationDocumentsForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
+import * as apiService from '@/lib/api-service'
 
 /**
  * Step 2 of trainer onboarding after personal details signup.
@@ -19,6 +20,35 @@ export const TrainerOnboardingStep2: React.FC = () => {
   const [profileCompleted, setProfileCompleted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
+  const checkProfileCompletion = async () => {
+    if (!user?.id) return
+
+    try {
+      const [profileResponse, categoriesResponse] = await Promise.all([
+        apiService.getUserProfile(user.id),
+        apiService.getTrainerCategories(user.id),
+      ])
+
+      const profileList = Array.isArray(profileResponse)
+        ? profileResponse
+        : (profileResponse?.data && Array.isArray(profileResponse.data) ? profileResponse.data : [])
+      const categoriesList = Array.isArray(categoriesResponse)
+        ? categoriesResponse
+        : (categoriesResponse?.data && Array.isArray(categoriesResponse.data) ? categoriesResponse.data : [])
+      const profileData = profileList[0]
+      const hasProfileBasics = Boolean(
+        String(profileData?.full_name || profileData?.name || '').trim() &&
+        Number(profileData?.hourly_rate) > 0 &&
+        String(profileData?.mpesa_number || '').trim() &&
+        String(profileData?.area_of_residence || profileData?.location_label || '').trim()
+      )
+
+      setProfileCompleted(hasProfileBasics && categoriesList.length > 0)
+    } catch (error) {
+      console.warn('Failed to determine trainer onboarding step completion:', error)
+    }
+  }
+
   // Initialize on component mount
   useEffect(() => {
     // Verify we're a trainer and have the step2 flag
@@ -27,8 +57,8 @@ export const TrainerOnboardingStep2: React.FC = () => {
     console.log('TrainerOnboardingStep2 mounted:', { userType, hasStep2Flag, signupData })
 
     if (userType === 'trainer' && hasStep2Flag) {
-      // Small delay to ensure auth context is ready
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        await checkProfileCompletion()
         setIsLoading(false)
       }, 300)
       return () => clearTimeout(timer)
@@ -41,7 +71,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
       console.log('Not a trainer, redirecting to home')
       window.location.href = '/'
     }
-  }, [userType])
+  }, [user?.id, userType])
 
   const handleProfileSaved = () => {
     // Profile form was saved
@@ -103,55 +133,70 @@ export const TrainerOnboardingStep2: React.FC = () => {
               </Alert>
             )}
 
-            {/* Inline Profile Editor Form */}
-            <TrainerProfileEditor onClose={handleProfileSaved} isNewSignup={true} />
+            {profileCompleted && (
+              <Alert className="mb-6 bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700 ml-2">
+                  Your profile is saved. You can now continue with verification documents.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <TrainerProfileEditor onSaveSuccess={handleProfileSaved} isNewSignup={true} />
           </CardContent>
         </Card>
 
         {/* Step 2: Documents Upload */}
-        <Card className={profileCompleted ? '' : 'opacity-50 pointer-events-none'}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
-                <CardDescription>Upload your ID, proof of residence, and conduct certificate</CardDescription>
-              </div>
-              {!profileCompleted && (
-                <div className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
-                  Complete Step 1 first
+        {profileCompleted ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
+                  <CardDescription>Upload your ID, proof of residence, and conduct certificate</CardDescription>
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {!profileCompleted && (
-                <Alert className="border-amber-200 bg-amber-50">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-800 ml-2">
-                    Please complete and save your profile in Step 1 before uploading verification documents.
-                  </AlertDescription>
-                </Alert>
-              )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <VerificationDocumentsForm onComplete={handleDocumentsComplete} />
 
-              {profileCompleted && <VerificationDocumentsForm onComplete={handleDocumentsComplete} />}
-
-              {/* Info box */}
-              {profileCompleted && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
                   <div className="flex items-start gap-2">
-                    <span className="text-blue-600 font-medium text-sm">💡 Next Steps:</span>
+                    <span className="text-blue-600 font-medium text-sm">Next steps</span>
                   </div>
                   <ul className="text-sm text-blue-700 space-y-1 ml-2">
-                    <li>• Our admin team will review your documents (24-48 hours)</li>
+                    <li>• Our admin team will review your documents</li>
                     <li>• You'll receive a notification once approved</li>
                     <li>• You can start accepting bookings after approval</li>
                   </ul>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-dashed border-amber-300 bg-amber-50/40">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
+                  <CardDescription>This step unlocks after your profile has been saved.</CardDescription>
+                </div>
+                <div className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
+                  Pending Step 1
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 ml-2">
+                  Complete and save your trainer profile above to unlock document uploads.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )
