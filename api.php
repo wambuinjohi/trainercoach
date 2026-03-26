@@ -923,6 +923,64 @@ switch ($action) {
             if ($stmt->execute()) {
                 $affectedRows = $stmt->affected_rows;
                 $stmt->close();
+
+                // Auto-verify Proof of Residence if location was updated for trainer profile
+                if ($isUserProfilesUpdate && $hasLocationUpdate) {
+                    // Extract user_id from WHERE clause
+                    if (preg_match('/user_id\s*=\s*["\']?([a-zA-Z0-9_\-]+)["\']?/i', $input['where'], $matches)) {
+                        $userId = $matches[1];
+
+                        // Get the updated location coordinates
+                        $locationLat = isset($data['location_lat']) ? floatval($data['location_lat']) : null;
+                        $locationLng = isset($data['location_lng']) ? floatval($data['location_lng']) : null;
+                        $areaOfResidence = isset($data['area_of_residence']) ? $data['area_of_residence'] : null;
+
+                        // If location was not in the update, fetch it from the profile
+                        if ($locationLat === null || $locationLng === null) {
+                            $profileStmt = $conn->prepare("SELECT location_lat, location_lng, area_of_residence FROM user_profiles WHERE user_id = ? LIMIT 1");
+                            $profileStmt->bind_param("s", $userId);
+                            $profileStmt->execute();
+                            $profileResult = $profileStmt->get_result();
+                            $profile = $profileResult->fetch_assoc();
+                            $profileStmt->close();
+
+                            if ($profile) {
+                                if ($locationLat === null) $locationLat = floatval($profile['location_lat'] ?? 0);
+                                if ($locationLng === null) $locationLng = floatval($profile['location_lng'] ?? 0);
+                                if ($areaOfResidence === null) $areaOfResidence = $profile['area_of_residence'];
+                            }
+                        }
+
+                        // Check if proof_of_residence document already exists
+                        $docCheckStmt = $conn->prepare("SELECT id, status FROM verification_documents WHERE trainer_id = ? AND document_type = 'proof_of_residence' LIMIT 1");
+                        $docCheckStmt->bind_param("s", $userId);
+                        $docCheckStmt->execute();
+                        $docCheckResult = $docCheckStmt->get_result();
+                        $existingDoc = $docCheckResult->fetch_assoc();
+                        $docCheckStmt->close();
+
+                        if ($existingDoc) {
+                            // Update existing document to approved with location data
+                            if ($locationLat && $locationLng) {
+                                $fileUrl = json_encode(['lat' => $locationLat, 'lng' => $locationLng, 'area' => $areaOfResidence]);
+                                $updateDocStmt = $conn->prepare("UPDATE verification_documents SET status = 'approved', file_url = ?, reviewed_at = NOW(), updated_at = NOW() WHERE id = ?");
+                                $updateDocStmt->bind_param("ss", $fileUrl, $existingDoc['id']);
+                                $updateDocStmt->execute();
+                                $updateDocStmt->close();
+                            }
+                        } else {
+                            // Create new proof_of_residence document with approved status
+                            if ($locationLat && $locationLng) {
+                                $fileUrl = json_encode(['lat' => $locationLat, 'lng' => $locationLng, 'area' => $areaOfResidence]);
+                                $insertDocStmt = $conn->prepare("INSERT INTO verification_documents (trainer_id, document_type, file_url, status, uploaded_at, reviewed_at, updated_at) VALUES (?, 'proof_of_residence', ?, 'approved', NOW(), NOW(), NOW())");
+                                $insertDocStmt->bind_param("ss", $userId, $fileUrl);
+                                $insertDocStmt->execute();
+                                $insertDocStmt->close();
+                            }
+                        }
+                    }
+                }
+
                 respond("success", "Record updated successfully.", ["affected_rows" => $affectedRows]);
             } else {
                 $stmt->close();
