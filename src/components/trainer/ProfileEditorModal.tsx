@@ -10,12 +10,19 @@ interface ProfileEditorModalProps {
 }
 
 export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose }) => {
+  const [documentRefreshTrigger, setDocumentRefreshTrigger] = React.useState(0)
+
   const handleDocumentsComplete = () => {
     // Close the modal and redirect to trainer dashboard
     onClose()
     setTimeout(() => {
       window.location.href = '/trainer'
     }, 500)
+  }
+
+  const handleProfileSaved = () => {
+    // Trigger a reload of verification documents to pick up auto-generated proof_of_residence
+    setDocumentRefreshTrigger(prev => prev + 1)
   }
 
   return (
@@ -39,8 +46,8 @@ export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, 
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="space-y-8">
-            <TrainerProfileEditor onClose={onClose} />
-            <VerificationDocumentsForm onComplete={handleDocumentsComplete} />
+            <TrainerProfileEditor onClose={onClose} onSaveSuccess={handleProfileSaved} />
+            <VerificationDocumentsForm onComplete={handleDocumentsComplete} refreshTrigger={documentRefreshTrigger} />
           </div>
         </div>
       </DialogContent>

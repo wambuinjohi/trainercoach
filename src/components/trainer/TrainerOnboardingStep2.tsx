@@ -19,6 +19,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
   const { user, userType, signupData } = useAuth()
   const [profileCompleted, setProfileCompleted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [documentRefreshTrigger, setDocumentRefreshTrigger] = useState(0)
 
   const checkProfileCompletion = async () => {
     if (!user?.id) return
@@ -76,6 +77,8 @@ export const TrainerOnboardingStep2: React.FC = () => {
   const handleProfileSaved = () => {
     // Profile form was saved
     setProfileCompleted(true)
+    // Trigger a reload of verification documents to pick up auto-generated proof_of_residence
+    setDocumentRefreshTrigger(prev => prev + 1)
   }
 
   const handleDocumentsComplete = () => {
@@ -159,7 +162,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <VerificationDocumentsForm onComplete={handleDocumentsComplete} />
+                <VerificationDocumentsForm onComplete={handleDocumentsComplete} refreshTrigger={documentRefreshTrigger} />
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
                   <div className="flex items-start gap-2">

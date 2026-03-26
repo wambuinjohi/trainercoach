@@ -44,9 +44,10 @@ const requiredDocuments: Document[] = [
 
 interface VerificationDocumentsFormProps {
   onComplete?: () => void
+  refreshTrigger?: number
 }
 
-export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete }) => {
+export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete, refreshTrigger }) => {
   const { user } = useAuth()
   const userId = user?.id
   const [documents, setDocuments] = useState<Document[]>(requiredDocuments)
@@ -62,6 +63,13 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     if (!userId) return
     loadProfileAndDocuments()
   }, [userId])
+
+  // Reload documents when refreshTrigger changes (e.g., after profile is saved)
+  useEffect(() => {
+    if (!userId || refreshTrigger === undefined) return
+    console.log('[VerificationDocuments] Refreshing documents due to trigger change:', refreshTrigger)
+    loadDocuments()
+  }, [userId, refreshTrigger])
 
   const loadProfileAndDocuments = async () => {
     try {
