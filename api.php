@@ -2620,9 +2620,12 @@ switch ($action) {
             $profileData = $profileResult->fetch_assoc();
             $stmt->close();
 
-            if (!$profileData || !$profileData['location_lat'] || !$profileData['location_lng']) {
-                respond("error", "GPS location not found in profile. Please set your location in profile settings.", null, 400);
-            }
+            // GPS location is optional - proceed even if not set
+            $hasLocation = $profileData && $profileData['location_lat'] && $profileData['location_lng'];
+            $documentStatus = $hasLocation ? 'approved' : 'pending';
+            $fileUrl = $hasLocation
+                ? json_encode(['lat' => $profileData['location_lat'], 'lng' => $profileData['location_lng'], 'area' => $profileData['area_of_residence']])
+                : null;
 
             // Check if proof_of_residence document already exists
             $sql = "SELECT id FROM verification_documents WHERE trainer_id = ? AND document_type = ?";
@@ -2639,7 +2642,7 @@ switch ($action) {
 
                 $sql = "
                     UPDATE verification_documents
-                    SET file_url = ?, id_number = ?, status = 'approved', updated_at = NOW()
+                    SET file_url = ?, id_number = ?, status = ?, updated_at = NOW()
                     WHERE id = ?
                 ";
 
@@ -2649,8 +2652,7 @@ switch ($action) {
                     break;
                 }
 
-                $fileUrl = json_encode(['lat' => $profileData['location_lat'], 'lng' => $profileData['location_lng'], 'area' => $profileData['area_of_residence']]);
-                if (!$stmt->bind_param("sss", $fileUrl, $idNumber, $docId)) {
+                if (!$stmt->bind_param("ssss", $fileUrl, $idNumber, $documentStatus, $docId)) {
                     $stmt->close();
                     respond("error", "Bind failed: " . $stmt->error, null, 500);
                     break;
@@ -2659,7 +2661,8 @@ switch ($action) {
                 if ($stmt->execute()) {
                     $stmt->close();
                     logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
-                    respond("success", "Proof of residence confirmed from GPS location.", ["id" => $docId, "file_url" => $fileUrl]);
+                    $message = $hasLocation ? "Proof of residence confirmed from GPS location." : "Proof of residence document created. Add location in profile settings to auto-approve.";
+                    respond("success", $message, ["id" => $docId, "file_url" => $fileUrl]);
                 } else {
                     $stmt->close();
                     respond("error", "Execute failed: " . $conn->error, null, 500);
@@ -2667,11 +2670,10 @@ switch ($action) {
             } else {
                 // Create new document
                 $docId = 'doc_' . uniqid();
-                $fileUrl = json_encode(['lat' => $profileData['location_lat'], 'lng' => $profileData['location_lng'], 'area' => $profileData['area_of_residence']]);
 
                 $sql = "
                     INSERT INTO verification_documents (id, trainer_id, document_type, file_url, id_number, status)
-                    VALUES (?, ?, ?, ?, ?, 'approved')
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ";
 
                 $stmt = $conn->prepare($sql);
@@ -2680,7 +2682,7 @@ switch ($action) {
                     break;
                 }
 
-                if (!$stmt->bind_param("sssss", $docId, $trainerId, $documentType, $fileUrl, $idNumber)) {
+                if (!$stmt->bind_param("ssssss", $docId, $trainerId, $documentType, $fileUrl, $idNumber, $documentStatus)) {
                     $stmt->close();
                     respond("error", "Bind failed: " . $stmt->error, null, 500);
                     break;
@@ -2689,7 +2691,8 @@ switch ($action) {
                 if ($stmt->execute()) {
                     $stmt->close();
                     logEvent('verification_document_uploaded', ['trainer_id' => $trainerId, 'document_type' => $documentType]);
-                    respond("success", "Proof of residence confirmed from GPS location.", ["id" => $docId, "file_url" => $fileUrl]);
+                    $message = $hasLocation ? "Proof of residence confirmed from GPS location." : "Proof of residence document created. Add location in profile settings to auto-approve.";
+                    respond("success", $message, ["id" => $docId, "file_url" => $fileUrl]);
                 } else {
                     $stmt->close();
                     respond("error", "Execute failed: " . $conn->error, null, 500);

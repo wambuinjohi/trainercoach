@@ -245,18 +245,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     if (!userId) return
 
     // Check if all required documents are uploaded (have fileUrl or are auto-generated like proof_of_residence)
-    const requiredDocsUploaded = documents
-      .filter(d => d.type !== 'certificate_of_good_conduct') // Good conduct is optional
-      .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
-
-    if (!requiredDocsUploaded) {
-      toast({
-        title: 'Incomplete',
-        description: 'Please complete all required documents',
-        variant: 'destructive'
-      })
-      return
-    }
+    // All documents are now optional - proof of residence and good conduct can be skipped
+    // User can submit with or without these documents
 
     setLoading(true)
     try {
@@ -282,26 +272,20 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // All approved means proof_of_residence is approved (good conduct is optional)
+  // All documents are optional - check proof of residence approval only
   const proofOfResidenceApproved = documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
   const allApproved = proofOfResidenceApproved
 
-  // All submitted means only required documents submitted (good conduct optional)
-  const allSubmitted = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.status !== 'pending')
+  // Check if any document is still under review
+  const anySubmitted = documents.some(d => d.status !== 'pending')
 
-  // All required documents uploaded (have fileUrl) - proof_of_residence is auto-generated from location
-  const allRequiredUploaded = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
+  // Check if any documents have been uploaded/submitted
+  const anyRequiredUploaded = documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
 
-  // Ready to submit: all required docs are uploaded and not all approved yet
-  // Show button when user can click to formally submit for review
-  const readyToSubmit = allRequiredUploaded && !allApproved &&
-    documents
-      .filter(d => d.type !== 'certificate_of_good_conduct')
-      .every(d => d.status !== 'rejected')
+  // Ready to submit: at least one document has been uploaded and none are rejected
+  // Since all are optional, user can submit anytime
+  const readyToSubmit = anyRequiredUploaded && !allApproved &&
+    documents.every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -370,17 +354,17 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </Alert>
           )}
 
-          {/* Progress Bar */}
+          {/* Progress Bar - Optional Documents */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm font-semibold">Upload Progress (Required Documents)</Label>
+              <Label className="text-sm font-semibold">Additional Documentation (Optional)</Label>
               <span className="text-sm text-gray-600">
-                {documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length} of {documents.filter(d => d.type !== 'certificate_of_good_conduct').length}
+                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
               </span>
             </div>
             <Progress
-              value={documents.filter(d => d.type !== 'certificate_of_good_conduct').length > 0
-                ? (documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length / documents.filter(d => d.type !== 'certificate_of_good_conduct').length) * 100
+              value={documents.length > 0
+                ? (documents.filter(d => d.status !== 'pending').length / documents.length) * 100
                 : 0
               }
               className="h-2"
@@ -596,8 +580,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             ))}
           </div>
 
-          {/* Submit Button */}
-          {readyToSubmit && (
+          {/* Submit Button - Show when at least proof of residence is available or user wants to skip optional docs */}
+          {(readyToSubmit || !allApproved) && (
             <Button
               onClick={handleSubmitForApproval}
               disabled={loading}
