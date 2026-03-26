@@ -2392,7 +2392,7 @@ switch ($action) {
 
         // Determine required docs based on registration path
         if ($registrationPath === 'sponsored') {
-            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct'];
+            $requiredDocs = ['national_id', 'proof_of_residence'];
 
             // For sponsored path, sponsor_trainer_id must be set and valid
             if (!$sponsorTrainerId) {
@@ -2411,8 +2411,8 @@ switch ($action) {
                 respond("error", "Selected sponsor trainer is not approved.", null, 400);
             }
         } else {
-            // Direct registration requires all 5 documents
-            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference'];
+            // Direct registration requires national_id, proof_of_residence, discipline_certificate, and sponsor_reference
+            $requiredDocs = ['national_id', 'proof_of_residence', 'discipline_certificate', 'sponsor_reference'];
         }
 
         // Get submitted documents

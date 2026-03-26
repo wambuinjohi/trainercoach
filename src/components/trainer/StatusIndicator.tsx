@@ -189,8 +189,8 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
             <p className="text-sm font-semibold text-yellow-900">Required Documents:</p>
             <ul className="text-sm text-yellow-800 space-y-1">
               <li>✓ National ID (government-issued)</li>
-              <li>✓ Proof of Residence (utility bill or lease)</li>
-              <li>✓ Certificate of Good Conduct (government-issued)</li>
+              <li>✓ Proof of Residence (GPS location from profile)</li>
+              <li className="text-yellow-700">○ Certificate of Good Conduct (optional - to enhance credibility)</li>
               <li>✓ Discipline Certificate (professional certification)</li>
               <li className="text-yellow-700">○ Sponsor Reference (optional - if sponsored)</li>
             </ul>

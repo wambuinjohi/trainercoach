@@ -36,7 +36,7 @@ const requiredDocuments: Document[] = [
   {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
-    description: 'Optional: Must be valid and uploaded within 90 days of issuance',
+    description: 'Optional: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance',
     status: 'pending',
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
   }
@@ -255,15 +255,13 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        // Build list of missing documents
+        // Build list of missing documents - Certificate of Good Conduct is now optional
         const missingDocs: string[] = []
 
         documents.forEach(doc => {
-          // Check which documents are missing or pending
+          // Check which documents are missing or pending (excluding certificate of good conduct which is optional)
           if (doc.type === 'proof_of_residence' && doc.status === 'pending' && !doc.fileUrl) {
             missingDocs.push('Proof of Residence (set your location in the profile)')
-          } else if (doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && !doc.fileUrl) {
-            missingDocs.push('Certificate of Good Conduct')
           }
         })
 

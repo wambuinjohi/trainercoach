@@ -28,7 +28,7 @@ const pathOptions: PathOption[] = [
     requirements: [
       'Valid national ID',
       'Proof of residence (GPS location)',
-      'Certificate of Good Conduct (within 90 days)'
+      'Discipline certificate (professional certification)'
     ]
   },
   {
@@ -38,7 +38,6 @@ const pathOptions: PathOption[] = [
     requirements: [
       'Valid national ID',
       'Proof of residence (GPS location)',
-      'Certificate of Good Conduct (within 90 days)',
       'Sponsorship approval'
     ]
   }
