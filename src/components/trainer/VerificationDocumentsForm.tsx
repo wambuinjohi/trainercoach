@@ -30,7 +30,7 @@ const requiredDocuments: Document[] = [
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'GPS location confirmation of your address will be captured from your profile location',
+    description: 'Uses your location grid coordinates already captured in your profile. Set your location in the trainer profile section to auto-verify.',
     status: 'pending'
   },
   {
@@ -244,20 +244,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const handleSubmitForApproval = async () => {
     if (!userId) return
 
-    // Check if all required documents are uploaded (have fileUrl or are auto-generated like proof_of_residence)
-    const requiredDocsUploaded = documents
-      .filter(d => d.type !== 'certificate_of_good_conduct') // Good conduct is optional
-      .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
-
-    if (!requiredDocsUploaded) {
-      toast({
-        title: 'Incomplete',
-        description: 'Please complete all required documents',
-        variant: 'destructive'
-      })
-      return
-    }
-
     setLoading(true)
     try {
       // Check if required documents are submitted
@@ -269,7 +255,31 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        throw new Error('Not all required documents have been submitted')
+        // Build list of missing documents
+        const missingDocs: string[] = []
+
+        documents.forEach(doc => {
+          // Check which documents are missing or pending
+          if (doc.type === 'proof_of_residence' && doc.status === 'pending' && !doc.fileUrl) {
+            missingDocs.push('Proof of Residence (set your location in the profile)')
+          } else if (doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && !doc.fileUrl) {
+            missingDocs.push('Certificate of Good Conduct')
+          }
+        })
+
+        // Create detailed error message
+        let errorMessage = 'Please complete the following before submitting:'
+        if (missingDocs.length > 0) {
+          errorMessage += '\n' + missingDocs.map(doc => `• ${doc}`).join('\n')
+        } else {
+          errorMessage = 'Not all required documents have been submitted'
+        }
+
+        toast({
+          title: 'Submission failed',
+          description: errorMessage,
+          variant: 'destructive'
+        })
       }
     } catch (error) {
       toast({
@@ -282,26 +292,20 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // All approved means proof_of_residence is approved (good conduct is optional)
+  // All documents are optional - check proof of residence approval only
   const proofOfResidenceApproved = documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
   const allApproved = proofOfResidenceApproved
 
-  // All submitted means only required documents submitted (good conduct optional)
-  const allSubmitted = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.status !== 'pending')
+  // Check if any document is still under review
+  const anySubmitted = documents.some(d => d.status !== 'pending')
 
-  // All required documents uploaded (have fileUrl) - proof_of_residence is auto-generated from location
-  const allRequiredUploaded = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
+  // Check if any documents have been uploaded/submitted
+  const anyRequiredUploaded = documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
 
-  // Ready to submit: all required docs are uploaded and not all approved yet
-  // Show button when user can click to formally submit for review
-  const readyToSubmit = allRequiredUploaded && !allApproved &&
-    documents
-      .filter(d => d.type !== 'certificate_of_good_conduct')
-      .every(d => d.status !== 'rejected')
+  // Ready to submit: at least one document has been uploaded and none are rejected
+  // Since all are optional, user can submit anytime
+  const readyToSubmit = anyRequiredUploaded && !allApproved &&
+    documents.every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -361,7 +365,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </Alert>
           )}
 
-          {!allApproved && allSubmitted && (
+          {!allApproved && anySubmitted && (
             <Alert className="bg-blue-50 border-blue-200">
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
@@ -370,17 +374,17 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </Alert>
           )}
 
-          {/* Progress Bar */}
+          {/* Progress Bar - Optional Documents */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm font-semibold">Upload Progress (Required Documents)</Label>
+              <Label className="text-sm font-semibold">Additional Documentation (Optional)</Label>
               <span className="text-sm text-gray-600">
-                {documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length} of {documents.filter(d => d.type !== 'certificate_of_good_conduct').length}
+                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
               </span>
             </div>
             <Progress
-              value={documents.filter(d => d.type !== 'certificate_of_good_conduct').length > 0
-                ? (documents.filter(d => d.type !== 'certificate_of_good_conduct' && d.status !== 'pending').length / documents.filter(d => d.type !== 'certificate_of_good_conduct').length) * 100
+              value={documents.length > 0
+                ? (documents.filter(d => d.status !== 'pending').length / documents.length) * 100
                 : 0
               }
               className="h-2"
@@ -561,25 +565,25 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   )}
 
-                  {/* Proof of Residence - GPS Location Info or Preview */}
+                  {/* Proof of Residence - Location Grid Info */}
                   {doc.type === 'proof_of_residence' && !doc.fileUrl && (
                     <Alert className="mb-3 bg-blue-50 border-blue-200">
                       <AlertCircle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
-                        Your GPS location will be captured from your profile location. Make sure to set your location in the trainer profile section.
+                        Your location grid from the trainer profile will be used as proof of residence. Set your location to automatically verify this document.
                       </AlertDescription>
                     </Alert>
                   )}
 
-                  {/* Proof of Residence - GPS Location Verified */}
+                  {/* Proof of Residence - Location Grid Verified */}
                   {doc.type === 'proof_of_residence' && doc.fileUrl && (
                     <div className="border rounded-lg p-3 bg-green-50 border-green-200">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <span className="font-medium text-green-700">GPS Location Verified</span>
+                        <span className="font-medium text-green-700">Location Grid Verified</span>
                       </div>
                       <p className="text-sm text-green-700">
-                        {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Location confirmed'}
+                        Your location coordinates have been captured and verified as proof of residence.
                       </p>
                     </div>
                   )}
@@ -596,8 +600,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             ))}
           </div>
 
-          {/* Submit Button */}
-          {readyToSubmit && (
+          {/* Submit Button - Show when at least proof of residence is available or user wants to skip optional docs */}
+          {(readyToSubmit || !allApproved) && (
             <Button
               onClick={handleSubmitForApproval}
               disabled={loading}
