@@ -294,10 +294,13 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // Proof of Residence can be satisfied by either:
-  // 1. Setting location in trainer profile (locationSet)
-  // 2. Uploading a proof_of_residence document
-  const proofOfResidenceApproved = locationSet || documents.find(d => d.type === 'proof_of_residence')?.status === 'approved'
+  // Proof of Residence status:
+  // - Can be satisfied by setting location in trainer profile (locationSet) OR uploading a document
+  const proofOfResidenceDoc = documents.find(d => d.type === 'proof_of_residence')
+  const proofOfResidenceReady = locationSet || !!proofOfResidenceDoc?.fileUrl
+  const proofOfResidenceApproved = proofOfResidenceDoc?.status === 'approved'
+
+  // All documents are truly approved when backend has approved them (not just ready)
   const allApproved = proofOfResidenceApproved
 
   // Check if any document is still under review
@@ -306,8 +309,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   // Check if any documents have been uploaded/submitted or location is set
   const anyRequiredUploaded = locationSet || documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
 
-  // Ready to submit: proof of residence is satisfied and none are rejected
-  const readyToSubmit = (locationSet || anyRequiredUploaded) && !allApproved &&
+  // Ready to submit: proof of residence is ready to submit and none are rejected
+  const readyToSubmit = proofOfResidenceReady &&
     documents.every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
@@ -589,15 +592,30 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </Alert>
                   )}
 
-                  {/* Proof of Residence - Location Grid Verified */}
-                  {doc.type === 'proof_of_residence' && (doc.fileUrl || locationSet) && (
+                  {/* Proof of Residence - Location Set (Ready for submission) */}
+                  {doc.type === 'proof_of_residence' && locationSet && !doc.fileUrl && (
+                    <div className="border rounded-lg p-3 bg-blue-50 border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600" />
+                        <span className="font-medium text-blue-700">Location Set & Ready</span>
+                      </div>
+                      <p className="text-sm text-blue-700">
+                        Your location has been set. You can now submit your documents for review.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Proof of Residence - Uploaded and Pending or Approved */}
+                  {doc.type === 'proof_of_residence' && doc.fileUrl && (
                     <div className="border rounded-lg p-3 bg-green-50 border-green-200">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <span className="font-medium text-green-700">Location Grid Verified</span>
+                        <span className="font-medium text-green-700">{doc.status === 'approved' ? 'Location Verified' : 'Location Document Uploaded'}</span>
                       </div>
                       <p className="text-sm text-green-700">
-                        Your location coordinates have been captured and verified as proof of residence.
+                        {doc.status === 'approved'
+                          ? 'Your proof of residence has been verified and approved.'
+                          : 'Your location document has been uploaded and is awaiting review.'}
                       </p>
                     </div>
                   )}
