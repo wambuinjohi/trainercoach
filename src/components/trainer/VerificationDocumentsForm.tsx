@@ -236,12 +236,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const handleSubmitForApproval = async () => {
     if (!userId) return
 
-    // Only proof_of_residence is truly required. Good conduct is optional.
-    const requiredDocsSubmitted = documents
+    // Check if all required documents are uploaded (have fileUrl or are auto-generated like proof_of_residence)
+    const requiredDocsUploaded = documents
       .filter(d => d.type !== 'certificate_of_good_conduct') // Good conduct is optional
-      .every(d => d.status !== 'pending')
+      .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
 
-    if (!requiredDocsSubmitted) {
+    if (!requiredDocsUploaded) {
       toast({
         title: 'Incomplete',
         description: 'Please complete all required documents',
@@ -283,8 +283,14 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     .filter(d => d.type !== 'certificate_of_good_conduct')
     .every(d => d.status !== 'pending')
 
-  // Ready to submit: all required docs uploaded and none are rejected
-  const readyToSubmit = allSubmitted && !allApproved &&
+  // All required documents uploaded (have fileUrl) - proof_of_residence is auto-generated from location
+  const allRequiredUploaded = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .every(d => d.fileUrl || d.type === 'proof_of_residence') // Proof of residence comes from location
+
+  // Ready to submit: all required docs are uploaded and not all approved yet
+  // Show button when user can click to formally submit for review
+  const readyToSubmit = allRequiredUploaded && !allApproved &&
     documents
       .filter(d => d.type !== 'certificate_of_good_conduct')
       .every(d => d.status !== 'rejected')
