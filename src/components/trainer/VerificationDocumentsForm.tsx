@@ -244,10 +244,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const handleSubmitForApproval = async () => {
     if (!userId) return
 
-    // Check if all required documents are uploaded (have fileUrl or are auto-generated like proof_of_residence)
-    // All documents are now optional - proof of residence and good conduct can be skipped
-    // User can submit with or without these documents
-
     setLoading(true)
     try {
       // Check if required documents are submitted
@@ -259,7 +255,31 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        throw new Error('Not all required documents have been submitted')
+        // Build list of missing documents
+        const missingDocs: string[] = []
+
+        documents.forEach(doc => {
+          // Check which documents are missing or pending
+          if (doc.type === 'proof_of_residence' && doc.status === 'pending' && !doc.fileUrl) {
+            missingDocs.push('Proof of Residence (set your location in the profile)')
+          } else if (doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && !doc.fileUrl) {
+            missingDocs.push('Certificate of Good Conduct')
+          }
+        })
+
+        // Create detailed error message
+        let errorMessage = 'Please complete the following before submitting:'
+        if (missingDocs.length > 0) {
+          errorMessage += '\n' + missingDocs.map(doc => `• ${doc}`).join('\n')
+        } else {
+          errorMessage = 'Not all required documents have been submitted'
+        }
+
+        toast({
+          title: 'Submission failed',
+          description: errorMessage,
+          variant: 'destructive'
+        })
       }
     } catch (error) {
       toast({
