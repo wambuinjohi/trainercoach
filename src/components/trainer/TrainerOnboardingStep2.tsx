@@ -109,26 +109,46 @@ export const TrainerOnboardingStep2: React.FC = () => {
         </Card>
 
         {/* Step 2: Documents Upload */}
-        <Card>
+        <Card className={profileCompleted ? '' : 'opacity-50 pointer-events-none'}>
           <CardHeader>
-            <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
-            <CardDescription>Upload your ID, proof of residence, and conduct certificate</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Step 2: Verification Documents</CardTitle>
+                <CardDescription>Upload your ID, proof of residence, and conduct certificate</CardDescription>
+              </div>
+              {!profileCompleted && (
+                <div className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
+                  Complete Step 1 first
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <VerificationDocumentsForm onComplete={handleDocumentsComplete} />
+              {!profileCompleted && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800 ml-2">
+                    Please complete and save your profile in Step 1 before uploading verification documents.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {profileCompleted && <VerificationDocumentsForm onComplete={handleDocumentsComplete} />}
 
               {/* Info box */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-medium text-sm">💡 Next Steps:</span>
+              {profileCompleted && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-blue-600 font-medium text-sm">💡 Next Steps:</span>
+                  </div>
+                  <ul className="text-sm text-blue-700 space-y-1 ml-2">
+                    <li>• Our admin team will review your documents (24-48 hours)</li>
+                    <li>• You'll receive a notification once approved</li>
+                    <li>• You can start accepting bookings after approval</li>
+                  </ul>
                 </div>
-                <ul className="text-sm text-blue-700 space-y-1 ml-2">
-                  <li>• Our admin team will review your documents (24-48 hours)</li>
-                  <li>• You'll receive a notification once approved</li>
-                  <li>• You can start accepting bookings after approval</li>
-                </ul>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
