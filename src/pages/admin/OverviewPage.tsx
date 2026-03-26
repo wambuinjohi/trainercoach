@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Users, UserCheck, AlertCircle, Calendar, DollarSign, TrendingUp } from 'lucide-react'
+import { Users, UserCheck, AlertCircle, Calendar, DollarSign, TrendingUp, Megaphone, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import * as apiService from '@/lib/api-service'
 import { getActivityFeed, getAnalyticsTimeSeries, getDashboardOverview, getTrainerMetrics, type ActivityEvent } from '@/lib/analytics-service'
@@ -40,6 +40,7 @@ export default function OverviewPage() {
   const [range, setRange] = useState<'30d' | '90d' | '12m'>('12m')
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([])
 
   const activityToneColors: Record<string, string> = {
     positive: 'bg-blue-500',
@@ -95,6 +96,18 @@ export default function OverviewPage() {
     const loadData = async () => {
       try {
         setLoading(true)
+
+        // Load announcement broadcast history from localStorage
+        const stored = localStorage.getItem('announcement_broadcast_history')
+        if (stored) {
+          try {
+            const history = JSON.parse(stored)
+            // Get the 2 most recent broadcasts
+            setRecentBroadcasts(history.slice(0, 2))
+          } catch (err) {
+            console.warn('Failed to parse broadcast history', err)
+          }
+        }
 
         const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.all([
           getDashboardOverview(),
@@ -361,6 +374,51 @@ export default function OverviewPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Announcement Preview */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-primary" />
+              <CardTitle className="text-foreground">Recent Announcements</CardTitle>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')}>
+              Manage Announcements
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recentBroadcasts.length > 0 ? (
+            <div className="space-y-3">
+              {recentBroadcasts.map((broadcast) => (
+                <div key={broadcast.id} className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{broadcast.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{broadcast.message}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <span>{broadcast.recipientCount} {broadcast.recipientType === 'all' ? 'users' : broadcast.recipientType}</span>
+                        <span>•</span>
+                        <span>{new Date(broadcast.sentAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <Megaphone className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">No announcements sent yet</p>
+              <Button variant="ghost" size="sm" className="mt-3" onClick={() => navigate('/admin/announcements')}>
+                Create your first announcement
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Revenue Chart */}
       {revenueSeries.length > 0 && (

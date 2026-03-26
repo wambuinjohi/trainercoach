@@ -47,6 +47,7 @@ import BookingsPage from "./pages/admin/BookingsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import DocumentReviewPage from "./pages/admin/DocumentReviewPage";
 import ResetPasswordsPage from "./pages/admin/ResetPasswordsPage";
+import AnnouncementsPage from "./pages/admin/AnnouncementsPage";
 import BookingConfirmation from "./pages/BookingConfirmation";
 
 const queryClient = new QueryClient();
@@ -163,6 +164,7 @@ const AdminRoutes = () => (
     <Route path="analytics" element={<AnalyticsPage />} />
     <Route path="payouts" element={<PayoutsPage />} />
     <Route path="sms-manager" element={<SMSManagerPage />} />
+    <Route path="announcements" element={<AnnouncementsPage />} />
     <Route path="categories" element={<CategoriesPage />} />
     <Route path="waitlist" element={<WaitlistPage />} />
     <Route path="bookings" element={<BookingsPage />} />
