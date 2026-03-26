@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import * as apiService from '@/lib/api-service'
 import { AccountExistsModal } from '@/components/auth/AccountExistsModal'
 import { PINReset } from '@/components/auth/PINReset'
+import { isValidEmail, isValidPhoneFormat, normalizePhoneNumber } from '@/lib/validation'
 
 interface PINSignupProps {
   onSuccess?: () => void
@@ -27,40 +28,61 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkedPhone, setCheckedPhone] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   const sanitizePhone = (input: string): string => {
-    if (!input) return ''
-    let p = String(input).trim().replace(/[^0-9]/g, '')
-    if (p.startsWith('0')) p = '254' + p.replace(/^0+/, '')
-    if (!p.startsWith('254') && (p.startsWith('7') || p.startsWith('1'))) {
-      p = '254' + p
-    }
-    return p
+    return normalizePhoneNumber(input)
   }
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setEmailError(null)
+    setPhoneError(null)
 
+    // Validate that at least email or phone is provided
     if (!email && !phone) {
       setError('Please provide either an email or phone number')
       return
     }
 
-    if (email && !email.includes('@')) {
+    // Validate email format if provided
+    if (email && !isValidEmail(email)) {
       setError('Please provide a valid email address')
+      setEmailError('Invalid email format')
       return
     }
 
-    // If phone is provided, check if account exists
+    // Check if email already exists
+    if (email) {
+      setLoading(true)
+      try {
+        const emailExists = await apiService.checkEmailExists(email.trim().toLowerCase())
+        if (emailExists?.exists) {
+          setError('Email is already registered. Please sign in or use a different email.')
+          setEmailError('Email already in use')
+          setLoading(false)
+          return
+        }
+      } catch (err: any) {
+        console.error('Email check error:', err)
+        // Continue even if check fails
+      }
+    }
+
+    // Validate phone format if provided
     if (phone) {
       const sanitizedPhone = sanitizePhone(phone)
-      if (!sanitizedPhone) {
-        setError('Please provide a valid phone number')
+
+      if (!sanitizedPhone || !isValidPhoneFormat(phone)) {
+        setError('Please provide a valid Kenyan phone number (07XX XXX XXX or +254...)')
+        setPhoneError('Invalid phone format')
+        setLoading(false)
         return
       }
 
-      setLoading(true)
+      // Check if phone already exists
       try {
         const response = await apiService.checkPhoneExists(sanitizedPhone)
         setCheckedPhone(sanitizedPhone)
@@ -81,6 +103,7 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
       }
     } else {
       // No phone provided, proceed to PIN creation
+      setLoading(false)
       setStep('pin')
     }
   }
@@ -179,8 +202,13 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
                     type="email"
                     placeholder="your@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      setEmailError(null)
+                    }}
+                    className={emailError ? 'border-destructive' : ''}
                   />
+                  {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
                 </div>
 
                 <div>
@@ -190,12 +218,18 @@ export const PINSignup: React.FC<PINSignupProps> = ({ onSuccess, onCancel, email
                     type="tel"
                     placeholder="07XX XXX XXX or +254..."
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      const formatted = normalizePhoneNumber(e.target.value)
+                      setPhone(e.target.value === '' ? '' : formatted)
+                      setPhoneError(null)
+                    }}
                     disabled={loading}
+                    className={phoneError ? 'border-destructive' : ''}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     We accept Kenyan phone numbers (07... or +254...)
                   </p>
+                  {phoneError && <p className="text-xs text-destructive mt-1">{phoneError}</p>}
                 </div>
 
                 {error && (
