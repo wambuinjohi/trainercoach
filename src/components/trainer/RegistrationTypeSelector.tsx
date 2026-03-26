@@ -26,9 +26,8 @@ const pathOptions: PathOption[] = [
     title: 'Direct Registration',
     description: 'Register as an independent trainer and build your own client base',
     requirements: [
-      'Valid national ID',
-      'Proof of residence (GPS location)',
-      'Certificate of Good Conduct (within 90 days)'
+      'Valid national ID (required)',
+      'Additional documents (optional) - proof of residence, certifications, etc.'
     ]
   },
   {
@@ -36,10 +35,9 @@ const pathOptions: PathOption[] = [
     title: 'Sponsored Registration',
     description: 'Register through a coach/sponsor who will guide your journey',
     requirements: [
-      'Valid national ID',
-      'Proof of residence (GPS location)',
-      'Certificate of Good Conduct (within 90 days)',
-      'Sponsorship approval'
+      'Valid national ID (required)',
+      'Sponsor approval',
+      'Additional documents (optional) - proof of residence, certifications, etc.'
     ]
   }
 ]

@@ -186,12 +186,12 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
         {/* Required Documents Section */}
         {status === 'profile_incomplete' && (
           <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200 space-y-2">
-            <p className="text-sm font-semibold text-yellow-900">Required Documents:</p>
+            <p className="text-sm font-semibold text-yellow-900">Document Submission:</p>
             <ul className="text-sm text-yellow-800 space-y-1">
               <li>✓ National ID (government-issued)</li>
-              <li>✓ Proof of Residence (utility bill or lease)</li>
-              <li>✓ Certificate of Good Conduct (government-issued)</li>
-              <li>✓ Discipline Certificate (professional certification)</li>
+              <li className="text-yellow-700">○ Proof of Residence (optional - GPS location from profile)</li>
+              <li className="text-yellow-700">○ Certificate of Good Conduct (optional - to enhance credibility)</li>
+              <li className="text-yellow-700">○ Discipline Certificate (optional - professional certification)</li>
               <li className="text-yellow-700">○ Sponsor Reference (optional - if sponsored)</li>
             </ul>
             <p className="text-xs text-yellow-700 mt-2 font-medium">All documents will be reviewed within 24-48 hours.</p>

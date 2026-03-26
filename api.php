@@ -923,6 +923,96 @@ switch ($action) {
             if ($stmt->execute()) {
                 $affectedRows = $stmt->affected_rows;
                 $stmt->close();
+
+                // Auto-verify Proof of Residence if location was updated for trainer profile
+                if ($isUserProfilesUpdate && $hasLocationUpdate) {
+                    // Extract user_id from WHERE clause (handle various quote/escape styles)
+                    $userId = null;
+                    error_log("[PoR Auto-Verify] Profile update detected. WHERE clause: " . $input['where']);
+
+                    if (preg_match("/user_id\s*=\s*['\"]([^'\"]+)['\"]/i", $input['where'], $matches)) {
+                        $userId = $matches[1];
+                        error_log("[PoR Auto-Verify] Extracted userId from quoted pattern: " . $userId);
+                    } elseif (preg_match("/user_id\s*=\s*([^\s,]+)/i", $input['where'], $matches)) {
+                        $userId = trim($matches[1], "'\"");
+                        error_log("[PoR Auto-Verify] Extracted userId from unquoted pattern: " . $userId);
+                    }
+
+                    if ($userId) {
+                        error_log("[PoR Auto-Verify] Processing auto-verification for userId: " . $userId);
+
+                        // Get the updated location coordinates
+                        $hasLocationLatInUpdate = isset($data['location_lat']);
+                        $hasLocationLngInUpdate = isset($data['location_lng']);
+
+                        $locationLat = $hasLocationLatInUpdate ? floatval($data['location_lat']) : null;
+                        $locationLng = $hasLocationLngInUpdate ? floatval($data['location_lng']) : null;
+                        $areaOfResidence = isset($data['area_of_residence']) ? $data['area_of_residence'] : null;
+
+                        // If location was not in the update, fetch it from the database
+                        if (!$hasLocationLatInUpdate || !$hasLocationLngInUpdate) {
+                            $profileStmt = $conn->prepare("SELECT location_lat, location_lng, area_of_residence FROM user_profiles WHERE user_id = ? LIMIT 1");
+                            $profileStmt->bind_param("s", $userId);
+                            $profileStmt->execute();
+                            $profileResult = $profileStmt->get_result();
+                            $profile = $profileResult->fetch_assoc();
+                            $profileStmt->close();
+
+                            if ($profile) {
+                                if (!$hasLocationLatInUpdate && $profile['location_lat'] !== null) {
+                                    $locationLat = floatval($profile['location_lat']);
+                                }
+                                if (!$hasLocationLngInUpdate && $profile['location_lng'] !== null) {
+                                    $locationLng = floatval($profile['location_lng']);
+                                }
+                                if ($areaOfResidence === null && $profile['area_of_residence'] !== null) {
+                                    $areaOfResidence = $profile['area_of_residence'];
+                                }
+                            }
+                        }
+
+                        // Check if proof_of_residence document already exists
+                        $docCheckStmt = $conn->prepare("SELECT id, status FROM verification_documents WHERE trainer_id = ? AND document_type = 'proof_of_residence' LIMIT 1");
+                        $docCheckStmt->bind_param("s", $userId);
+                        $docCheckStmt->execute();
+                        $docCheckResult = $docCheckStmt->get_result();
+                        $existingDoc = $docCheckResult->fetch_assoc();
+                        $docCheckStmt->close();
+
+                        if ($existingDoc) {
+                            // Update existing document to approved with location data
+                            if ($locationLat !== null && $locationLng !== null) {
+                                $fileUrl = json_encode(['lat' => $locationLat, 'lng' => $locationLng, 'area' => $areaOfResidence]);
+                                $updateDocStmt = $conn->prepare("UPDATE verification_documents SET status = 'approved', file_url = ?, reviewed_at = NOW(), updated_at = NOW() WHERE id = ?");
+                                if ($updateDocStmt) {
+                                    $updateDocStmt->bind_param("ss", $fileUrl, $existingDoc['id']);
+                                    if (!$updateDocStmt->execute()) {
+                                        error_log("[PoR Auto-Verify] Failed to update proof_of_residence: " . $updateDocStmt->error);
+                                    }
+                                    $updateDocStmt->close();
+                                } else {
+                                    error_log("[PoR Auto-Verify] Prepare failed for UPDATE: " . $conn->error);
+                                }
+                            }
+                        } else {
+                            // Create new proof_of_residence document with approved status
+                            if ($locationLat !== null && $locationLng !== null) {
+                                $fileUrl = json_encode(['lat' => $locationLat, 'lng' => $locationLng, 'area' => $areaOfResidence]);
+                                $insertDocStmt = $conn->prepare("INSERT INTO verification_documents (trainer_id, document_type, file_url, status, uploaded_at, reviewed_at, updated_at) VALUES (?, 'proof_of_residence', ?, 'approved', NOW(), NOW(), NOW())");
+                                if ($insertDocStmt) {
+                                    $insertDocStmt->bind_param("ss", $userId, $fileUrl);
+                                    if (!$insertDocStmt->execute()) {
+                                        error_log("[PoR Auto-Verify] Failed to insert proof_of_residence: " . $insertDocStmt->error);
+                                    }
+                                    $insertDocStmt->close();
+                                } else {
+                                    error_log("[PoR Auto-Verify] Prepare failed for INSERT: " . $conn->error);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 respond("success", "Record updated successfully.", ["affected_rows" => $affectedRows]);
             } else {
                 $stmt->close();
@@ -2392,7 +2482,7 @@ switch ($action) {
 
         // Determine required docs based on registration path
         if ($registrationPath === 'sponsored') {
-            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct'];
+            $requiredDocs = ['national_id'];
 
             // For sponsored path, sponsor_trainer_id must be set and valid
             if (!$sponsorTrainerId) {
@@ -2411,8 +2501,8 @@ switch ($action) {
                 respond("error", "Selected sponsor trainer is not approved.", null, 400);
             }
         } else {
-            // Direct registration requires all 5 documents
-            $requiredDocs = ['national_id', 'proof_of_residence', 'certificate_of_good_conduct', 'discipline_certificate', 'sponsor_reference'];
+            // Direct registration requires only national_id
+            $requiredDocs = ['national_id'];
         }
 
         // Get submitted documents
