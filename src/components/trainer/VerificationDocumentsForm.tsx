@@ -30,13 +30,13 @@ const requiredDocuments: Document[] = [
   {
     type: 'proof_of_residence',
     label: 'Proof of Residence',
-    description: 'Uses your location grid coordinates already captured in your profile. Set your location in the trainer profile section to auto-verify.',
+    description: 'REQUIRED: Set your location in the trainer profile section. Your location grid coordinates will be used to verify your address.',
     status: 'pending'
   },
   {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
-    description: 'Optional: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance',
+    description: 'OPTIONAL: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance.',
     status: 'pending',
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
   }
@@ -255,19 +255,21 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        // Build list of missing documents - Certificate of Good Conduct is now optional
+        // Build list of missing REQUIRED documents
         const missingDocs: string[] = []
 
-        documents.forEach(doc => {
-          // All documents are now optional - no validation needed here
-        })
+        // Check for missing required documents
+        const proofOfResidence = documents.find(d => d.type === 'proof_of_residence')
+        if (!proofOfResidence?.fileUrl) {
+          missingDocs.push('Proof of Residence (Set your location in the trainer profile)')
+        }
 
         // Create detailed error message
-        let errorMessage = 'Please complete the following before submitting:'
+        let errorMessage = ''
         if (missingDocs.length > 0) {
-          errorMessage += '\n' + missingDocs.map(doc => `• ${doc}`).join('\n')
+          errorMessage = 'Missing required documents:\n' + missingDocs.map(doc => `• ${doc}`).join('\n')
         } else {
-          errorMessage = 'Not all required documents have been submitted'
+          errorMessage = 'Proof of Residence is required. Please set your location in the trainer profile.'
         }
 
         toast({
@@ -364,22 +366,33 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             <Alert className="bg-blue-50 border-blue-200">
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                Your documents are being reviewed by our admin team. This usually takes 24-48 hours.
+                <strong>Proof of Residence</strong> is being reviewed by our admin team. This usually takes 24-48 hours.
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Progress Bar - Optional Documents */}
+          {/* Status Overview */}
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Status</p>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>✓ <strong>Required:</strong> Proof of Residence (set location in trainer profile)</li>
+                <li>○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Progress Bar - Additional Documents */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm font-semibold">Additional Documentation (Optional)</Label>
+              <Label className="text-sm font-semibold">Optional Documentation Progress</Label>
               <span className="text-sm text-gray-600">
-                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
+                {documents.filter(d => d.type !== 'proof_of_residence' && d.status !== 'pending').length} of {documents.filter(d => d.type !== 'proof_of_residence').length}
               </span>
             </div>
             <Progress
-              value={documents.length > 0
-                ? (documents.filter(d => d.status !== 'pending').length / documents.length) * 100
+              value={documents.filter(d => d.type !== 'proof_of_residence').length > 0
+                ? (documents.filter(d => d.type !== 'proof_of_residence' && d.status !== 'pending').length / documents.filter(d => d.type !== 'proof_of_residence').length) * 100
                 : 0
               }
               className="h-2"
@@ -597,20 +610,28 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
           {/* Submit Button - Show when at least proof of residence is available or user wants to skip optional docs */}
           {(readyToSubmit || !allApproved) && (
-            <Button
-              onClick={handleSubmitForApproval}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Documents for Approval'
-              )}
-            </Button>
+            <>
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Note:</strong> Proof of Residence is required. Certificate of Good Conduct is optional but recommended to enhance your profile.
+                </AlertDescription>
+              </Alert>
+              <Button
+                onClick={handleSubmitForApproval}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Documents for Approval'
+                )}
+              </Button>
+            </>
           )}
 
           {allApproved && (
