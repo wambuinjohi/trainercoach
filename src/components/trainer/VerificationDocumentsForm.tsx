@@ -259,10 +259,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         const missingDocs: string[] = []
 
         documents.forEach(doc => {
-          // Check which documents are missing or pending (excluding certificate of good conduct which is optional)
-          if (doc.type === 'proof_of_residence' && doc.status === 'pending' && !doc.fileUrl) {
-            missingDocs.push('Proof of Residence (set your location in the profile)')
-          }
+          // All documents are now optional - no validation needed here
         })
 
         // Create detailed error message
