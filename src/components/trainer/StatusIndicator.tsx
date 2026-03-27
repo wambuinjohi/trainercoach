@@ -186,7 +186,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
               if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) pendingItems.push('training categories')
               if (!profileData.bio) pendingItems.push('bio')
               if (!profileData.hourly_rate) pendingItems.push('hourly rate')
-              if (!profileData.service_radius || !profileData.area_of_residence) pendingItems.push('service area')
+              if (!profileData.service_radius) pendingItems.push('service area')
               if (!profileData.mpesa_number) pendingItems.push('M-Pesa payment method')
 
               if (pendingItems.length === 0) {
