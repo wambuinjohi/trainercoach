@@ -1190,7 +1190,7 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
 function logPaymentEvent($action, $details = []) {
     logEvent('mpesa_' . $action, array_merge($details, [
         'timestamp' => date('Y-m-d H:i:s'),
-        'php_pid' => getmypid()
+        'php_pid' => function_exists('getmypid') ? getmypid() : null
     ]));
 }
 ?>
