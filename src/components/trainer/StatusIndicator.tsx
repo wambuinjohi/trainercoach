@@ -191,7 +191,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
 
               if (pendingItems.length === 0) {
                 return <>
-                  <p className="text-sm font-semibold text-gray-900"><strong>Next Step:</strong> Your profile is complete. Submit your verification documents for approval.</p>
+                  <p className="text-sm font-semibold text-gray-900">Your profile is complete.</p>
                 </>
               }
               return <>
