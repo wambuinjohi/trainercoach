@@ -16,6 +16,17 @@ import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig,
 import { LocationPreferenceSelector, type LocationPreference } from './LocationPreferenceSelector'
 import { FeeBreakdownModal, type FeeBreakdown } from './FeeBreakdownModal'
 
+type LiveAvailabilitySnapshot = {
+  day_label?: string
+  working_slots?: string[]
+  booked_slots?: Array<{ start: string, end: string }>
+  available_start_times?: string[]
+  selected_time?: string | null
+  selected_time_available?: boolean | null
+  selected_time_message?: string
+  checked_at?: string
+}
+
 export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void }> = ({ trainer, trainerProfile, onDone }) => {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -36,6 +47,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [locationPreference, setLocationPreference] = useState<LocationPreference | null>(null)
   const [showLocationSelector, setShowLocationSelector] = useState(false)
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false)
+  const [liveAvailability, setLiveAvailability] = useState<LiveAvailabilitySnapshot | null>(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
 
   const computeBaseAmount = () => {
     if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
@@ -72,48 +85,130 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     }).join(', ')
   }
 
-  // Validate availability when date or time changes
+  const parseTimeToMinutes = (timeStr: string): number | null => {
+    if (!timeStr || !timeStr.includes(':')) return null
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+    return hours * 60 + minutes
+  }
+
+  const getWorkingSlotsForDate = (selectedDate: string): string[] => {
+    const availability = trainerProfile?.availability
+    if (!availability || !selectedDate) return []
+
+    const parsedDate = new Date(`${selectedDate}T00:00:00`)
+    const dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    const slots = availability[dayName]
+    return Array.isArray(slots) ? slots : []
+  }
+
+  const getLiveAvailability = async (selectedDate: string, selectedTime?: string) => {
+    return apiRequest<LiveAvailabilitySnapshot>('booking_live_availability', {
+      trainer_id: trainer.id,
+      session_date: selectedDate,
+      session_time: selectedTime || undefined,
+      duration_hours: 1,
+    }, { headers: withAuth() })
+  }
+
+  useEffect(() => {
+    if (!date || !trainer?.id) {
+      setLiveAvailability(null)
+      setAvailabilityLoading(false)
+      return
+    }
+
+    let isActive = true
+
+    const loadAvailability = async (silent = false) => {
+      if (!silent) setAvailabilityLoading(true)
+
+      try {
+        const snapshot = await getLiveAvailability(date, time || undefined)
+        if (isActive) {
+          setLiveAvailability(snapshot)
+        }
+      } catch (err) {
+        console.warn('Failed to load live availability:', err)
+        if (isActive && !silent) {
+          setLiveAvailability(null)
+        }
+      } finally {
+        if (isActive && !silent) {
+          setAvailabilityLoading(false)
+        }
+      }
+    }
+
+    loadAvailability()
+    const intervalId = window.setInterval(() => {
+      loadAvailability(true)
+    }, 30000)
+
+    return () => {
+      isActive = false
+      window.clearInterval(intervalId)
+    }
+  }, [date, time, trainer?.id])
+
   useEffect(() => {
     setAvailabilityError('')
     setAvailabilityStatus(null)
     if (!date || !time) return
 
-    const availability = trainerProfile?.availability
-    if (!availability) return
+    const selectedDate = new Date(`${date}T00:00:00`)
+    const dayLabel = liveAvailability?.day_label || selectedDate.toLocaleDateString('en-US', { weekday: 'long' })
+    const workingSlots = liveAvailability?.working_slots?.length ? liveAvailability.working_slots : getWorkingSlotsForDate(date)
 
-    const selectedDate = new Date(date)
-    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-    const dayLabel = selectedDate.toLocaleDateString('en-US', { weekday: 'long' })
-    const slots = availability[dayName]
-
-    if (!slots || !Array.isArray(slots) || slots.length === 0) {
-      setAvailabilityError(`Trainer is not available on ${dayLabel}s. Please select a different date.`)
+    if (!workingSlots.length) {
+      setAvailabilityError(`Trainer is not available on ${dayLabel}. Please select a different date.`)
       setAvailabilityStatus('not-available')
       return
     }
 
-    const selectedHour = parseInt(time.split(':')[0])
-    const selectedMinute = parseInt(time.split(':')[1])
-    const selectedTimeInMinutes = selectedHour * 60 + selectedMinute
+    if (liveAvailability?.selected_time === time && liveAvailability.selected_time_available === false) {
+      setAvailabilityError(liveAvailability.selected_time_message || `This time is not available. Available slots: ${formatAvailableSlots(workingSlots)}`)
+      setAvailabilityStatus('not-available')
+      return
+    }
 
-    const isAvailable = slots.some((slot: string) => {
+    const selectedTimeInMinutes = parseTimeToMinutes(time)
+    if (selectedTimeInMinutes === null) {
+      setAvailabilityError('Please enter a valid time.')
+      setAvailabilityStatus('not-available')
+      return
+    }
+
+    const durationMinutes = 60
+    const endsWithinWorkingHours = workingSlots.some((slot: string) => {
       const [start, end] = slot.split('-')
-      const [startHour, startMin] = start.split(':').map(Number)
-      const [endHour, endMin] = end.split(':').map(Number)
-      const startInMinutes = startHour * 60 + startMin
-      const endInMinutes = endHour * 60 + endMin
-
-      return selectedTimeInMinutes >= startInMinutes && selectedTimeInMinutes < endInMinutes
+      const startInMinutes = parseTimeToMinutes(start)
+      const endInMinutes = parseTimeToMinutes(end)
+      if (startInMinutes === null || endInMinutes === null) return false
+      return selectedTimeInMinutes >= startInMinutes && (selectedTimeInMinutes + durationMinutes) <= endInMinutes
     })
 
-    if (!isAvailable) {
-      const availableSlotsFormatted = formatAvailableSlots(slots)
-      setAvailabilityError(`This time is not available. Available slots: ${availableSlotsFormatted}`)
+    if (!endsWithinWorkingHours) {
+      setAvailabilityError(`This time is not available. Available slots: ${formatAvailableSlots(workingSlots)}`)
       setAvailabilityStatus('not-available')
-    } else {
-      setAvailabilityStatus('available')
+      return
     }
-  }, [date, time, trainerProfile?.availability])
+
+    const overlappingBooking = liveAvailability?.booked_slots?.find((slot) => {
+      const slotStart = parseTimeToMinutes(slot.start)
+      const slotEnd = parseTimeToMinutes(slot.end)
+      if (slotStart === null || slotEnd === null) return false
+      return selectedTimeInMinutes < slotEnd && slotStart < (selectedTimeInMinutes + durationMinutes)
+    })
+
+    if (overlappingBooking) {
+      setAvailabilityError(`This time has already been booked. Occupied slot: ${formatTime12hr(overlappingBooking.start)} - ${formatTime12hr(overlappingBooking.end)}`)
+      setAvailabilityStatus('not-available')
+      return
+    }
+
+    setAvailabilityStatus('available')
+  }, [date, time, liveAvailability, trainerProfile?.availability])
 
   // Load group training data for the trainer
   useEffect(() => {
@@ -148,6 +243,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     maintenanceFeePercent: settings.maintenanceFeePercent || 15,
   }, 0) // transportFee will be calculated server-side
 
+  const today = new Date().toISOString().split('T')[0]
+  const availableStartTimes = liveAvailability?.available_start_times || []
+  const bookedTimeRanges = liveAvailability?.booked_slots?.map(slot => `${formatTime12hr(slot.start)} - ${formatTime12hr(slot.end)}`).join(', ') || ''
+
   const submit = async () => {
     if (!user) return
     if (!date || !time) {
@@ -163,6 +262,22 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
       return
     }
+
+    try {
+      const latestAvailability = await getLiveAvailability(date, time)
+      setLiveAvailability(latestAvailability)
+      if (latestAvailability.selected_time_available !== true) {
+        toast({
+          title: 'Time no longer available',
+          description: latestAvailability.selected_time_message || 'This slot was just taken. Please choose another time.',
+          variant: 'destructive'
+        })
+        return
+      }
+    } catch (err) {
+      console.warn('Failed to refresh live availability before booking:', err)
+    }
+
     setLoading(true)
     const baseAmount = computeBaseAmount()
     let baseServiceAmount = baseAmount
@@ -424,11 +539,48 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto pr-2">
         <div>
           <Label>Session Date</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} />
+          {date && (
+            <div className="mt-2 rounded-md border border-border bg-muted/5 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {availabilityLoading ? 'Checking live availability...' : `Available times for ${liveAvailability?.day_label || 'this date'}`}
+                </span>
+                {!availabilityLoading && liveAvailability?.checked_at && (
+                  <span className="text-[11px] text-muted-foreground">Live</span>
+                )}
+              </div>
+
+              {availableStartTimes.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableStartTimes.map((slot) => (
+                    <Button
+                      key={slot}
+                      type="button"
+                      size="sm"
+                      variant={time === slot ? 'default' : 'outline'}
+                      className={time === slot ? 'bg-gradient-primary text-white' : ''}
+                      onClick={() => setTime(slot)}
+                    >
+                      {formatTime12hr(slot)}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {availabilityLoading ? 'Refreshing availability...' : 'No open times on this date right now. Please choose another date.'}
+                </p>
+              )}
+
+              {bookedTimeRanges && (
+                <p className="mt-2 text-xs text-muted-foreground">Already booked: {bookedTimeRanges}</p>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <Label>Session Time</Label>
-          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          <Input type="time" step={1800} value={time} onChange={(e) => setTime(e.target.value)} />
           {availabilityStatus === 'available' && (
             <div className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1 font-medium">
               <span className="text-lg">✓</span> Available
