@@ -328,45 +328,11 @@ export const TrainerDashboard: React.FC = () => {
               const docs = await apiService.getVerificationDocuments(user.id)
               const docList = Array.isArray(docs) ? docs : (docs?.data && Array.isArray(docs.data) ? docs.data : [])
               setVerificationDocuments(docList)
-
-              // If any documents have been uploaded, trainer is waiting for approval
-              if (docList.length > 0) {
-                setAccountStatus('pending_approval')
-              } else {
-                // No documents uploaded yet - check if profile is complete
-                const hasName = !!profileData.full_name
-                const hasRate = !!profileData.hourly_rate
-                const hasBio = !!profileData.bio
-                const hasPhoto = !!profileData.profile_image
-                const hasCategories = profileData.specialties && profileData.specialties.length > 0
-                const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
-                const hasMpesa = !!profileData.payout_details
-
-                if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
-                  // Profile is complete, documents not yet uploaded
-                  setAccountStatus('profile_incomplete')
-                } else {
-                  // Profile incomplete
-                  setAccountStatus('registered')
-                }
-              }
             } catch (err) {
               console.warn('Failed to load verification documents', err)
-              // Default to profile-based status if documents load fails
-              const hasName = !!profileData.full_name
-              const hasRate = !!profileData.hourly_rate
-              const hasBio = !!profileData.bio
-              const hasPhoto = !!profileData.profile_image
-              const hasCategories = profileData.specialties && profileData.specialties.length > 0
-              const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
-              const hasMpesa = !!profileData.payout_details
-
-              if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
-                setAccountStatus('profile_incomplete')
-              } else {
-                setAccountStatus('registered')
-              }
+              setVerificationDocuments([])
             }
+            // Status will be determined by a separate useEffect after all data is loaded
           }
         } else {
           setProfileData({
@@ -428,6 +394,69 @@ export const TrainerDashboard: React.FC = () => {
     loadTrainerProfile()
     loadCategories()
   }, [user?.id])
+
+  // Separate effect to determine account status after all data is loaded
+  useEffect(() => {
+    // Skip if no user
+    if (!user?.id) return
+
+    // If account_status is explicitly set from API, use it
+    if (profileData.account_status) {
+      setAccountStatus(profileData.account_status)
+      return
+    }
+
+    // Check for suspended or approved status
+    if (profileData.is_suspended) {
+      setAccountStatus('suspended')
+      return
+    }
+
+    if (profileData.is_approved) {
+      setAccountStatus('approved')
+      return
+    }
+
+    // If documents have been uploaded, trainer is waiting for approval
+    if (verificationDocuments && verificationDocuments.length > 0) {
+      setAccountStatus('pending_approval')
+      return
+    }
+
+    // No documents yet - check if profile is complete
+    // Core required fields for profile completion
+    const hasRate = !!profileData.hourly_rate
+    const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
+    const hasMpesa = !!profileData.mpesa_number
+
+    // Optional but helpful fields
+    const hasName = !!profileData.full_name
+    const hasCategories = selectedCategoryIds && selectedCategoryIds.length > 0
+
+    console.log('[Status Check] Profile completeness:', {
+      hasRate,
+      hasServiceArea,
+      hasMpesa,
+      hasName,
+      hasCategories,
+      full_name: profileData.full_name,
+      hourly_rate: profileData.hourly_rate,
+      area_of_residence: profileData.area_of_residence,
+      service_radius: profileData.service_radius,
+      mpesa_number: profileData.mpesa_number,
+      selectedCategoryIds: selectedCategoryIds?.length || 0
+    })
+
+    // Profile is complete if it has the core required fields
+    // (rate, service area, and M-Pesa payment method)
+    if (hasRate && hasServiceArea && hasMpesa) {
+      // Profile is complete, documents not yet uploaded
+      setAccountStatus('profile_incomplete')
+    } else {
+      // Profile incomplete
+      setAccountStatus('registered')
+    }
+  }, [profileData, selectedCategoryIds, verificationDocuments, user?.id])
 
   const loadNotifications = async () => {
     if (!user?.id) return
