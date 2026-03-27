@@ -5092,6 +5092,7 @@ switch ($action) {
         $clientLocationLabel = isset($input['client_location_label']) ? $conn->real_escape_string($input['client_location_label']) : NULL;
         $clientLocationLat = isset($input['client_location_lat']) ? floatval($input['client_location_lat']) : NULL;
         $clientLocationLng = isset($input['client_location_lng']) ? floatval($input['client_location_lng']) : NULL;
+        $hourlyRateByRadius = [];
 
         // Get trainer profile for location and rates
         $trainerProfileSql = "SELECT location_lat, location_lng, timezone, availability, hourly_rate_by_radius FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
