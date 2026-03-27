@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 export default function ResetPasswords() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [password, setPassword] = useState('Pass1234');
+  const [password, setPassword] = useState('Test1234');
   const [messages, setMessages] = useState<Array<{ type: 'success' | 'error', text: string }>>([]);
   const [resetDone, setResetDone] = useState(false);
 
@@ -24,7 +24,7 @@ export default function ResetPasswords() {
       setLoading(true);
       setMessages([]);
       try {
-        const result = await apiRequest('reset_passwords', { password: 'Pass1234' });
+        const result = await apiRequest('reset_passwords', { password: 'Test1234' });
         addMessage('success', result.message || 'Passwords reset successfully');
         setResetDone(true);
         toast({ title: 'Success', description: result.message });

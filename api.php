@@ -77,7 +77,7 @@ register_shutdown_function(function() use ($corsOrigin) {
 include('connection.php');
 
 // Include SMS helper for sending SMS notifications
-include('sms_helper.php');
+require_once('sms_helper.php');
 
 // Auto-migration: Ensure categories table has correct status columns and fields
 function ensureCategoriesSchemaIsCorrect($conn) {
@@ -124,7 +124,7 @@ ensureCategoriesSchemaIsCorrect($conn);
 include('mpesa_helper.php');
 
 // Include SMS helper functions
-include('sms_helper.php');
+require_once('sms_helper.php');
 
 // Utility function for logging API events
 function logEvent($eventType, $details = []) {

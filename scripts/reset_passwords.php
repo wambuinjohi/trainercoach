@@ -6,7 +6,7 @@
  */
 
 $apiUrl = isset($argv[1]) ? $argv[1] : 'https://trainercoachconnect.com/api.php';
-$newPassword = 'Pass1234';
+$newPassword = 'Test1234';
 
 echo "🔄 Resetting user passwords via API: $apiUrl\n";
 echo "📝 Resetting passwords for test users to: $newPassword\n\n";
