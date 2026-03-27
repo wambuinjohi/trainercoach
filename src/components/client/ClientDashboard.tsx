@@ -965,11 +965,11 @@ export const ClientDashboard: React.FC = () => {
           <div className="space-y-2 mb-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              {booking.session_date ? new Date(booking.session_date).toLocaleDateString() : 'TBD'}
+              {(booking.session_date ? new Date(booking.session_date).toLocaleDateString() : null) || (primarySession?.date ? new Date(primarySession.date).toLocaleDateString() : 'TBD')}
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              {booking.session_time || 'Time TBD'}
+              {(booking.session_time || primarySession?.start_time) || 'Time TBD'}
             </div>
             {bookingSessions.length > 0 && (
               <div className="text-xs text-muted-foreground">

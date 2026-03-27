@@ -5318,18 +5318,43 @@ switch ($action) {
 
 
     case 'booking_live_availability':
-        if (!isset($input['trainer_id']) || !isset($input['session_date'])) {
-            respond("error", "Missing trainer_id or session_date.", null, 400);
+        if (!isset($input['trainer_id'])) {
+            respond("error", "Missing trainer_id.", null, 400);
         }
 
         $trainerId = $input['trainer_id'];
-        $sessionDate = $input['session_date'];
-        $durationHours = isset($input['duration_hours']) ? floatval($input['duration_hours']) : 1;
-        $sessionTime = isset($input['session_time']) ? $input['session_time'] : null;
         $excludeBookingId = isset($input['exclude_booking_id']) ? $input['exclude_booking_id'] : null;
 
-        $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime, $excludeBookingId);
-        respond("success", "Live availability fetched successfully.", $availabilitySnapshot);
+        // Check if batch sessions validation is requested
+        if (isset($input['sessions']) && is_array($input['sessions']) && !empty($input['sessions'])) {
+            // Batch validation for multiple sessions
+            $results = [];
+            foreach ($input['sessions'] as $session) {
+                if (!is_array($session) || !isset($session['date'])) {
+                    continue;
+                }
+
+                $sessionDate = $session['date'];
+                $durationHours = isset($session['duration_hours']) ? floatval($session['duration_hours']) : 1;
+                $sessionTime = isset($session['start_time']) ? $session['start_time'] : null;
+
+                $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime, $excludeBookingId);
+                $results[] = $availabilitySnapshot;
+            }
+            respond("success", "Live availability fetched for all sessions.", $results);
+        } else {
+            // Single session validation (backward compatible)
+            if (!isset($input['session_date'])) {
+                respond("error", "Missing session_date. Provide either session_date (single) or sessions array (batch).", null, 400);
+            }
+
+            $sessionDate = $input['session_date'];
+            $durationHours = isset($input['duration_hours']) ? floatval($input['duration_hours']) : 1;
+            $sessionTime = isset($input['session_time']) ? $input['session_time'] : null;
+
+            $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime, $excludeBookingId);
+            respond("success", "Live availability fetched successfully.", $availabilitySnapshot);
+        }
         break;
 
     // INSERT BOOKING (custom action wrapper)
