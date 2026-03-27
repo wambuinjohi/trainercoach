@@ -258,6 +258,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const today = new Date().toISOString().split('T')[0]
   const availableStartTimes = liveAvailability?.available_start_times || []
   const bookedTimeRanges = liveAvailability?.booked_slots?.map(slot => `${formatTime12hr(slot.start)} - ${formatTime12hr(slot.end)}`).join(', ') || ''
+  const selectedSessionCount = selectedSessions.length
+  const selectedSessionHours = selectedSessions.reduce((sum, session) => sum + session.duration_hours, 0)
 
   const submit = async () => {
     if (!user) return
@@ -274,29 +276,31 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         return
       }
     }
-    if (availabilityError) {
-      toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
-      return
-    }
-    // Double-check availability status before submitting
-    if (availabilityStatus !== 'available') {
-      toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
-      return
-    }
-
-    try {
-      const latestAvailability = await getLiveAvailability(date, time)
-      setLiveAvailability(latestAvailability)
-      if (latestAvailability.selected_time_available !== true) {
-        toast({
-          title: 'Time no longer available',
-          description: latestAvailability.selected_time_message || 'This slot was just taken. Please choose another time.',
-          variant: 'destructive'
-        })
+    if (bookingMode === 'single') {
+      if (availabilityError) {
+        toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
         return
       }
-    } catch (err) {
-      console.warn('Failed to refresh live availability before booking:', err)
+      // Double-check availability status before submitting
+      if (availabilityStatus !== 'available') {
+        toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
+        return
+      }
+
+      try {
+        const latestAvailability = await getLiveAvailability(date, time)
+        setLiveAvailability(latestAvailability)
+        if (latestAvailability.selected_time_available !== true) {
+          toast({
+            title: 'Time no longer available',
+            description: latestAvailability.selected_time_message || 'This slot was just taken. Please choose another time.',
+            variant: 'destructive'
+          })
+          return
+        }
+      } catch (err) {
+        console.warn('Failed to refresh live availability before booking:', err)
+      }
     }
 
     setLoading(true)
@@ -501,9 +505,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       const bookingConfirmationState = {
         bookingId: bookingId,
         trainerName: trainer.name || 'Trainer',
-        date,
-        time,
-        sessions,
+        date: bookingMode === 'multi' ? selectedSessions[0]?.date || date : date,
+        time: bookingMode === 'multi' ? selectedSessions[0]?.start_time || time : time,
+        sessions: bookingMode === 'multi' ? selectedSessions : [],
         totalAmount: clientTotal,
         disciplineName: trainer.disciplineName,
         location: clientLocation.label,
@@ -574,6 +578,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               onClick={() => {
                 setBookingMode('single')
                 setSelectedSessions([])
+                setAvailabilityError('')
+                setAvailabilityStatus(null)
+                setLiveAvailability(null)
               }}
             >
               Single Session
@@ -586,6 +593,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
                 setBookingMode('multi')
                 setDate('')
                 setTime('')
+                setAvailabilityError('')
+                setAvailabilityStatus(null)
+                setLiveAvailability(null)
               }}
             >
               Multiple Sessions
@@ -802,7 +812,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               <div className="flex justify-between"><span>Rate</span><span className="font-semibold">Ksh {Number(trainer.hourlyRate || 0)}/hr</span></div>
             </>
           )}
-          <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{sessions}</span></div>
+          <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{bookingMode === 'multi' ? selectedSessionCount : sessions}</span></div>
+          {bookingMode === 'multi' && (
+            <div className="flex justify-between"><span>Total Hours</span><span className="font-semibold">{selectedSessionHours.toFixed(1)}</span></div>
+          )}
           <div className="flex justify-between"><span>Base Service Amount</span><span className="font-semibold">Ksh {baseAmount}</span></div>
           <div className="border-t border-border my-2 pt-2">
             <div className="flex justify-between items-center mb-2">
@@ -846,10 +859,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
         {(() => {
           const isInvalidMpesaAmount = payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000)
-          const isAvailabilityInvalid = date && time && availabilityStatus !== 'available'
-          const submitDisabled = loading || !!availabilityError || isInvalidMpesaAmount || isAvailabilityInvalid
+          const isAvailabilityInvalid = bookingMode === 'single' && date && time && availabilityStatus !== 'available'
+          const submitDisabled = loading || (bookingMode === 'single' && !!availabilityError) || isInvalidMpesaAmount || isAvailabilityInvalid
           let submitTitle = ''
-          if (availabilityError) submitTitle = 'Please select a valid date and time'
+          if (bookingMode === 'single' && availabilityError) submitTitle = 'Please select a valid date and time'
           else if (isAvailabilityInvalid) submitTitle = 'Trainer is not available at selected time'
           else if (isInvalidMpesaAmount) submitTitle = 'Payment amount is outside M-Pesa limits. Switch to Mock or adjust booking details.'
 

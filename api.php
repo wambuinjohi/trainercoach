@@ -129,6 +129,8 @@ function ensureBookingsSchemaIsCorrect($conn) {
         'vat_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `vat_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'VAT amount charged for the booking'",
         'trainer_net_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `trainer_net_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Net amount due to trainer'",
         'client_surcharge' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `client_surcharge` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Client surcharge amount'",
+        'sessions' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `sessions` JSON NULL COMMENT 'Multi-session booking details: [{date, start_time, end_time, duration_hours}, ...]'",
+        'session_phase' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `session_phase` VARCHAR(50) NULL COMMENT 'Booking session lifecycle state'",
         'is_group_training' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `is_group_training` BOOLEAN DEFAULT FALSE COMMENT 'Whether this booking is a group training session'",
         'group_size_tier_name' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `group_size_tier_name` VARCHAR(100) COMMENT 'Selected group size tier name'",
         'pricing_model_used' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `pricing_model_used` VARCHAR(50) COMMENT 'Pricing model used for the booking'",
@@ -5333,21 +5335,69 @@ switch ($action) {
     // INSERT BOOKING (custom action wrapper)
     // CREATE BOOKING WITH TRANSPORT FEE CALCULATION
     case 'booking_create':
-        if (!isset($input['client_id']) || !isset($input['trainer_id']) || !isset($input['session_date']) || !isset($input['session_time'])) {
+        $hasSessionsInput = array_key_exists('sessions', $input);
+        if (!isset($input['client_id']) || !isset($input['trainer_id']) || (!$hasSessionsInput && (!isset($input['session_date']) || !isset($input['session_time'])))) {
             respond("error", "Missing required booking fields (client_id, trainer_id, session_date, session_time).", null, 400);
         }
 
         $clientId = $conn->real_escape_string($input['client_id']);
         $trainerId = $conn->real_escape_string($input['trainer_id']);
-        $sessionDate = $conn->real_escape_string($input['session_date']);
-        $sessionTime = $conn->real_escape_string($input['session_time']);
-        $durationHours = isset($input['duration_hours']) ? intval($input['duration_hours']) : 1;
+        $sessionDate = isset($input['session_date']) ? $conn->real_escape_string($input['session_date']) : NULL;
+        $sessionTime = isset($input['session_time']) ? $conn->real_escape_string($input['session_time']) : NULL;
+        $durationHours = isset($input['duration_hours']) ? floatval($input['duration_hours']) : 1;
         $totalSessions = isset($input['total_sessions']) ? intval($input['total_sessions']) : 1;
+        $sessionPhase = isset($input['session_phase']) ? $conn->real_escape_string($input['session_phase']) : 'waiting_start';
         $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'pending';
         $baseServiceAmount = isset($input['base_service_amount']) ? floatval($input['base_service_amount']) : 0;
         $notes = isset($input['notes']) ? $conn->real_escape_string($input['notes']) : NULL;
         $categoryId = isset($input['category_id']) ? intval($input['category_id']) : NULL;
         $skipValidation = isset($input['skip_availability_validation']) && $input['skip_availability_validation'];
+        $bookingSessions = [];
+        $sessionsJson = NULL;
+
+        if ($hasSessionsInput) {
+            if (!is_array($input['sessions']) || empty($input['sessions'])) {
+                respond("error", "Multi-session bookings require at least one session entry.", null, 400);
+            }
+
+            foreach ($input['sessions'] as $index => $session) {
+                if (!is_array($session)) {
+                    respond("error", "Each session must be an object with date, start_time, end_time, and duration_hours.", null, 400);
+                }
+
+                $sessionDateValue = isset($session['date']) ? trim((string)$session['date']) : '';
+                $startTimeValue = isset($session['start_time']) ? trim((string)$session['start_time']) : '';
+                $endTimeValue = isset($session['end_time']) ? trim((string)$session['end_time']) : '';
+                $durationHoursValue = isset($session['duration_hours']) ? floatval($session['duration_hours']) : 0;
+
+                if ($sessionDateValue === '' || $startTimeValue === '' || $endTimeValue === '' || $durationHoursValue <= 0) {
+                    respond("error", "Each session must include a valid date, start_time, end_time, and duration_hours.", null, 400);
+                }
+
+                $startMinutes = parseTimeToMinutes($startTimeValue);
+                $endMinutes = parseTimeToMinutes($endTimeValue);
+                if ($startMinutes === null || $endMinutes === null || $endMinutes <= $startMinutes) {
+                    respond("error", "Session " . ($index + 1) . " has an invalid time range.", null, 400);
+                }
+
+                $bookingSessions[] = [
+                    'date' => $sessionDateValue,
+                    'start_time' => $startTimeValue,
+                    'end_time' => $endTimeValue,
+                    'duration_hours' => $durationHoursValue,
+                ];
+            }
+
+            $firstSession = $bookingSessions[0];
+            $sessionDate = $firstSession['date'];
+            $sessionTime = $firstSession['start_time'];
+            $durationHours = $firstSession['duration_hours'];
+            $totalSessions = count($bookingSessions);
+            $sessionsJson = json_encode($bookingSessions, JSON_UNESCAPED_SLASHES);
+            if ($sessionsJson === false) {
+                respond("error", "Failed to encode multi-session booking details.", null, 500);
+            }
+        }
 
         // Group training parameters
         $isGroupTraining = isset($input['is_group_training']) && $input['is_group_training'] === true;
@@ -5382,12 +5432,24 @@ switch ($action) {
         }
 
         if (!$skipValidation) {
-            $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime);
-            if ($availabilitySnapshot['selected_time_available'] !== true) {
-                $message = !empty($availabilitySnapshot['selected_time_message'])
-                    ? $availabilitySnapshot['selected_time_message']
-                    : 'The trainer is not available at the selected time.';
-                respond("error", $message, $availabilitySnapshot, 400);
+            if (!empty($bookingSessions)) {
+                foreach ($bookingSessions as $index => $session) {
+                    $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $session['date'], $session['duration_hours'], $session['start_time']);
+                    if ($availabilitySnapshot['selected_time_available'] !== true) {
+                        $message = !empty($availabilitySnapshot['selected_time_message'])
+                            ? $availabilitySnapshot['selected_time_message']
+                            : 'The trainer is not available at the selected time.';
+                        respond("error", "Session " . ($index + 1) . " on " . $session['date'] . " at " . $session['start_time'] . ": " . $message, $availabilitySnapshot, 400);
+                    }
+                }
+            } else {
+                $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime);
+                if ($availabilitySnapshot['selected_time_available'] !== true) {
+                    $message = !empty($availabilitySnapshot['selected_time_message'])
+                        ? $availabilitySnapshot['selected_time_message']
+                        : 'The trainer is not available at the selected time.';
+                    respond("error", $message, $availabilitySnapshot, 400);
+                }
             }
         }
 
@@ -5477,11 +5539,11 @@ switch ($action) {
         $stmt = $conn->prepare("
             INSERT INTO bookings (
                 id, client_id, trainer_id, category_id, session_date, session_time, duration_hours,
-                total_sessions, status, total_amount, base_service_amount, transport_fee, platform_fee,
+                total_sessions, sessions, session_phase, status, total_amount, base_service_amount, transport_fee, platform_fee,
                 vat_amount, trainer_net_amount, client_surcharge, notes, client_location_label,
                 client_location_lat, client_location_lng, is_group_training, group_size_tier_name,
                 pricing_model_used, group_rate_per_unit, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         if (!$stmt) {
@@ -5491,11 +5553,12 @@ switch ($action) {
         // For backward compatibility, use the new fee breakdown values
         $platformFeeForDb = $clientSurcharge; // Store total client charges as platform_fee for now
         $vatAmountForDb = $vatAmount; // Store calculated VAT amount
+        $sessionsForDb = !empty($bookingSessions) ? $sessionsJson : NULL;
 
         $stmt->bind_param(
-            "sssisiiisddddddssddiissds",
+            "sssisiiisssdddddddssddiissds",
             $bookingId, $clientId, $trainerId, $categoryId, $sessionDate, $sessionTime, $durationHours,
-            $totalSessions, $status, $totalAmount, $baseServiceAmount, $transportFee, $platformFeeForDb,
+            $totalSessions, $sessionsForDb, $sessionPhase, $status, $totalAmount, $baseServiceAmount, $transportFee, $platformFeeForDb,
             $vatAmountForDb, $trainerNetAmount, $clientSurcharge, $notes, $clientLocationLabel,
             $clientLocationLat, $clientLocationLng, $isGroupTraining, $groupSizeTierName,
             $pricingModelUsed, $groupRatePerUnit, $now
@@ -5554,7 +5617,8 @@ switch ($action) {
                 'transport_fee' => $transportFee,
                 'platform_fee' => $platformFeeForDb,
                 'total_amount' => $totalAmount,
-                'trainer_net' => $trainerNetAmount
+                'trainer_net' => $trainerNetAmount,
+                'total_sessions' => $totalSessions
             ];
             if ($categoryId) {
                 $eventData['category_id'] = $categoryId;
@@ -5579,7 +5643,9 @@ switch ($action) {
                 "commission_amount" => $commissionAmount,
                 "trainer_net_amount" => $trainerNetAmount,
                 "client_surcharge" => $clientSurcharge,
-                "total_amount" => $totalAmount
+                "total_amount" => $totalAmount,
+                "total_sessions" => $totalSessions,
+                "session_phase" => $sessionPhase
             ]);
         } else {
             $stmt->close();
@@ -5659,7 +5725,7 @@ switch ($action) {
         $types = "";
 
         // List of allowed fields to update
-        $allowedFields = ['status', 'notes', 'client_location_label', 'client_location_lat', 'client_location_lng'];
+        $allowedFields = ['status', 'session_phase', 'notes', 'client_location_label', 'client_location_lat', 'client_location_lng'];
 
         foreach ($allowedFields as $field) {
             if (isset($input[$field])) {
