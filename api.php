@@ -5490,7 +5490,7 @@ switch ($action) {
 
         // For backward compatibility, use the new fee breakdown values
         $platformFeeForDb = $clientSurcharge; // Store total client charges as platform_fee for now
-        $vatAmountForDb = 0; // No VAT in new calculation
+        $vatAmountForDb = $vatAmount; // Store calculated VAT amount
 
         $stmt->bind_param(
             "sssisiiisddddddssddiissds",
