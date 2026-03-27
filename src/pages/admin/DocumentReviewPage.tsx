@@ -124,7 +124,10 @@ export default function DocumentReviewPage() {
 
       // Reload documents to update all counts (pending, approved, rejected)
       await loadDocuments()
-      toast({ title: 'Success', description: 'Document approved' })
+      toast({
+        title: 'Document approved',
+        description: 'SMS and in-app notifications sent to the trainer'
+      })
       setConfirmModal({ ...confirmModal, open: false })
     } catch (error) {
       console.error('Approve document error:', error)
@@ -146,7 +149,10 @@ export default function DocumentReviewPage() {
 
       // Reload documents to update all counts (pending, approved, rejected)
       await loadDocuments()
-      toast({ title: 'Success', description: 'Document rejected' })
+      toast({
+        title: 'Document rejected',
+        description: 'SMS and in-app notifications sent to the trainer with rejection reason'
+      })
       setConfirmModal({ ...confirmModal, open: false })
       setRejectionReason('')
     } catch (error) {

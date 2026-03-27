@@ -76,6 +76,9 @@ register_shutdown_function(function() use ($corsOrigin) {
 // Include the database connection
 include('connection.php');
 
+// Include SMS helper for sending SMS notifications
+include('sms_helper.php');
+
 // Auto-migration: Ensure categories table has correct status columns and fields
 function ensureCategoriesSchemaIsCorrect($conn) {
     // List of required columns with their ALTER statements
@@ -3047,6 +3050,22 @@ switch ($action) {
             respond("error", "Invalid status value. Must be 'approved' or 'rejected'.", null, 400);
         }
 
+        // Get document details (trainer_id, document_type)
+        $docStmt = $conn->prepare("SELECT trainer_id, document_type FROM verification_documents WHERE id = ?");
+        $docStmt->bind_param("s", $docId);
+        $docStmt->execute();
+        $docResult = $docStmt->get_result();
+        if ($docResult->num_rows === 0) {
+            $docStmt->close();
+            respond("error", "Document not found.", null, 404);
+            break;
+        }
+        $docRow = $docResult->fetch_assoc();
+        $trainerId = $docRow['trainer_id'];
+        $documentType = $docRow['document_type'];
+        $docStmt->close();
+
+        // Update document status
         $sql = "
             UPDATE verification_documents
             SET status = ?, rejection_reason = ?, reviewed_at = NOW(), reviewed_by = ?, updated_at = NOW()
@@ -3065,14 +3084,139 @@ switch ($action) {
             break;
         }
 
-        if ($stmt->execute()) {
-            $stmt->close();
-            logEvent('verification_document_reviewed', ['document_id' => $docId, 'status' => $status, 'admin_id' => $adminId]);
-            respond("success", "Document verification completed.", ["status" => $status]);
-        } else {
+        if (!$stmt->execute()) {
             $stmt->close();
             respond("error", "Execute failed: " . $conn->error, null, 500);
+            break;
         }
+        $stmt->close();
+
+        // Get trainer phone number and name for notifications
+        $trainerStmt = $conn->prepare("SELECT phone_number, full_name FROM user_profiles WHERE user_id = ?");
+        $trainerStmt->bind_param("s", $trainerId);
+        $trainerStmt->execute();
+        $trainerResult = $trainerStmt->get_result();
+        $trainerData = $trainerResult->fetch_assoc();
+        $trainerStmt->close();
+
+        $trainerPhone = $trainerData['phone_number'] ?? null;
+        $trainerName = $trainerData['full_name'] ?? $trainerId;
+
+        // Document type display labels
+        $docTypeLabels = [
+            'national_id' => 'National ID',
+            'national_id_front' => 'National ID (Front)',
+            'national_id_back' => 'National ID (Back)',
+            'proof_of_residence' => 'Proof of Residence',
+            'certificate_of_good_conduct' => 'Certificate of Good Conduct',
+            'discipline_certificate' => 'Discipline Certificate',
+            'passport' => 'Passport',
+        ];
+        $docTypeLabel = $docTypeLabels[$documentType] ?? str_replace('_', ' ', ucwords($documentType));
+
+        // Create in-app notification based on approval/rejection
+        if ($status === 'approved') {
+            // Document approved notification
+            $notifTitle = 'Document approved';
+            $notifBody = "Your {$docTypeLabel} has been verified and approved. Continue uploading any remaining documents to complete your profile.";
+            $notifAction = 'document_approved';
+
+            // Send SMS if enabled and phone available
+            if ($trainerPhone) {
+                $smsMessage = "Your {$docTypeLabel} has been approved. You're making great progress! Complete all verification documents to activate your account.";
+                $smsResult = sendSmsViaOnfonmedia($trainerPhone, $smsMessage);
+                if ($smsResult['success']) {
+                    error_log("SMS sent to trainer {$trainerId} for document approval");
+                } else {
+                    error_log("SMS failed for trainer {$trainerId}: " . ($smsResult['error'] ?? 'Unknown error'));
+                }
+            }
+        } else {
+            // Document rejected notification
+            $notifTitle = 'Document rejected';
+            $rejectionMsg = $rejectionReason ? " - {$rejectionReason}" : '';
+            $notifBody = "Your {$docTypeLabel} was rejected{$rejectionMsg}. Please upload a replacement.";
+            $notifAction = 'document_rejected';
+
+            // Send SMS if enabled and phone available
+            if ($trainerPhone) {
+                $smsMessage = "Your {$docTypeLabel} submission was rejected{$rejectionMsg}. Please review and resubmit.";
+                $smsResult = sendSmsViaOnfonmedia($trainerPhone, $smsMessage);
+                if ($smsResult['success']) {
+                    error_log("SMS sent to trainer {$trainerId} for document rejection");
+                } else {
+                    error_log("SMS failed for trainer {$trainerId}: " . ($smsResult['error'] ?? 'Unknown error'));
+                }
+            }
+        }
+
+        // Create in-app notification
+        $notifStmt = $conn->prepare("
+            INSERT INTO notifications (user_id, title, body, type, action_type, read, created_at)
+            VALUES (?, ?, ?, 'document', ?, 0, NOW())
+        ");
+        if ($notifStmt) {
+            $notifStmt->bind_param("ssss", $trainerId, $notifTitle, $notifBody, $notifAction);
+            $notifStmt->execute();
+            $notifStmt->close();
+        }
+
+        // Check if all required documents are now approved (for full trainer approval)
+        if ($status === 'approved') {
+            $requiredDocs = ['national_id', 'proof_of_residence'];
+            $allDocsApprovedStmt = $conn->prepare("
+                SELECT COUNT(*) as total_required, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count
+                FROM verification_documents
+                WHERE trainer_id = ? AND document_type IN ('national_id', 'proof_of_residence')
+            ");
+            $allDocsApprovedStmt->bind_param("s", $trainerId);
+            $allDocsApprovedStmt->execute();
+            $statsResult = $allDocsApprovedStmt->get_result();
+            $stats = $statsResult->fetch_assoc();
+            $allDocsApprovedStmt->close();
+
+            // If all required documents are approved, update trainer account status to approved
+            if ($stats['total_required'] === 2 && $stats['approved_count'] === 2) {
+                $approvalStmt = $conn->prepare("
+                    UPDATE user_profiles
+                    SET account_status = 'approved', is_verified = 1, updated_at = NOW()
+                    WHERE user_id = ? AND account_status != 'approved'
+                ");
+                $approvalStmt->bind_param("s", $trainerId);
+                $approvalStmt->execute();
+                $approvalStmt->close();
+
+                // Send full trainer approval notification
+                $approvalTitle = 'Account approved';
+                $approvalBody = "Congratulations {$trainerName}! Your account has been approved. You can now start accepting bookings and earning.";
+
+                $approvalNotifStmt = $conn->prepare("
+                    INSERT INTO notifications (user_id, title, body, type, action_type, read, created_at)
+                    VALUES (?, ?, ?, 'approval', 'trainer_approved', 0, NOW())
+                ");
+                if ($approvalNotifStmt) {
+                    $approvalNotifStmt->bind_param("sss", $trainerId, $approvalTitle, $approvalBody);
+                    $approvalNotifStmt->execute();
+                    $approvalNotifStmt->close();
+                }
+
+                // Send trainer approval SMS if enabled and phone available
+                if ($trainerPhone) {
+                    $approvalSms = "Great news {$trainerName}! Your account is now approved. Start accepting bookings and grow your business!";
+                    $approvalSmsResult = sendSmsViaOnfonmedia($trainerPhone, $approvalSms);
+                    if ($approvalSmsResult['success']) {
+                        error_log("Trainer approval SMS sent to {$trainerId}");
+                    } else {
+                        error_log("Trainer approval SMS failed for {$trainerId}: " . ($approvalSmsResult['error'] ?? 'Unknown error'));
+                    }
+                }
+
+                logEvent('trainer_approved', ['trainer_id' => $trainerId, 'admin_id' => $adminId]);
+            }
+        }
+
+        logEvent('verification_document_reviewed', ['document_id' => $docId, 'status' => $status, 'admin_id' => $adminId]);
+        respond("success", "Document verification completed.", ["status" => $status]);
         break;
 
     // VALIDATE SPONSOR (check if sponsor is approved trainer)

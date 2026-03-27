@@ -249,7 +249,6 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
   // Accept both pending (awaiting review) and approved certificates
   // Only reject if status is explicitly 'rejected' or no certificate uploaded
   const hasDisciplineCertificate = certificateStatus.fileUrl && certificateStatus.status !== 'rejected'
-  const shouldShowSponsorRequired = !hasDisciplineCertificate
 
   if (certificateLoading) {
     return (
@@ -261,40 +260,24 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
     )
   }
 
-  return (
-    <Card className="border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Discipline & Sponsorship</CardTitle>
-        <p className="text-xs text-muted-foreground mt-1">
-          Either upload a discipline certificate or select a sponsor trainer
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Info Alert */}
-        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
-          <AlertCircle className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800 dark:text-blue-200">
-            {shouldShowSponsorRequired
-              ? 'You don\'t have a discipline certificate. You must select a sponsor trainer to proceed.'
-              : 'You have a discipline certificate (pending or approved). Sponsor selection is optional.'}
-          </AlertDescription>
-        </Alert>
-
-        {/* DISCIPLINE CERTIFICATE SECTION */}
-        <div className="space-y-4 pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-sm">Discipline Certificate</h4>
-            {hasDisciplineCertificate && (
-              <Badge className={`${
-                certificateStatus.status === 'approved'
-                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                  : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-              }`}>
-                <Check className="h-3 w-3 mr-1" />
-                {certificateStatus.status === 'approved' ? 'Approved' : 'Pending Review'}
-              </Badge>
-            )}
-          </div>
+  // ===== DIRECT REGISTRATION: SHOW DISCIPLINE CERTIFICATE ONLY =====
+  if (registrationPath === 'direct') {
+    return (
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Discipline Certificate</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload your discipline certificate to verify your credentials
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Info Alert */}
+          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              Upload a discipline certificate to verify your professional credentials as an independent trainer.
+            </AlertDescription>
+          </Alert>
 
           {/* Show existing certificate status */}
           {certificateStatus.fileUrl && (
@@ -305,15 +288,27 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
                 ? 'border-red-200 bg-red-50'
                 : 'border-blue-200 bg-blue-50'
             }`}>
-              <p className={`text-xs font-medium mb-3 ${
-                certificateStatus.status === 'approved'
-                  ? 'text-green-700'
-                  : certificateStatus.status === 'rejected'
-                  ? 'text-red-700'
-                  : 'text-blue-700'
-              }`}>
-                📄 {certificateStatus.status === 'approved' ? 'Approved Certificate' : certificateStatus.status === 'rejected' ? 'Certificate (Rejected)' : 'Current Certificate'}
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className={`text-xs font-medium ${
+                  certificateStatus.status === 'approved'
+                    ? 'text-green-700'
+                    : certificateStatus.status === 'rejected'
+                    ? 'text-red-700'
+                    : 'text-blue-700'
+                }`}>
+                  📄 {certificateStatus.status === 'approved' ? 'Approved Certificate' : certificateStatus.status === 'rejected' ? 'Certificate (Rejected)' : 'Current Certificate'}
+                </p>
+                {certificateStatus.status !== 'rejected' && (
+                  <Badge className={`${
+                    certificateStatus.status === 'approved'
+                      ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                      : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+                  }`}>
+                    <Check className="h-3 w-3 mr-1" />
+                    {certificateStatus.status === 'approved' ? 'Approved' : 'Pending Review'}
+                  </Badge>
+                )}
+              </div>
               {certificateStatus.fileUrl.startsWith('http') ? (
                 <img src={certificateStatus.fileUrl} alt="Certificate" className="max-w-full max-h-72 rounded object-contain mx-auto" />
               ) : (
@@ -436,136 +431,139 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
               )}
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
-        {/* SPONSOR SECTION */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-sm">
-              Sponsor Trainer
-              {shouldShowSponsorRequired && <span className="text-red-600 ml-1">*</span>}
-            </h4>
-            {selectedSponsor && (
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                <Check className="h-3 w-3 mr-1" />
-                Selected
-              </Badge>
-            )}
-          </div>
+  // ===== SPONSORED REGISTRATION: SHOW SPONSOR SEARCH ONLY =====
+  return (
+    <Card className="border-border">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Sponsor Trainer</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Select a sponsor trainer who will vouch for your credentials
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Info Alert */}
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            A sponsor is a registered and approved trainer who will vouch for your credentials and guide your journey as a sponsored trainer.
+          </AlertDescription>
+        </Alert>
 
-          <p className="text-xs text-muted-foreground">
-            A sponsor is a registered and approved trainer who will vouch for your credentials.
-          </p>
-
-          {selectedSponsor && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-900">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <div>
-                    <p className="font-medium text-green-900 dark:text-green-200">
-                      {selectedSponsor.full_name || selectedSponsor.email}
-                    </p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      {selectedSponsor.email}
-                    </p>
-                  </div>
+        {/* Selected Sponsor Display */}
+        {selectedSponsor && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/20 dark:border-green-900">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-900 dark:text-green-200">
+                    {selectedSponsor.full_name || selectedSponsor.email}
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    {selectedSponsor.email}
+                  </p>
                 </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveSponsor}
+                className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Sponsor Search */}
+        {!selectedSponsor && (
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="sponsor-search" className="text-sm font-medium">
+                Search for a Sponsor <span className="text-red-600">*</span>
+              </Label>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  id="sponsor-search"
+                  placeholder="Enter trainer name, email, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={sponsorLoading}
+                  className="flex-1"
+                />
                 <Button
-                  variant="ghost"
+                  onClick={searchSponsors}
+                  disabled={sponsorLoading || !searchQuery.trim()}
+                  variant="outline"
                   size="sm"
-                  onClick={handleRemoveSponsor}
-                  className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                  className="px-3"
                 >
-                  <X className="h-4 w-4" />
+                  {sponsorLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
-          )}
 
-          {!selectedSponsor && (
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="sponsor-search" className="text-sm font-medium">
-                  Search for a Sponsor
-                </Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    id="sponsor-search"
-                    placeholder="Enter trainer name, email, or phone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    disabled={sponsorLoading}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={searchSponsors}
-                    disabled={sponsorLoading || !searchQuery.trim()}
-                    variant="outline"
-                    size="sm"
-                    className="px-3"
-                  >
-                    {sponsorLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {hasSearched && (
-                <div className="space-y-2">
-                  {searchResults.length === 0 ? (
-                    <div className="p-3 text-center text-muted-foreground text-sm">
-                      {sponsorLoading ? 'Searching...' : 'No trainers found. Try a different search.'}
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {searchResults.map((trainer) => (
-                        <div
-                          key={trainer.user_id}
-                          className="p-3 border border-border rounded-lg hover:bg-muted dark:hover:bg-slate-900 cursor-pointer transition"
-                          onClick={() => handleSelectSponsor(trainer)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">
-                                {trainer.full_name || trainer.email}
-                              </p>
+            {hasSearched && (
+              <div className="space-y-2">
+                {searchResults.length === 0 ? (
+                  <div className="p-3 text-center text-muted-foreground text-sm">
+                    {sponsorLoading ? 'Searching...' : 'No trainers found. Try a different search.'}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {searchResults.map((trainer) => (
+                      <div
+                        key={trainer.user_id}
+                        className="p-3 border border-border rounded-lg hover:bg-muted dark:hover:bg-slate-900 cursor-pointer transition"
+                        onClick={() => handleSelectSponsor(trainer)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">
+                              {trainer.full_name || trainer.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {trainer.email}
+                            </p>
+                            {trainer.phone_number && (
                               <p className="text-xs text-muted-foreground">
-                                {trainer.email}
+                                {trainer.phone_number}
                               </p>
-                              {trainer.phone_number && (
-                                <p className="text-xs text-muted-foreground">
-                                  {trainer.phone_number}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant="outline" className="ml-2">
-                              Verified
-                            </Badge>
+                            )}
                           </div>
-
-                          {trainer.hourly_rate && (
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              Rate: KES {trainer.hourly_rate}/hour
-                            </div>
-                          )}
+                          <Badge variant="outline" className="ml-2">
+                            Verified
+                          </Badge>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
-              <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
-                Only approved trainers can be selected as sponsors.
+                        {trainer.hourly_rate && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Rate: KES {trainer.hourly_rate}/hour
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            )}
+
+            <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+              Only approved trainers can be selected as sponsors.
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
