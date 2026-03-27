@@ -158,6 +158,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
       return
     }
+    // Double-check availability status before submitting
+    if (availabilityStatus !== 'available') {
+      toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
+      return
+    }
     setLoading(true)
     const baseAmount = computeBaseAmount()
     let baseServiceAmount = baseAmount
@@ -614,9 +619,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
         {(() => {
           const isInvalidMpesaAmount = payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000)
-          const submitDisabled = loading || !!availabilityError || isInvalidMpesaAmount
+          const isAvailabilityInvalid = date && time && availabilityStatus !== 'available'
+          const submitDisabled = loading || !!availabilityError || isInvalidMpesaAmount || isAvailabilityInvalid
           let submitTitle = ''
           if (availabilityError) submitTitle = 'Please select a valid date and time'
+          else if (isAvailabilityInvalid) submitTitle = 'Trainer is not available at selected time'
           else if (isInvalidMpesaAmount) submitTitle = 'Payment amount is outside M-Pesa limits. Switch to Mock or adjust booking details.'
 
           return (

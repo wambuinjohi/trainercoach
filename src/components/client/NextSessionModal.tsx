@@ -83,6 +83,11 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
       toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
       return
     }
+    // Double-check availability status before submitting
+    if (availabilityStatus !== 'available') {
+      toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
+      return
+    }
     setLoading(true)
     try {
       const hourly = Number(previous?.hourlyRate || previous?.total_amount || 0)
@@ -156,7 +161,23 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
-                <Button onClick={submit} disabled={loading || !!availabilityError} title={availabilityError ? 'Please select a valid date and time' : ''}>{loading ? 'Booking...' : 'Book'}</Button>
+                {(() => {
+                  const isAvailabilityInvalid = date && time && availabilityStatus !== 'available'
+                  const submitDisabled = loading || !!availabilityError || isAvailabilityInvalid
+                  let submitTitle = ''
+                  if (availabilityError) submitTitle = 'Please select a valid date and time'
+                  else if (isAvailabilityInvalid) submitTitle = 'Trainer is not available at selected time'
+
+                  return (
+                    <Button
+                      onClick={submit}
+                      disabled={submitDisabled}
+                      title={submitTitle}
+                    >
+                      {loading ? 'Booking...' : 'Book'}
+                    </Button>
+                  )
+                })()}
               </div>
             </div>
           </CardContent>
