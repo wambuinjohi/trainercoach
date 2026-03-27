@@ -144,6 +144,51 @@ async function getLocationViaIPAPI(timeoutMs = 4000): Promise<ApproxLocation | n
   }
 }
 
+export async function searchLocations(query: string, timeoutMs = 3000): Promise<Array<{ label: string; lat: number; lng: number }> | null> {
+  if (!query || query.trim().length < 2) {
+    return null;
+  }
+
+  try {
+    if (typeof window === 'undefined') return null;
+
+    const ctrl = new AbortController();
+    const abortT = window.setTimeout(() => ctrl.abort(), timeoutMs);
+
+    const encodedQuery = encodeURIComponent(query);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&limit=10&addressdetails=1&countrycodes=ke`,
+      {
+        signal: ctrl.signal,
+        headers: { 'Accept-Language': 'en' },
+      }
+    );
+
+    window.clearTimeout(abortT);
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      return null;
+    }
+
+    return data
+      .filter((item: any) => item.lat && item.lon)
+      .map((item: any) => ({
+        label: item.display_name || item.name || '',
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+      }))
+      .slice(0, 10);
+  } catch (err) {
+    // Silently fail - search is optional
+    return null;
+  }
+}
+
 export async function reverseGeocode(lat: number, lng: number, timeoutMs = 3000): Promise<{ city?: string; region?: string; country?: string; label?: string } | null> {
   try {
     if (typeof window === 'undefined') return null;

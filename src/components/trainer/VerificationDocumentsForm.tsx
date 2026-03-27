@@ -28,12 +28,6 @@ interface Document {
 
 const requiredDocuments: Document[] = [
   {
-    type: 'proof_of_residence',
-    label: 'Proof of Residence',
-    description: 'REQUIRED: Set your location in the trainer profile section. Your location grid coordinates will be used to verify your address.',
-    status: 'pending'
-  },
-  {
     type: 'certificate_of_good_conduct',
     label: 'Certificate of Good Conduct',
     description: 'OPTIONAL: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance.',
@@ -251,22 +245,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
     setLoading(true)
     try {
-      // Check if required documents are submitted
-      // Proof of Residence is satisfied either by:
-      // 1. Having set location in the trainer profile (locationSet = true)
-      // 2. Having uploaded a proof_of_residence document
-      const proofOfResidenceDoc = documents.find(d => d.type === 'proof_of_residence')
-      const proofOfResidenceOK = locationSet || proofOfResidenceDoc?.fileUrl
-
-      if (!proofOfResidenceOK) {
-        toast({
-          title: 'Missing required document',
-          description: 'Proof of Residence is required. Please set your location in the trainer profile.',
-          variant: 'destructive'
-        })
-        return
-      }
-
       // Check backend as secondary validation
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
       if (checkResponse?.data?.all_submitted) {
@@ -276,7 +254,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        // Show success anyway if location is set, since proof of residence is location-based
+        // Show success anyway since no required documents are blocking
         toast({
           title: 'Success',
           description: 'Your documents have been submitted for review. You will be notified once approved.'
@@ -294,24 +272,17 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // Proof of Residence status:
-  // - Can be satisfied by setting location in trainer profile (locationSet) OR uploading a document
-  const proofOfResidenceDoc = documents.find(d => d.type === 'proof_of_residence')
-  const proofOfResidenceReady = locationSet || !!proofOfResidenceDoc?.fileUrl
-  const proofOfResidenceApproved = proofOfResidenceDoc?.status === 'approved'
-
-  // All documents are truly approved when backend has approved them (not just ready)
-  const allApproved = proofOfResidenceApproved
+  // All documents are truly approved when backend has approved them
+  const allApproved = documents.every(d => d.status === 'approved' || d.type === 'certificate_of_good_conduct')
 
   // Check if any document is still under review
   const anySubmitted = documents.some(d => d.status !== 'pending')
 
-  // Check if any documents have been uploaded/submitted or location is set
-  const anyRequiredUploaded = locationSet || documents.some(d => d.fileUrl || d.type === 'proof_of_residence')
+  // Check if any documents have been uploaded/submitted
+  const anyRequiredUploaded = documents.some(d => d.fileUrl)
 
-  // Ready to submit: proof of residence is ready to submit and none are rejected
-  const readyToSubmit = proofOfResidenceReady &&
-    documents.every(d => d.status !== 'rejected')
+  // Ready to submit: no documents are rejected
+  const readyToSubmit = documents.every(d => d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -385,7 +356,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Status</p>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>✓ <strong>Required:</strong> Proof of Residence (set location in trainer profile)</li>
                 <li>○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
               </ul>
             </div>
@@ -396,12 +366,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             <div className="flex justify-between items-center mb-2">
               <Label className="text-sm font-semibold">Optional Documentation Progress</Label>
               <span className="text-sm text-gray-600">
-                {documents.filter(d => d.type !== 'proof_of_residence' && d.status !== 'pending').length} of {documents.filter(d => d.type !== 'proof_of_residence').length}
+                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
               </span>
             </div>
             <Progress
-              value={documents.filter(d => d.type !== 'proof_of_residence').length > 0
-                ? (documents.filter(d => d.type !== 'proof_of_residence' && d.status !== 'pending').length / documents.filter(d => d.type !== 'proof_of_residence').length) * 100
+              value={documents.length > 0
+                ? (documents.filter(d => d.status !== 'pending').length / documents.length) * 100
                 : 0
               }
               className="h-2"
@@ -426,7 +396,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   </div>
 
                   {/* Show existing document preview - Always visible */}
-                  {doc.fileUrl && doc.type !== 'proof_of_residence' && (
+                  {doc.fileUrl && (
                     <div className={`mb-3 border-2 rounded-lg p-4 ${
                       doc.status === 'approved'
                         ? 'border-green-200 bg-green-50'
@@ -472,7 +442,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
                   {/* Show pending status when no document uploaded yet */}
-                  {!doc.fileUrl && doc.type !== 'proof_of_residence' && doc.status === 'pending' && (
+                  {!doc.fileUrl && doc.status === 'pending' && (
                     <div className="mb-3 border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
                       <p className="text-xs font-medium text-amber-700 mb-2">⏳ Waiting for Upload</p>
                       <p className="text-xs text-amber-600">No document uploaded yet. Please add {doc.label.toLowerCase()} below.</p>
@@ -500,8 +470,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
 
-                  {/* File Upload - Skip for proof_of_residence (GPS location only) and already approved documents */}
-                  {doc.status !== 'approved' && doc.type !== 'proof_of_residence' && (
+                  {/* File Upload - Skip for already approved documents */}
+                  {doc.status !== 'approved' && (
                     <div className="mb-3 space-y-3">
 
                       {/* Preview Section for new upload being prepared */}
