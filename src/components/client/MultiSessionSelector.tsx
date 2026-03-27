@@ -82,6 +82,13 @@ function convertToSessionsArray(
     }
   }
 
+  // Sort sessions chronologically by date and start_time
+  sessions.sort((a, b) => {
+    const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime()
+    if (dateCompare !== 0) return dateCompare
+    return a.start_time.localeCompare(b.start_time)
+  })
+
   return sessions
 }
 

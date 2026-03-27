@@ -715,7 +715,22 @@ export const TrainerDashboard: React.FC = () => {
     const activeBookings = bookings.filter(b => !isBookingArchived(b))
     const archivedBookings = bookings.filter(b => isBookingArchived(b))
 
-    const renderBookingCard = (b: any, isArchived: boolean = false) => (
+    const renderBookingCard = (b: any, isArchived: boolean = false) => {
+      const bookingSessions = (() => {
+        const sessionsValue = b?.sessions
+        if (Array.isArray(sessionsValue)) return sessionsValue
+        if (typeof sessionsValue === 'string' && sessionsValue.trim()) {
+          try {
+            const parsed = JSON.parse(sessionsValue)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        }
+        return []
+      })()
+      const primarySession = bookingSessions[0]
+      return (
       <Card key={b.id || b.user_id} className={`bg-card border-border ${isArchived ? 'opacity-60' : ''}`}>
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
@@ -754,6 +769,13 @@ export const TrainerDashboard: React.FC = () => {
           <div className={`text-sm mt-2 ${isArchived ? 'text-muted-foreground line-through' : 'text-muted-foreground'}`}>
             {b.session_date || 'TBD'} at {b.session_time || ''}
           </div>
+          {bookingSessions.length > 0 && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {bookingSessions.length === 1
+                ? `Single session on ${primarySession?.date || b.session_date}`
+                : `${bookingSessions.length} sessions total • first on ${primarySession?.date || b.session_date}`}
+            </div>
+          )}
           {!isArchived && (
             <div className="flex gap-2 mt-3">
               <Button size="sm" onClick={() => openChat(b)}>Chat</Button>
@@ -767,6 +789,7 @@ export const TrainerDashboard: React.FC = () => {
         </CardContent>
       </Card>
     )
+    }
 
     return (
       <div className="space-y-6">
