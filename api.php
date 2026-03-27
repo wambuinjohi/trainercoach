@@ -616,20 +616,26 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
     // Step 3: Apply maintenance fee on the sum of charges
     $maintenanceFee = round(($sumOfCharges * $maintPct) / 100, 2);
 
-    // Step 4: Calculate client total
-    // Client pays: base + client charges (platformChargeClient + compensationFee) + transport
+    // Step 4: Calculate VAT (16% on base amount only)
+    $vatAmount = round(($baseAmount * 16) / 100, 2);
+
+    // Step 5: Calculate Platform Commission (25% on base amount, deducted from trainer)
+    $commissionAmount = round(($baseAmount * 25) / 100, 2);
+
+    // Step 6: Calculate client total
+    // Client pays: base + client charges (platformChargeClient + compensationFee) + transport + VAT
     // NOTE: Maintenance fee is NOT charged to client (it's internal platform revenue)
     $clientCharges = $platformChargeClient + $compensationFee;
-    $clientTotal = round($baseAmount + $clientCharges + $transportFee, 2);
+    $clientTotal = round($baseAmount + $clientCharges + $transportFee + $vatAmount, 2);
 
-    // Step 5: Calculate trainer net
-    // Trainer receives: base + transport - trainer charges - trainer's share of maintenance
+    // Step 7: Calculate trainer net
+    // Trainer receives: base + transport - trainer charges - commission - trainer's share of maintenance
     // Trainer's share of maintenance is proportional to their charges
     $trainerShareOfMaintenance = 0;
     if ($sumOfCharges > 0) {
         $trainerShareOfMaintenance = round(($platformChargeTrainer / $sumOfCharges) * $maintenanceFee, 2);
     }
-    $trainerNetAmount = round($baseAmount + $transportFee - $platformChargeTrainer - $trainerShareOfMaintenance, 2);
+    $trainerNetAmount = round($baseAmount + $transportFee - $platformChargeTrainer - $commissionAmount - $trainerShareOfMaintenance, 2);
 
     return [
         'baseAmount' => $baseAmount,
@@ -639,6 +645,8 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
         'sumOfCharges' => $sumOfCharges,
         'maintenanceFee' => $maintenanceFee,
         'transportFee' => $transportFee,
+        'vatAmount' => $vatAmount,
+        'commissionAmount' => $commissionAmount,
         'clientTotal' => $clientTotal,
         'trainerNetAmount' => $trainerNetAmount,
     ];
@@ -5451,15 +5459,15 @@ switch ($action) {
         $platformChargeTrainer = $feeBreakdown['platformChargeTrainer'];
         $compensationFee = $feeBreakdown['compensationFee'];
         $maintenanceFee = $feeBreakdown['maintenanceFee'];
+        $vatAmount = $feeBreakdown['vatAmount'];
+        $commissionAmount = $feeBreakdown['commissionAmount'];
         $totalAmount = $feeBreakdown['clientTotal'];
         $trainerNetAmount = $feeBreakdown['trainerNetAmount'];
 
         // Client surcharge shown to client (charges that client directly pays)
         // Does NOT include maintenance fee (which is internal platform revenue)
-        $clientSurcharge = $platformChargeClient + $compensationFee;
-
-        // For backward compatibility with VAT field (if needed)
-        $vatAmount = 0;
+        // Includes VAT as it's charged to client
+        $clientSurcharge = $platformChargeClient + $compensationFee + $vatAmount;
 
         // Generate booking ID
         $bookingId = 'booking_' . uniqid();
@@ -5567,6 +5575,8 @@ switch ($action) {
                 "compensation_fee" => $compensationFee,
                 "maintenance_fee" => $maintenanceFee,
                 "sum_of_charges" => $feeBreakdown['sumOfCharges'],
+                "vat_amount" => $vatAmount,
+                "commission_amount" => $commissionAmount,
                 "trainer_net_amount" => $trainerNetAmount,
                 "client_surcharge" => $clientSurcharge,
                 "total_amount" => $totalAmount
