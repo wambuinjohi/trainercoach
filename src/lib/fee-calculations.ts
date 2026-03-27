@@ -16,6 +16,8 @@ export interface FeeBreakdown {
   sumOfCharges: number
   maintenanceFee: number
   transportFee: number
+  vatAmount: number
+  commissionAmount: number
   clientTotal: number
   trainerNetAmount: number
 }
@@ -39,9 +41,13 @@ export interface FeeSettings {
  * 3. Sum all charges: sum = platformChargeClient + platformChargeTrainer + compensationFee
  * 4. Apply maintenance fee: maintenanceFee = sum × maintenanceFeePercent %
  *    (Maintenance fee is system developer revenue, NOT charged to client)
- * 5. Client total = base + platformChargeClient + compensationFee + transportFee
+ * 5. Calculate VAT: vatAmount = base × 16%
+ *    (VAT is only applied to base amount, not to charges)
+ * 6. Calculate Commission: commissionAmount = base × 25%
+ *    (Commission is deducted from trainer payment)
+ * 7. Client total = base + platformChargeClient + compensationFee + transportFee + vatAmount
  *    (Does NOT include maintenance fee - it's internal)
- * 6. Trainer net = base + transportFee - platformChargeTrainer - (trainer's proportional share of maintenance fee)
+ * 8. Trainer net = base + transportFee - platformChargeTrainer - commissionAmount - (trainer's proportional share of maintenance fee)
  *
  * @param baseAmount - Base service amount (hourly_rate × sessions)
  * @param settings - Fee percentage settings
@@ -76,20 +82,26 @@ export function calculateFeeBreakdown(
   // Step 3: Apply maintenance fee on the sum of charges
   const maintenanceFee = round((sumOfCharges * maintPct) / 100)
 
-  // Step 4: Calculate client total
-  // Client pays: base + client charges (platformChargeClient + compensationFee) + transport
+  // Step 4: Calculate VAT (16% on base amount only)
+  const vatAmount = round((baseAmount * 16) / 100)
+
+  // Step 5: Calculate Platform Commission (25% on base amount, deducted from trainer)
+  const commissionAmount = round((baseAmount * 25) / 100)
+
+  // Step 6: Calculate client total
+  // Client pays: base + client charges (platformChargeClient + compensationFee) + transport + VAT
   // NOTE: Maintenance fee is NOT charged to client (it's internal platform revenue)
   const clientCharges = platformChargeClient + compensationFee
-  const clientTotal = round(baseAmount + clientCharges + transportFee)
+  const clientTotal = round(baseAmount + clientCharges + transportFee + vatAmount)
 
-  // Step 5: Calculate trainer net
-  // Trainer receives: base + transport - trainer charges - trainer's share of maintenance
+  // Step 7: Calculate trainer net
+  // Trainer receives: base + transport - trainer charges - commission - trainer's share of maintenance
   // Trainer's share of maintenance is proportional to their charges
   const trainerShareOfMaintenance = sumOfCharges > 0
     ? round((platformChargeTrainer / sumOfCharges) * maintenanceFee)
     : 0
   const trainerNetAmount = round(
-    baseAmount + transportFee - platformChargeTrainer - trainerShareOfMaintenance
+    baseAmount + transportFee - platformChargeTrainer - commissionAmount - trainerShareOfMaintenance
   )
 
   return {
@@ -100,6 +112,8 @@ export function calculateFeeBreakdown(
     sumOfCharges,
     maintenanceFee,
     transportFee,
+    vatAmount,
+    commissionAmount,
     clientTotal,
     trainerNetAmount,
   }

@@ -11,6 +11,8 @@ export interface FeeBreakdown {
   maintenanceFee: number
   transportFee: number
   vat?: number
+  vatAmount?: number
+  commissionAmount?: number
   clientTotal: number
   trainerNetAmount?: number
 }
@@ -70,10 +72,10 @@ export const FeeBreakdownModal: React.FC<FeeBreakdownModalProps> = ({
                   <span className="font-medium">Ksh {breakdown.transportFee}</span>
                 </div>
               )}
-              {breakdown.vat && breakdown.vat > 0 && (
+              {(breakdown.vatAmount ?? breakdown.vat) && (breakdown.vatAmount ?? breakdown.vat) > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300">VAT</span>
-                  <span className="font-medium">Ksh {breakdown.vat}</span>
+                  <span className="text-gray-700 dark:text-gray-300">VAT (16%)</span>
+                  <span className="font-medium">Ksh {breakdown.vatAmount ?? breakdown.vat}</span>
                 </div>
               )}
               <div className="border-t border-blue-200 dark:border-blue-700 my-2 pt-2 flex justify-between font-bold text-base">
@@ -99,6 +101,12 @@ export const FeeBreakdownModal: React.FC<FeeBreakdownModalProps> = ({
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-700 dark:text-gray-300">Less: Platform Fee</span>
                     <span className="font-medium text-red-600">- Ksh {breakdown.platformChargeTrainer}</span>
+                  </div>
+                )}
+                {breakdown.commissionAmount && breakdown.commissionAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700 dark:text-gray-300">Less: Platform Commission (25%)</span>
+                    <span className="font-medium text-red-600">- Ksh {breakdown.commissionAmount}</span>
                   </div>
                 )}
                 <div className="border-t border-green-200 dark:border-green-700 my-2 pt-2 flex justify-between font-bold text-base">
