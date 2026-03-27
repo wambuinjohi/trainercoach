@@ -193,6 +193,13 @@ export type BookingStatus = 'pending' | 'confirmed' | 'in_session' | 'completed'
  */
 export type BookingSessionPhase = 'waiting_start' | 'session_active' | 'awaiting_completion' | 'completed'
 
+export interface BookingSession {
+  date: string // YYYY-MM-DD
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  duration_hours: number
+}
+
 export interface Booking {
   id: string
   client_id: string
@@ -222,6 +229,9 @@ export interface Booking {
   group_size?: number
   group_size_tier_name?: string
   pricing_model_used?: string
+
+  // Multi-session support
+  sessions?: BookingSession[] // Array of individual sessions for multi-session bookings
 
   // Confirmation tracking
   trainer_marked_start?: boolean // Trainer confirmed session start

@@ -15,6 +15,8 @@ import { completeMockPayment, processBookingPayment } from '@/lib/payment-servic
 import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig, type GroupTier } from '@/lib/group-pricing-utils'
 import { LocationPreferenceSelector, type LocationPreference } from './LocationPreferenceSelector'
 import { FeeBreakdownModal, type FeeBreakdown } from './FeeBreakdownModal'
+import { MultiSessionSelector } from './MultiSessionSelector'
+import { BookingSession } from '@/types'
 
 type LiveAvailabilitySnapshot = {
   day_label?: string
@@ -49,8 +51,18 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false)
   const [liveAvailability, setLiveAvailability] = useState<LiveAvailabilitySnapshot | null>(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [bookingMode, setBookingMode] = useState<'single' | 'multi'>('single')
+  const [selectedSessions, setSelectedSessions] = useState<BookingSession[]>([])
 
   const computeBaseAmount = () => {
+    // For multi-session mode, calculate based on total duration
+    if (bookingMode === 'multi' && selectedSessions.length > 0) {
+      const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
+      const hourlyRate = Number(trainer.hourlyRate || 0)
+      return hourlyRate * totalDurationHours
+    }
+
+    // For single session or group training
     if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
       const tier = getGroupTierByName(groupTrainingData, selectedGroupTierName)
       if (tier) {
@@ -249,9 +261,18 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
   const submit = async () => {
     if (!user) return
-    if (!date || !time) {
-      toast({ title: 'Missing info', description: 'Please select date and time', variant: 'destructive' })
-      return
+
+    // Validate based on booking mode
+    if (bookingMode === 'single') {
+      if (!date || !time) {
+        toast({ title: 'Missing info', description: 'Please select date and time', variant: 'destructive' })
+        return
+      }
+    } else if (bookingMode === 'multi') {
+      if (selectedSessions.length === 0) {
+        toast({ title: 'Missing info', description: 'Please select at least one session', variant: 'destructive' })
+        return
+      }
     }
     if (availabilityError) {
       toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
@@ -296,10 +317,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     const payload: any = {
       client_id: user.id,
       trainer_id: trainer.id,
-      session_date: date,
-      session_time: time,
-      duration_hours: 1,
-      total_sessions: sessions,
+      session_date: bookingMode === 'multi' ? selectedSessions[0]?.date : date,
+      session_time: bookingMode === 'multi' ? selectedSessions[0]?.start_time : time,
+      duration_hours: bookingMode === 'multi' ? selectedSessions[0]?.duration_hours || 1 : 1,
+      total_sessions: bookingMode === 'multi' ? selectedSessions.length : sessions,
       status: 'pending',
       session_phase: 'waiting_start',
       base_service_amount: baseServiceAmount,
@@ -309,6 +330,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       client_location_label: (clientLocation.label || null),
       client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
       client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
+    }
+
+    // Add sessions array for multi-session bookings
+    if (bookingMode === 'multi' && selectedSessions.length > 0) {
+      payload.sessions = selectedSessions
     }
 
     // Add group training data if applicable
@@ -537,9 +563,42 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto pr-2">
-        <div>
-          <Label>Session Date</Label>
-          <Input type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} />
+        {/* Booking Mode Toggle */}
+        <div className="space-y-3 border border-border rounded-md p-3 bg-muted/5">
+          <Label className="text-sm font-medium">Booking Type</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={bookingMode === 'single' ? 'default' : 'outline'}
+              className={bookingMode === 'single' ? 'bg-gradient-primary text-white' : ''}
+              onClick={() => {
+                setBookingMode('single')
+                setSelectedSessions([])
+              }}
+            >
+              Single Session
+            </Button>
+            <Button
+              type="button"
+              variant={bookingMode === 'multi' ? 'default' : 'outline'}
+              className={bookingMode === 'multi' ? 'bg-gradient-primary text-white' : ''}
+              onClick={() => {
+                setBookingMode('multi')
+                setDate('')
+                setTime('')
+              }}
+            >
+              Multiple Sessions
+            </Button>
+          </div>
+        </div>
+
+        {/* Single Session Booking */}
+        {bookingMode === 'single' && (
+          <>
+            <div>
+              <Label>Session Date</Label>
+              <Input type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} />
           {date && (
             <div className="mt-2 rounded-md border border-border bg-muted/5 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -591,12 +650,26 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               <span className="text-lg">✗</span> Not Available
             </div>
           )}
-          {availabilityError && <div className="text-xs text-red-600 dark:text-red-400 mt-1">{availabilityError}</div>}
-        </div>
-        <div>
-          <Label>Number of Sessions</Label>
-          <Input type="number" min={1} value={String(sessions)} onChange={(e) => setSessions(Number(e.target.value))} />
-        </div>
+              {availabilityError && <div className="text-xs text-red-600 dark:text-red-400 mt-1">{availabilityError}</div>}
+            </div>
+            <div>
+              <Label>Number of Sessions</Label>
+              <Input type="number" min={1} value={String(sessions)} onChange={(e) => setSessions(Number(e.target.value))} />
+            </div>
+          </>
+        )}
+
+        {/* Multi-Session Booking */}
+        {bookingMode === 'multi' && (
+          <div className="border border-border rounded-md p-3 bg-muted/5">
+            <MultiSessionSelector
+              trainerAvailability={trainerProfile?.availability || {}}
+              onSelectionChange={setSelectedSessions}
+              minSessions={1}
+              maxSessions={20}
+            />
+          </div>
+        )}
 
         {/* Group Training Section */}
         {groupTrainingData && groupTrainingData.tiers && groupTrainingData.tiers.length > 0 && (

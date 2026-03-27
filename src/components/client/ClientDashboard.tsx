@@ -36,6 +36,7 @@ import { FiltersModal } from './FiltersModal'
 import { ReviewModal } from './ReviewModal'
 import { NextSessionModal } from './NextSessionModal'
 import { LocationSelector } from './LocationSelector'
+import { LocationChoiceModal } from './LocationChoiceModal'
 import { SessionEndConfirmModal } from './SessionEndConfirmModal'
 import { SessionStartConfirmModal } from './SessionStartConfirmModal'
 import { CancelBookingModal } from './CancelBookingModal'
@@ -116,6 +117,8 @@ export const ClientDashboard: React.FC = () => {
   const [clientProfile, setClientProfile] = useState<any>(null)
   const [cancellingBooking, setCancellingBooking] = useState<any>(null)
   const [reschedulingBooking, setReschedulingBooking] = useState<any>(null)
+  const [selectedLocationMode, setSelectedLocationMode] = useState<'home' | 'current' | null>(null)
+  const [showLocationChoice, setShowLocationChoice] = useState(false)
 
   // Ref to track if trainers have been enriched with the current location to avoid infinite loops
   const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
@@ -385,6 +388,27 @@ export const ClientDashboard: React.FC = () => {
     setTrainers(filteredTrainers)
     lastEnrichedLocation.current = userLocation
   }, [userLocation, trainers])
+
+  // Handle location choice when entering explore tab
+  useEffect(() => {
+    if (activeTab === 'explore' && !selectedLocationMode) {
+      setShowLocationChoice(true)
+    }
+  }, [activeTab, selectedLocationMode])
+
+  // Handle location selection - resolve the location and close modal
+  useEffect(() => {
+    if (selectedLocationMode && showLocationChoice) {
+      setShowLocationChoice(false)
+
+      // Set userLocation based on selected mode
+      if (selectedLocationMode === 'home' && clientProfile?.location_lat && clientProfile?.location_lng) {
+        setUserLocation({ lat: clientProfile.location_lat, lng: clientProfile.location_lng })
+      } else if (selectedLocationMode === 'current' && geoLocation?.lat != null && geoLocation?.lng != null) {
+        setUserLocation({ lat: geoLocation.lat, lng: geoLocation.lng })
+      }
+    }
+  }, [selectedLocationMode, showLocationChoice, clientProfile, geoLocation])
 
   // Early returns must be after all hooks
   if (loading) return null
@@ -706,6 +730,19 @@ export const ClientDashboard: React.FC = () => {
             </h1>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}><Sliders className="h-4 w-4 mr-2" />Filters</Button>
+        </div>
+
+        {/* Location Display and Change Button */}
+        <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <span className="text-blue-700 dark:text-blue-300">
+              {selectedLocationMode === 'home' ? '🏠 Using Home' : '📍 Using Current'}
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedLocationMode(null)} className="h-auto py-1 px-2 text-xs">
+            Change
+          </Button>
         </div>
 
         {/* Horizontal Scrollable Categories */}
@@ -1111,6 +1148,26 @@ export const ClientDashboard: React.FC = () => {
       {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
       {cancellingBooking && <CancelBookingModal booking={cancellingBooking} isOpen={!!cancellingBooking} onClose={() => setCancellingBooking(null)} onSuccess={() => loadBookings()} />}
       {reschedulingBooking && <RescheduleBookingModal booking={reschedulingBooking} trainerProfile={null} isOpen={!!reschedulingBooking} onClose={() => setReschedulingBooking(null)} onSuccess={() => loadBookings()} />}
+      {showLocationChoice && (
+        <LocationChoiceModal
+          homeLocation={
+            clientProfile?.location_lat && clientProfile?.location_lng
+              ? {
+                  lat: clientProfile.location_lat,
+                  lng: clientProfile.location_lng,
+                  label: clientProfile.location_label,
+                }
+              : undefined
+          }
+          currentLocation={geoLocation ? { lat: geoLocation.lat, lng: geoLocation.lng } : undefined}
+          onSelectHome={() => {
+            setSelectedLocationMode('home')
+          }}
+          onSelectCurrent={() => {
+            setSelectedLocationMode('current')
+          }}
+        />
+      )}
 
       {!modalOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
