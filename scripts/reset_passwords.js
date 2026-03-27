@@ -9,7 +9,7 @@
 const apiUrl = process.argv[2] || 'https://trainercoachconnect.com/api.php';
 
 console.log(`🔄 Resetting user passwords via API: ${apiUrl}`);
-console.log(`📝 Resetting passwords for test users to: Pass1234\n`);
+console.log(`📝 Resetting passwords for test users to: Test1234\n`);
 
 async function resetPasswords() {
   try {
@@ -50,9 +50,9 @@ async function resetPasswords() {
 
     console.log('\n✨ Password reset complete!');
     console.log('Test user credentials:');
-    console.log('  - admin@skatryk.co.ke / Pass1234');
-    console.log('  - trainer@skatryk.co.ke / Pass1234');
-    console.log('  - client@skatryk.co.ke / Pass1234');
+    console.log('  - admin@skatryk.co.ke / Test1234');
+    console.log('  - trainer@skatryk.co.ke / Test1234');
+    console.log('  - client@skatryk.co.ke / Test1234');
 
     process.exit(0);
   } catch (error) {

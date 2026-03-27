@@ -77,7 +77,7 @@ register_shutdown_function(function() use ($corsOrigin) {
 include('connection.php');
 
 // Include SMS helper for sending SMS notifications
-include('sms_helper.php');
+require_once('sms_helper.php');
 
 // Auto-migration: Ensure categories table has correct status columns and fields
 function ensureCategoriesSchemaIsCorrect($conn) {
@@ -120,11 +120,38 @@ function ensureCategoriesSchemaIsCorrect($conn) {
 // Run auto-migration on API startup
 ensureCategoriesSchemaIsCorrect($conn);
 
+function ensureBookingsSchemaIsCorrect($conn) {
+    $requiredColumns = [
+        'category_id' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `category_id` INT NULL COMMENT 'Training category ID'",
+        'base_service_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `base_service_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Base service amount before fees'",
+        'transport_fee' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `transport_fee` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Transport fee charged for the booking'",
+        'platform_fee' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `platform_fee` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Platform fee charged for the booking'",
+        'vat_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `vat_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'VAT amount charged for the booking'",
+        'trainer_net_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `trainer_net_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Net amount due to trainer'",
+        'client_surcharge' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `client_surcharge` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Client surcharge amount'",
+        'is_group_training' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `is_group_training` BOOLEAN DEFAULT FALSE COMMENT 'Whether this booking is a group training session'",
+        'group_size_tier_name' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `group_size_tier_name` VARCHAR(100) COMMENT 'Selected group size tier name'",
+        'pricing_model_used' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `pricing_model_used` VARCHAR(50) COMMENT 'Pricing model used for the booking'",
+        'group_rate_per_unit' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `group_rate_per_unit` DECIMAL(15, 2) COMMENT 'Rate per unit for group training'"
+    ];
+
+    foreach ($requiredColumns as $columnName => $alterStatement) {
+        $result = $conn->query("SHOW COLUMNS FROM bookings WHERE Field = '$columnName'");
+        if ($result && $result->num_rows === 0) {
+            if (!$conn->query($alterStatement)) {
+                error_log("Warning: Failed to add $columnName column to bookings: " . $conn->error);
+            }
+        }
+    }
+}
+
+ensureBookingsSchemaIsCorrect($conn);
+
 // Include M-Pesa helper functions
 include('mpesa_helper.php');
 
 // Include SMS helper functions
-include('sms_helper.php');
+require_once('sms_helper.php');
 
 // Utility function for logging API events
 function logEvent($eventType, $details = []) {
@@ -5065,9 +5092,10 @@ switch ($action) {
         $clientLocationLabel = isset($input['client_location_label']) ? $conn->real_escape_string($input['client_location_label']) : NULL;
         $clientLocationLat = isset($input['client_location_lat']) ? floatval($input['client_location_lat']) : NULL;
         $clientLocationLng = isset($input['client_location_lng']) ? floatval($input['client_location_lng']) : NULL;
+        $hourlyRateByRadius = [];
 
         // Get trainer profile for location and rates
-        $trainerProfileSql = "SELECT location_lat, location_lng, timezone, availability FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
+        $trainerProfileSql = "SELECT location_lat, location_lng, timezone, availability, hourly_rate_by_radius FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
         $trainerProfileResult = $conn->query($trainerProfileSql);
         if (!$trainerProfileResult || $trainerProfileResult->num_rows === 0) {
             respond("error", "Trainer not found.", null, 404);
@@ -5076,6 +5104,14 @@ switch ($action) {
         $trainerProfile = $trainerProfileResult->fetch_assoc();
         $trainerLat = floatval($trainerProfile['location_lat'] ?? 0);
         $trainerLng = floatval($trainerProfile['location_lng'] ?? 0);
+        $hourlyRateByRadius = $trainerProfile['hourly_rate_by_radius'] ?? [];
+        if (is_string($hourlyRateByRadius)) {
+            $decodedHourlyRateByRadius = json_decode($hourlyRateByRadius, true);
+            $hourlyRateByRadius = is_array($decodedHourlyRateByRadius) ? $decodedHourlyRateByRadius : [];
+        }
+        if (!is_array($hourlyRateByRadius)) {
+            $hourlyRateByRadius = [];
+        }
 
         // Validate availability
         if (!$skipValidation && !empty($trainerProfile['availability'])) {
@@ -5208,6 +5244,10 @@ switch ($action) {
                 pricing_model_used, group_rate_per_unit, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare booking insert: " . $conn->error, null, 500);
+        }
 
         // For backward compatibility, use the new fee breakdown values
         $platformFeeForDb = $clientSurcharge; // Store total client charges as platform_fee for now
@@ -5386,6 +5426,11 @@ switch ($action) {
                 client_location_lat, client_location_lng, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare booking insert: " . $conn->error, null, 500);
+        }
+
         $stmt->bind_param("sssisiiisddsss", $bookingId, $clientId, $trainerId, $categoryId, $sessionDate, $sessionTime, $durationHours, $totalSessions, $status, $totalAmount, $notes, $clientLocationLabel, $clientLocationLat, $clientLocationLng, $now, $now);
 
         if ($stmt->execute()) {
@@ -5395,7 +5440,7 @@ switch ($action) {
                 $eventData['category_id'] = $categoryId;
             }
             logEvent('booking_created', $eventData);
-            respond("success", "Booking created successfully.", ["id" => $bookingId]);
+            respond("success", "Booking created successfully.", ["id" => $bookingId, "booking_id" => $bookingId]);
         } else {
             $stmt->close();
             respond("error", "Failed to create booking: " . $conn->error, null, 500);

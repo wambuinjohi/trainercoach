@@ -189,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const autoLoginEnabled = localStorage.getItem('auto_login_enabled') === 'true';
       if (autoLoginEnabled && !storedUser) {
         try {
-          await performLogin('admin@skatryk.co.ke', 'Pass1234', (user, userProfileType, token) => {
+          await performLogin('admin@skatryk.co.ke', 'Test1234', (user, userProfileType, token) => {
             setUser(user);
             setUserType(userProfileType as 'client' | 'trainer' | 'admin');
             localStorage.setItem('app-user', JSON.stringify(user));

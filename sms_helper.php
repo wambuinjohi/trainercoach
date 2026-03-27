@@ -4,6 +4,7 @@
  * Provides functions for sending SMS, managing templates, and logging
  */
 
+if (!function_exists('getEncryptionKey')) {
 /**
  * Get or generate the encryption key for SMS credentials
  * Uses SMS_ENCRYPTION_KEY environment variable or generates a default one
@@ -587,5 +588,6 @@ function sendPayoutSms($user_id, $phone_number, $payout_data) {
     logSmsEvent($user_id, $phone_number, $message, $template_id, 'payout', $payout_id, $status, $result['provider_response'] ?? null);
     
     return $result['success'];
+}
 }
 ?>
