@@ -342,6 +342,15 @@ function devApiPlugin() {
               }
               return;
 
+            case "trainer_category_pricing_get":
+              // Mock trainer category pricing for development
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Trainer category pricing retrieved",
+                data: []
+              }));
+              return;
+
             case "get_trainers":
             case "get_trainer_details":
               // Proxy to real API to get trainers from database
@@ -1039,9 +1048,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Mock data disabled - all API calls use real backend
-    // mode === 'development' && devApiPlugin(),
-    // mode === 'development' && adminApiPlugin(),
+    // Enable dev API mock plugin for development to avoid real backend failures
+    mode === 'development' && devApiPlugin(),
+    mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
     {
