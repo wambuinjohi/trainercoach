@@ -644,6 +644,251 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
     ];
 }
 
+function parseTimeToMinutes($timeValue) {
+    if (!is_string($timeValue)) {
+        return null;
+    }
+
+    $trimmedTime = trim($timeValue);
+    if (!preg_match('/^(\d{2}):(\d{2})$/', $trimmedTime, $matches)) {
+        return null;
+    }
+
+    $hours = intval($matches[1]);
+    $minutes = intval($matches[2]);
+    if ($hours < 0 || $hours > 23 || $minutes < 0 || $minutes > 59) {
+        return null;
+    }
+
+    return ($hours * 60) + $minutes;
+}
+
+function formatMinutesToTime($totalMinutes) {
+    $hours = floor($totalMinutes / 60);
+    $minutes = $totalMinutes % 60;
+    return sprintf('%02d:%02d', $hours, $minutes);
+}
+
+function timeRangesOverlap($startA, $endA, $startB, $endB) {
+    return $startA < $endB && $startB < $endA;
+}
+
+function buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours = 1, $selectedTime = null, $excludeBookingId = null) {
+    $trainerIdEscaped = $conn->real_escape_string($trainerId);
+    $sessionDateEscaped = $conn->real_escape_string($sessionDate);
+    $excludeBookingIdEscaped = $excludeBookingId ? $conn->real_escape_string($excludeBookingId) : null;
+    $durationMinutes = max(60, intval(round(floatval($durationHours ?: 1) * 60)));
+
+    $profileSql = "SELECT availability, timezone FROM user_profiles WHERE user_id = '$trainerIdEscaped' LIMIT 1";
+    $profileResult = $conn->query($profileSql);
+
+    if (!$profileResult || $profileResult->num_rows === 0) {
+        return [
+            'trainer_id' => $trainerId,
+            'session_date' => $sessionDate,
+            'is_available' => false,
+            'selected_time_available' => false,
+            'selected_time_message' => 'Trainer not found.',
+            'working_slots' => [],
+            'booked_slots' => [],
+            'available_start_times' => [],
+            'checked_at' => gmdate('c'),
+        ];
+    }
+
+    $profile = $profileResult->fetch_assoc();
+    $availabilityValue = $profile['availability'] ?? null;
+    if (is_string($availabilityValue) && $availabilityValue !== '') {
+        $decodedAvailability = json_decode($availabilityValue, true);
+        $availability = is_array($decodedAvailability) ? $decodedAvailability : [];
+    } else if (is_array($availabilityValue)) {
+        $availability = $availabilityValue;
+    } else {
+        $availability = [];
+    }
+
+    $trainerTimezone = $profile['timezone'] ?: 'UTC';
+    try {
+        $timezone = new DateTimeZone($trainerTimezone);
+    } catch (Exception $e) {
+        $timezone = new DateTimeZone('UTC');
+    }
+
+    try {
+        $bookingDate = new DateTime($sessionDateEscaped, $timezone);
+    } catch (Exception $e) {
+        return [
+            'trainer_id' => $trainerId,
+            'session_date' => $sessionDate,
+            'is_available' => false,
+            'selected_time_available' => false,
+            'selected_time_message' => 'Invalid date format.',
+            'working_slots' => [],
+            'booked_slots' => [],
+            'available_start_times' => [],
+            'checked_at' => gmdate('c'),
+        ];
+    }
+
+    $dayName = strtolower($bookingDate->format('l'));
+    $dayLabel = $bookingDate->format('l');
+    $workingSlots = [];
+
+    if (isset($availability[$dayName]) && is_array($availability[$dayName])) {
+        foreach ($availability[$dayName] as $slot) {
+            if (!is_string($slot)) {
+                continue;
+            }
+
+            $parts = explode('-', $slot);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $slotStart = trim($parts[0]);
+            $slotEnd = trim($parts[1]);
+            if (parseTimeToMinutes($slotStart) === null || parseTimeToMinutes($slotEnd) === null) {
+                continue;
+            }
+
+            $workingSlots[] = $slotStart . '-' . $slotEnd;
+        }
+    }
+
+    $bookedSql = "SELECT id, session_time, duration_hours, status FROM bookings WHERE trainer_id = '$trainerIdEscaped' AND session_date = '$sessionDateEscaped' AND status IN ('pending', 'confirmed', 'in_session')";
+    if ($excludeBookingIdEscaped) {
+        $bookedSql .= " AND id <> '$excludeBookingIdEscaped'";
+    }
+    $bookedSql .= " ORDER BY session_time ASC";
+
+    $bookedResult = $conn->query($bookedSql);
+    $bookedSlots = [];
+    if ($bookedResult) {
+        while ($row = $bookedResult->fetch_assoc()) {
+            $startMinutes = parseTimeToMinutes($row['session_time'] ?? '');
+            if ($startMinutes === null) {
+                continue;
+            }
+
+            $bookingDurationMinutes = max(60, intval(round(floatval($row['duration_hours'] ?: 1) * 60)));
+            $endMinutes = $startMinutes + $bookingDurationMinutes;
+
+            $bookedSlots[] = [
+                'booking_id' => $row['id'],
+                'status' => $row['status'],
+                'start' => formatMinutesToTime($startMinutes),
+                'end' => formatMinutesToTime($endMinutes),
+                'start_minutes' => $startMinutes,
+                'end_minutes' => $endMinutes,
+            ];
+        }
+    }
+
+    $availableStartTimes = [];
+    foreach ($workingSlots as $slot) {
+        $parts = explode('-', $slot);
+        $slotStartMinutes = parseTimeToMinutes(trim($parts[0]));
+        $slotEndMinutes = parseTimeToMinutes(trim($parts[1]));
+        if ($slotStartMinutes === null || $slotEndMinutes === null || $slotEndMinutes <= $slotStartMinutes) {
+            continue;
+        }
+
+        for ($candidateStart = $slotStartMinutes; ($candidateStart + $durationMinutes) <= $slotEndMinutes; $candidateStart += 30) {
+            $candidateEnd = $candidateStart + $durationMinutes;
+            $hasConflict = false;
+
+            foreach ($bookedSlots as $bookedSlot) {
+                if (timeRangesOverlap($candidateStart, $candidateEnd, $bookedSlot['start_minutes'], $bookedSlot['end_minutes'])) {
+                    $hasConflict = true;
+                    break;
+                }
+            }
+
+            if (!$hasConflict) {
+                $availableStartTimes[] = formatMinutesToTime($candidateStart);
+            }
+        }
+    }
+
+    $availableStartTimes = array_values(array_unique($availableStartTimes));
+
+    $selectedTimeAvailable = null;
+    $selectedTimeMessage = '';
+    if ($selectedTime !== null && $selectedTime !== '') {
+        $selectedStartMinutes = parseTimeToMinutes($selectedTime);
+        if ($selectedStartMinutes === null) {
+            $selectedTimeAvailable = false;
+            $selectedTimeMessage = 'Invalid time format.';
+        } else {
+            $selectedEndMinutes = $selectedStartMinutes + $durationMinutes;
+            $withinWorkingHours = false;
+
+            foreach ($workingSlots as $slot) {
+                $parts = explode('-', $slot);
+                $slotStartMinutes = parseTimeToMinutes(trim($parts[0]));
+                $slotEndMinutes = parseTimeToMinutes(trim($parts[1]));
+                if ($slotStartMinutes === null || $slotEndMinutes === null) {
+                    continue;
+                }
+
+                if ($selectedStartMinutes >= $slotStartMinutes && $selectedEndMinutes <= $slotEndMinutes) {
+                    $withinWorkingHours = true;
+                    break;
+                }
+            }
+
+            if (!$withinWorkingHours) {
+                $selectedTimeAvailable = false;
+                if (empty($workingSlots)) {
+                    $selectedTimeMessage = "Trainer is not available on $dayLabel.";
+                } else {
+                    $selectedTimeMessage = "This time is outside the trainer's available hours for $dayLabel.";
+                }
+            } else {
+                $conflictingBooking = null;
+                foreach ($bookedSlots as $bookedSlot) {
+                    if (timeRangesOverlap($selectedStartMinutes, $selectedEndMinutes, $bookedSlot['start_minutes'], $bookedSlot['end_minutes'])) {
+                        $conflictingBooking = $bookedSlot;
+                        break;
+                    }
+                }
+
+                if ($conflictingBooking) {
+                    $selectedTimeAvailable = false;
+                    $selectedTimeMessage = 'This time has just been booked. Please choose another available time.';
+                } else {
+                    $selectedTimeAvailable = true;
+                    $selectedTimeMessage = 'This time is available.';
+                }
+            }
+        }
+    }
+
+    return [
+        'trainer_id' => $trainerId,
+        'session_date' => $sessionDate,
+        'day_name' => $dayName,
+        'day_label' => $dayLabel,
+        'timezone' => $trainerTimezone,
+        'duration_minutes' => $durationMinutes,
+        'working_slots' => $workingSlots,
+        'booked_slots' => array_map(function($slot) {
+            return [
+                'booking_id' => $slot['booking_id'],
+                'status' => $slot['status'],
+                'start' => $slot['start'],
+                'end' => $slot['end'],
+            ];
+        }, $bookedSlots),
+        'available_start_times' => $availableStartTimes,
+        'is_available' => !empty($availableStartTimes),
+        'selected_time' => $selectedTime,
+        'selected_time_available' => $selectedTimeAvailable,
+        'selected_time_message' => $selectedTimeMessage,
+        'checked_at' => gmdate('c'),
+    ];
+}
+
 // =============================
 // GENERIC FILE UPLOAD HANDLER - DISABLED
 // =============================
@@ -5062,6 +5307,21 @@ switch ($action) {
         break;
 
 
+    case 'booking_live_availability':
+        if (!isset($input['trainer_id']) || !isset($input['session_date'])) {
+            respond("error", "Missing trainer_id or session_date.", null, 400);
+        }
+
+        $trainerId = $input['trainer_id'];
+        $sessionDate = $input['session_date'];
+        $durationHours = isset($input['duration_hours']) ? floatval($input['duration_hours']) : 1;
+        $sessionTime = isset($input['session_time']) ? $input['session_time'] : null;
+        $excludeBookingId = isset($input['exclude_booking_id']) ? $input['exclude_booking_id'] : null;
+
+        $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime, $excludeBookingId);
+        respond("success", "Live availability fetched successfully.", $availabilitySnapshot);
+        break;
+
     // INSERT BOOKING (custom action wrapper)
     // CREATE BOOKING WITH TRANSPORT FEE CALCULATION
     case 'booking_create':
@@ -5113,42 +5373,13 @@ switch ($action) {
             $hourlyRateByRadius = [];
         }
 
-        // Validate availability
-        if (!$skipValidation && !empty($trainerProfile['availability'])) {
-            $availability = json_decode($trainerProfile['availability'], true);
-            if (is_array($availability)) {
-                try {
-                    $bookingDateTime = new DateTime($sessionDate . ' ' . $sessionTime);
-                    $dayName = strtolower($bookingDateTime->format('l'));
-                    $bookingTime = $bookingDateTime->format('H:i');
-
-                    $dayAvailable = false;
-                    $timeSlotAvailable = false;
-
-                    if (isset($availability[$dayName]) && is_array($availability[$dayName])) {
-                        $dayAvailable = true;
-                        foreach ($availability[$dayName] as $slot) {
-                            if (is_string($slot)) {
-                                $parts = explode('-', $slot);
-                                if (count($parts) === 2) {
-                                    $slotStart = trim($parts[0]);
-                                    $slotEnd = trim($parts[1]);
-                                    if ($bookingTime >= $slotStart && $bookingTime < $slotEnd) {
-                                        $timeSlotAvailable = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (!$timeSlotAvailable) {
-                        $dayLabel = $bookingDateTime->format('l');
-                        respond("error", "The trainer is not available on $dayLabel at $bookingTime. Please choose a different time from their availability.", null, 400);
-                    }
-                } catch (Exception $e) {
-                    respond("error", "Invalid date/time format.", null, 400);
-                }
+        if (!$skipValidation) {
+            $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime);
+            if ($availabilitySnapshot['selected_time_available'] !== true) {
+                $message = !empty($availabilitySnapshot['selected_time_message'])
+                    ? $availabilitySnapshot['selected_time_message']
+                    : 'The trainer is not available at the selected time.';
+                respond("error", $message, $availabilitySnapshot, 400);
             }
         }
 
@@ -5369,53 +5600,12 @@ switch ($action) {
         $now = date('Y-m-d H:i:s');
 
         if (!$skipValidation) {
-            $profileSql = "SELECT availability, timezone FROM user_profiles WHERE user_id = '$trainerId' LIMIT 1";
-            $profileResult = $conn->query($profileSql);
-            if ($profileResult && $profileResult->num_rows > 0) {
-                $profile = $profileResult->fetch_assoc();
-                $availabilityJson = $profile['availability'];
-
-                if (!empty($availabilityJson)) {
-                    $availability = json_decode($availabilityJson, true);
-                    if (is_array($availability)) {
-                        // Use trainer's timezone if available, otherwise default to UTC
-                        $trainerTimezone = $profile['timezone'] ?: 'UTC';
-                        try {
-                            $tz = new DateTimeZone($trainerTimezone);
-                        } catch (Exception $e) {
-                            $tz = new DateTimeZone('UTC');
-                        }
-
-                        $bookingDateTime = new DateTime($sessionDate . ' ' . $sessionTime, $tz);
-                        $dayName = strtolower($bookingDateTime->format('l'));
-                        $bookingTime = $bookingDateTime->format('H:i');
-
-                        $dayAvailable = false;
-                        $timeSlotAvailable = false;
-
-                        if (isset($availability[$dayName]) && is_array($availability[$dayName])) {
-                            $dayAvailable = true;
-                            foreach ($availability[$dayName] as $slot) {
-                                if (is_string($slot)) {
-                                    $parts = explode('-', $slot);
-                                    if (count($parts) === 2) {
-                                        $slotStart = trim($parts[0]);
-                                        $slotEnd = trim($parts[1]);
-                                        if ($bookingTime >= $slotStart && $bookingTime < $slotEnd) {
-                                            $timeSlotAvailable = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (!$timeSlotAvailable) {
-                            $dayLabel = $bookingDateTime->format('l');
-                            respond("error", "The trainer is not available on $dayLabel at $bookingTime. Please choose a different time from their availability.", null, 400);
-                        }
-                    }
-                }
+            $availabilitySnapshot = buildBookingAvailabilitySnapshot($conn, $trainerId, $sessionDate, $durationHours, $sessionTime);
+            if ($availabilitySnapshot['selected_time_available'] !== true) {
+                $message = !empty($availabilitySnapshot['selected_time_message'])
+                    ? $availabilitySnapshot['selected_time_message']
+                    : 'The trainer is not available at the selected time.';
+                respond("error", $message, $availabilitySnapshot, 400);
             }
         }
 
