@@ -101,6 +101,48 @@ export const TrainerDashboard: React.FC = () => {
     window.location.href = '/'
   }
 
+  const refreshProfileData = async () => {
+    if (!user?.id) return
+    try {
+      const profile = await apiService.getTrainerProfile(user.id)
+      // Handle both direct array response and wrapped response with .data property
+      const profileList = Array.isArray(profile) ? profile : (profile?.data && Array.isArray(profile.data) ? profile.data : [])
+      if (profileList.length > 0) {
+        const profileData = profileList[0]
+        setProfileData({
+          name: profileData.full_name || user.email,
+          bio: profileData.bio || 'Professional Trainer',
+          profile_image: profileData.profile_image || null,
+          hourly_rate: profileData.hourly_rate || 0,
+          availability: profileData.availability ? (typeof profileData.availability === 'string' ? JSON.parse(profileData.availability) : profileData.availability) : [],
+          pricing_packages: profileData.pricing_packages ? (typeof profileData.pricing_packages === 'string' ? JSON.parse(profileData.pricing_packages) : profileData.pricing_packages) : [],
+          ...profileData // Include all other fields for status determination
+        })
+
+        // Use account_status from API if available, otherwise fallback to legacy fields
+        if (profileData.account_status) {
+          setAccountStatus(profileData.account_status)
+        } else if (profileData.is_suspended) {
+          setAccountStatus('suspended')
+        } else if (profileData.is_approved) {
+          setAccountStatus('approved')
+        } else {
+          // Load verification documents to check if any have been uploaded
+          try {
+            const docs = await apiService.getVerificationDocuments(user.id)
+            const docList = Array.isArray(docs) ? docs : (docs?.data && Array.isArray(docs.data) ? docs.data : [])
+            setVerificationDocuments(docList)
+          } catch (err) {
+            console.warn('Failed to load verification documents', err)
+            setVerificationDocuments([])
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to refresh trainer profile', err)
+    }
+  }
+
   const acceptBooking = async (id: string) => {
     const booking = bookings.find(b => b.id === id)
     if (!booking) return
@@ -899,7 +941,7 @@ export const TrainerDashboard: React.FC = () => {
       </div>
 
       {showServicesManager && <ServicesManager onClose={() => setShowServicesManager(false)} />}
-      <ProfileEditorModal isOpen={editingProfile} onClose={() => setEditingProfile(false)} />
+      <ProfileEditorModal isOpen={editingProfile} onClose={() => setEditingProfile(false)} onProfileSaved={refreshProfileData} />
       {editingAvailability && <AvailabilityEditor onClose={() => setEditingAvailability(false)} />}
       {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} />}
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}
