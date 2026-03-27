@@ -73,45 +73,6 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
             <div className="text-blue-600 mt-1">{currentStage.icon}</div>
             <div className="flex-1">
               <h3 className="font-semibold text-lg mb-1">{currentStage.label}</h3>
-              <p className="text-sm text-gray-600 mb-4">{currentStage.description}</p>
-
-              {/* Progress Stages */}
-              <div className="mt-4">
-                <div className="flex items-center gap-2 text-xs font-medium text-gray-600 mb-3">
-                  <span>Account Status Progress</span>
-                </div>
-                <div className="flex gap-2">
-                  {stageOrder.map((stage, index) => (
-                    <div key={stage} className="flex items-center gap-2">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                          index <= currentStageIndex
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        {index + 1}
-                      </div>
-                      {index < stageOrder.length - 1 && (
-                        <div
-                          className={`h-1 w-8 ${
-                            index < currentStageIndex ? 'bg-blue-600' : 'bg-gray-200'
-                          }`}
-                        ></div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-2 text-xs text-gray-600">
-                  <div>1. Register</div>
-                  <div>→</div>
-                  <div>2. Profile</div>
-                  <div>→</div>
-                  <div>3. Documents</div>
-                  <div>→</div>
-                  <div>4. Approved</div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -221,26 +182,26 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
             <p className="text-sm text-gray-700">
               {status === 'registered' && profileData && (() => {
-                const missingFields: string[] = []
-                if (!profileData.profile_image) missingFields.push('photo')
-                if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) missingFields.push('categories')
-                if (!profileData.bio) missingFields.push('bio')
-                if (!profileData.hourly_rate) missingFields.push('hourly rate')
-                if (!profileData.service_radius || !profileData.area_of_residence) missingFields.push('service area')
-                if (!profileData.mpesa_number) missingFields.push('M-Pesa number')
+                const pendingItems: string[] = []
+                if (!profileData.profile_image) pendingItems.push('profile photo')
+                if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) pendingItems.push('training categories')
+                if (!profileData.bio) pendingItems.push('bio')
+                if (!profileData.hourly_rate) pendingItems.push('hourly rate')
+                if (!profileData.service_radius || !profileData.area_of_residence) pendingItems.push('service area')
+                if (!profileData.mpesa_number) pendingItems.push('M-Pesa payment method')
 
-                if (missingFields.length === 0) {
+                if (pendingItems.length === 0) {
                   return <>
-                    <strong>Next Step:</strong> Your profile is complete. Click "Edit Profile" to submit verification documents for approval.
+                    <strong>Next Step:</strong> Your profile is complete. Submit your verification documents for approval.
                   </>
                 }
                 return <>
-                  <strong>Next Step:</strong> Complete your profile with your {missingFields.join(', ')}.
+                  <strong>Next Step:</strong> Complete your profile with your {pendingItems.join(', ')}.
                 </>
               })()}
               {status === 'profile_incomplete' && (
                 <>
-                  <strong>Next Step:</strong> Upload all required verification documents. Use the "Edit Profile" button to access the document upload section.
+                  <strong>Next Step:</strong> Submit your verification documents for approval (National ID, Proof of Residence, Certificate of Good Conduct, etc.).
                 </>
               )}
               {status === 'pending_approval' && (
