@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import { toast } from '@/hooks/use-toast'
 
-export const ServiceAreaEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+export const ServiceAreaEditor: React.FC<{ onClose?: () => void; onSaved?: () => void | Promise<void> }> = ({ onClose, onSaved }) => {
   const { user } = useAuth()
   const { location: geoLocation, requestLocation: requestGeoLocation } = useGeolocation()
   const userId = user?.id
@@ -120,6 +120,10 @@ export const ServiceAreaEditor: React.FC<{ onClose?: () => void }> = ({ onClose 
 
       if (result?.status === 'success') {
         toast({ title: 'Saved', description: 'Service area updated successfully' })
+        // Notify parent to refresh profile data
+        if (onSaved) {
+          await onSaved()
+        }
         onClose?.()
       } else {
         toast({ title: 'Error', description: result?.message || 'Failed to save service area', variant: 'destructive' })

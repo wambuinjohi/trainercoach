@@ -943,7 +943,7 @@ export const TrainerDashboard: React.FC = () => {
       {showServicesManager && <ServicesManager onClose={() => setShowServicesManager(false)} />}
       <ProfileEditorModal isOpen={editingProfile} onClose={() => setEditingProfile(false)} onProfileSaved={refreshProfileData} />
       {editingAvailability && <AvailabilityEditor onClose={() => setEditingAvailability(false)} />}
-      {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} />}
+      {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} onSaved={refreshProfileData} />}
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}
       {showReport && <TrainerReportIssue onDone={() => setShowReport(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}
