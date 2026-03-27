@@ -361,7 +361,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       const clientTotal = bookingResponse?.total_amount || 0
       const baseServiceAmount = bookingResponse?.base_service_amount || 0
       const transportFee = bookingResponse?.transport_fee || 0
-      const platformFee = bookingResponse?.platform_charge_client || bookingResponse?.platform_fee || 0
+      // NEW: Extract platform fee from new API response structure
+      const platformFee = bookingResponse?.platform_fee_amount || bookingResponse?.platform_charge_client || bookingResponse?.platform_fee || 0
       const vatAmount = bookingResponse?.vat_amount || 0
       const trainerNetAmount = bookingResponse?.trainer_net_amount || 0
 
