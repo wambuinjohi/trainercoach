@@ -166,10 +166,10 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                   <div className="space-y-2">
                     <div className="text-sm">
                       {categoryPricing.map((pricing: any, idx: number) => {
-                        const isSelectedCategory = selectedCategory && pricing.category_name === selectedCategory
+                        const isSelectedCategory = selectedCategory && pricing.name === selectedCategory
                         return (
                           <div key={idx} className={isSelectedCategory ? 'font-bold text-foreground' : 'text-muted-foreground'}>
-                            {pricing.category_name}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
+                            {pricing.name}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
                           </div>
                         )
                       })}
