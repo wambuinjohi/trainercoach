@@ -105,7 +105,7 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
           notifications: [
             {
               user_id: selectedTrainer.id,
-              booking_id: newBooking?.id || null,
+              booking_id: newBooking?.booking_id || newBooking?.id || null,
               title: 'New session transfer',
               body: `A client transferred from another trainer. Session on ${currentBooking.session_date} at ${currentBooking.session_time}.`,
               action_type: 'view_booking',

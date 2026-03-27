@@ -120,6 +120,33 @@ function ensureCategoriesSchemaIsCorrect($conn) {
 // Run auto-migration on API startup
 ensureCategoriesSchemaIsCorrect($conn);
 
+function ensureBookingsSchemaIsCorrect($conn) {
+    $requiredColumns = [
+        'category_id' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `category_id` INT NULL COMMENT 'Training category ID'",
+        'base_service_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `base_service_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Base service amount before fees'",
+        'transport_fee' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `transport_fee` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Transport fee charged for the booking'",
+        'platform_fee' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `platform_fee` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Platform fee charged for the booking'",
+        'vat_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `vat_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'VAT amount charged for the booking'",
+        'trainer_net_amount' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `trainer_net_amount` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Net amount due to trainer'",
+        'client_surcharge' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `client_surcharge` DECIMAL(15, 2) DEFAULT 0 COMMENT 'Client surcharge amount'",
+        'is_group_training' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `is_group_training` BOOLEAN DEFAULT FALSE COMMENT 'Whether this booking is a group training session'",
+        'group_size_tier_name' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `group_size_tier_name` VARCHAR(100) COMMENT 'Selected group size tier name'",
+        'pricing_model_used' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `pricing_model_used` VARCHAR(50) COMMENT 'Pricing model used for the booking'",
+        'group_rate_per_unit' => "ALTER TABLE `bookings` ADD COLUMN IF NOT EXISTS `group_rate_per_unit` DECIMAL(15, 2) COMMENT 'Rate per unit for group training'"
+    ];
+
+    foreach ($requiredColumns as $columnName => $alterStatement) {
+        $result = $conn->query("SHOW COLUMNS FROM bookings WHERE Field = '$columnName'");
+        if ($result && $result->num_rows === 0) {
+            if (!$conn->query($alterStatement)) {
+                error_log("Warning: Failed to add $columnName column to bookings: " . $conn->error);
+            }
+        }
+    }
+}
+
+ensureBookingsSchemaIsCorrect($conn);
+
 // Include M-Pesa helper functions
 include('mpesa_helper.php');
 
@@ -5209,6 +5236,10 @@ switch ($action) {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
+        if (!$stmt) {
+            respond("error", "Failed to prepare booking insert: " . $conn->error, null, 500);
+        }
+
         // For backward compatibility, use the new fee breakdown values
         $platformFeeForDb = $clientSurcharge; // Store total client charges as platform_fee for now
         $vatAmountForDb = 0; // No VAT in new calculation
@@ -5386,6 +5417,11 @@ switch ($action) {
                 client_location_lat, client_location_lng, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare booking insert: " . $conn->error, null, 500);
+        }
+
         $stmt->bind_param("sssisiiisddsss", $bookingId, $clientId, $trainerId, $categoryId, $sessionDate, $sessionTime, $durationHours, $totalSessions, $status, $totalAmount, $notes, $clientLocationLabel, $clientLocationLat, $clientLocationLng, $now, $now);
 
         if ($stmt->execute()) {
@@ -5395,7 +5431,7 @@ switch ($action) {
                 $eventData['category_id'] = $categoryId;
             }
             logEvent('booking_created', $eventData);
-            respond("success", "Booking created successfully.", ["id" => $bookingId]);
+            respond("success", "Booking created successfully.", ["id" => $bookingId, "booking_id" => $bookingId]);
         } else {
             $stmt->close();
             respond("error", "Failed to create booking: " . $conn->error, null, 500);

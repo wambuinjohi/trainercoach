@@ -32,7 +32,7 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
       }
       const booking = await apiRequest('booking_insert', payload, { headers: withAuth() })
       try {
-        await apiRequest('payment_insert', { booking_id: booking?.id, user_id: user.id, amount: amount, status: 'completed', method: 'mock', created_at: new Date().toISOString() }, { headers: withAuth() })
+        await apiRequest('payment_insert', { booking_id: booking?.booking_id || booking?.id, user_id: user.id, amount: amount, status: 'completed', method: 'mock', created_at: new Date().toISOString() }, { headers: withAuth() })
       } catch {}
       toast({ title: 'Next session booked', description: `${date} at ${time}` })
       onBooked?.()
