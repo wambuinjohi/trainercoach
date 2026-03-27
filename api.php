@@ -7260,9 +7260,9 @@ switch ($action) {
         }
         error_log("[API STK PUSH] Callback URL configured: " . ($callbackUrl ?? 'default'));
 
-        error_log("[API STK PUSH] Calling initiateSTKPush() with: phone=" . $phone . ", amount=" . $amount . ", reference=" . $accountReference . ", force_payment_type=buygods");
-        // Force Buy Goods algorithm for client bookings - ensures CustomerBuyGoodsOnline transaction type
-        $stkResult = initiateSTKPush($mpesaCreds, $phone, $amount, $accountReference, $callbackUrl, 'buygods');
+        error_log("[API STK PUSH] Calling initiateSTKPush() with: phone=" . $phone . ", amount=" . $amount . ", reference=" . $accountReference . ", configured_payment_type=" . ($mpesaCreds['payment_type'] ?? 'paybill'));
+        // Respect the payment type saved in M-Pesa credentials so existing Paybill setups continue to work
+        $stkResult = initiateSTKPush($mpesaCreds, $phone, $amount, $accountReference, $callbackUrl);
 
         if (!$stkResult['success']) {
             error_log("[API STK PUSH ERROR] STK push failed: " . $stkResult['error']);
