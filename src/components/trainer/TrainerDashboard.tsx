@@ -29,7 +29,6 @@ import { apiRequest, withAuth } from '@/lib/api'
 import { ProfileEditorModal } from './ProfileEditorModal'
 import { AvailabilityEditor } from './AvailabilityEditor'
 import { ServicesManager } from './ServicesManager'
-import { ServiceAreaEditor } from './ServiceAreaEditor'
 import { TrainerChat } from './TrainerChat'
 import { Payouts } from './Payouts'
 import { TrainerTopUp } from './TrainerTopUp'
@@ -334,7 +333,6 @@ export const TrainerDashboard: React.FC = () => {
 
   const [editingProfile, setEditingProfile] = useState(false)
   const [editingAvailability, setEditingAvailability] = useState(false)
-  const [showServiceArea, setShowServiceArea] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [showDisputes, setShowDisputes] = useState(false)
 
@@ -894,7 +892,6 @@ export const TrainerDashboard: React.FC = () => {
       <div className="space-y-2">
         <Button className="w-full" onClick={() => setEditingProfile(true)}>Edit Profile</Button>
         <Button variant="outline" className="w-full" onClick={() => setEditingAvailability(true)}>Edit Availability</Button>
-        <Button variant="outline" className="w-full" onClick={() => setShowServiceArea(true)}>Service Area</Button>
         <Button variant="destructive" className="w-full" onClick={handleLogout}><LogOut className="h-4 w-4 mr-2" />Logout</Button>
       </div>
     </div>
@@ -943,7 +940,6 @@ export const TrainerDashboard: React.FC = () => {
       {showServicesManager && <ServicesManager onClose={() => setShowServicesManager(false)} />}
       <ProfileEditorModal isOpen={editingProfile} onClose={() => setEditingProfile(false)} onProfileSaved={refreshProfileData} />
       {editingAvailability && <AvailabilityEditor onClose={() => setEditingAvailability(false)} />}
-      {showServiceArea && <ServiceAreaEditor onClose={() => setShowServiceArea(false)} onSaved={refreshProfileData} />}
       {showPayouts && <Payouts onClose={() => setShowPayouts(false)} />}
       {showReport && <TrainerReportIssue onDone={() => setShowReport(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}
