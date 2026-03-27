@@ -343,12 +343,25 @@ function devApiPlugin() {
               return;
 
             case "trainer_category_pricing_get":
-              // Mock trainer category pricing for development
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Trainer category pricing retrieved",
-                data: []
-              }));
+              // Proxy to real API to get trainer's category pricing from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'trainer_category_pricing_get', trainer_id: body.trainer_id })
+                });
+                const pricingData = await pricingResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(pricingData));
+              } catch (e) {
+                console.error('Failed to fetch trainer category pricing:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Trainer category pricing retrieved",
+                  data: []
+                }));
+              }
               return;
 
             case "get_trainers":

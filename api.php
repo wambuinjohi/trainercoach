@@ -4302,11 +4302,11 @@ switch ($action) {
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $stmt = $conn->prepare("
-            SELECT tc.id, tc.trainer_id, tc.category_id, c.id as cat_id, c.name, c.icon, c.description,
-                   tc.hourly_rate, tc.created_at
-            FROM trainer_categories tc
-            LEFT JOIN categories c ON tc.category_id = c.id
-            WHERE tc.trainer_id = ?
+            SELECT tcp.id, tcp.trainer_id, tcp.category_id, c.id as cat_id, c.name, c.icon, c.description,
+                   tcp.hourly_rate, tcp.created_at
+            FROM trainer_category_pricing tcp
+            LEFT JOIN categories c ON tcp.category_id = c.id
+            WHERE tcp.trainer_id = ?
             ORDER BY c.name ASC
         ");
         $stmt->bind_param("s", $trainerId);
