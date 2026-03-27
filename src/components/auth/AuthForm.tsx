@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useGeolocation } from '@/hooks/use-geolocation'
-import { reverseGeocode } from '@/lib/location'
-import { Loader2, User, Dumbbell, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { reverseGeocode, searchLocations } from '@/lib/location'
+import { Loader2, User, Dumbbell, Eye, EyeOff, ArrowLeft, MapPin } from 'lucide-react'
 import AuthLogo from '@/components/auth/AuthLogo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { toast } from '@/hooks/use-toast'
@@ -41,6 +41,10 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [locationSuggestions, setLocationSuggestions] = useState<Array<{ label: string; lat: number; lng: number }>>([])
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
+  const [searchingLocations, setSearchingLocations] = useState(false)
+  const locationSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync geolocation result to form data
   useEffect(() => {
@@ -73,6 +77,15 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
     }
   }, [geoLocation])
 
+  // Cleanup location search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (locationSearchTimeoutRef.current) {
+        clearTimeout(locationSearchTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const handleInputChange = (field: string, value: string) => {
     // Apply phone formatting in real-time
     if (field === 'phone') {
@@ -86,9 +99,40 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
       setFormData(prev => ({ ...prev, [field]: value }))
       // Clear email error when user starts typing
       setEmailError(null)
+    } else if (field === 'locationLabel') {
+      setFormData(prev => ({ ...prev, [field]: value }))
+      // Handle location search with debouncing
+      if (locationSearchTimeoutRef.current) {
+        clearTimeout(locationSearchTimeoutRef.current)
+      }
+      if (value.trim().length >= 2) {
+        setShowLocationSuggestions(true)
+        setSearchingLocations(true)
+        locationSearchTimeoutRef.current = setTimeout(async () => {
+          const suggestions = await searchLocations(value)
+          if (suggestions) {
+            setLocationSuggestions(suggestions)
+          }
+          setSearchingLocations(false)
+        }, 300)
+      } else {
+        setLocationSuggestions([])
+        setShowLocationSuggestions(false)
+      }
     } else {
       setFormData(prev => ({ ...prev, [field]: value }))
     }
+  }
+
+  const handleLocationSelect = (location: { label: string; lat: number; lng: number }) => {
+    setFormData(prev => ({
+      ...prev,
+      locationLabel: location.label,
+      locationLat: location.lat,
+      locationLng: location.lng,
+    }))
+    setShowLocationSuggestions(false)
+    toast({ title: 'Location selected', description: location.label })
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -329,11 +373,38 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
 
                 <div className="space-y-2">
                   <Label htmlFor="signup-location">Your locality</Label>
-                  <div className="flex gap-2">
-                    <Input id="signup-location" type="text" placeholder="e.g. Nairobi, Parklands" value={formData.locationLabel} onChange={(e) => handleInputChange('locationLabel', e.target.value)} required className="bg-input border-border" />
-                    <Button type="button" variant="outline" onClick={() => {
-                      requestGeoLocation()
-                    }}>Use GPS</Button>
+                  <div className="relative">
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <Input id="signup-location" type="text" placeholder="e.g. Nairobi, Parklands" value={formData.locationLabel} onChange={(e) => handleInputChange('locationLabel', e.target.value)} required className="bg-input border-border" />
+                        {showLocationSuggestions && locationSuggestions.length > 0 && (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {searchingLocations && (
+                              <div className="p-2 text-sm text-muted-foreground flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full border-2 border-trainer-primary border-t-transparent animate-spin" />
+                                Searching...
+                              </div>
+                            )}
+                            {!searchingLocations && locationSuggestions.map((suggestion, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleLocationSelect(suggestion)}
+                                className="w-full text-left px-3 py-2 hover:bg-muted transition-colors text-sm border-b border-border/50 last:border-b-0 flex items-start gap-2"
+                              >
+                                <MapPin className="h-4 w-4 text-trainer-primary flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm truncate">{suggestion.label}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Button type="button" variant="outline" onClick={() => {
+                        requestGeoLocation()
+                      }}>Use GPS</Button>
+                    </div>
                   </div>
                   {(formData.locationLat != null && formData.locationLng != null) && (
                     <div className="text-xs text-muted-foreground">{formData.locationLat.toFixed(4)}, {formData.locationLng.toFixed(4)}</div>

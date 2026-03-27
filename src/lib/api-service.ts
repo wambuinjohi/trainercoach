@@ -129,6 +129,14 @@ export async function deleteCategory(id: string | number) {
   return apiRequest('delete_category', { id })
 }
 
+export async function suggestDiscipline(name: string, description?: string, trainerId?: string) {
+  return apiRequest('suggest_discipline', {
+    name,
+    ...(description && { description }),
+    ...(trainerId && { trainer_id: trainerId }),
+  })
+}
+
 export async function approveCategory(categoryId: string | number, reviewedBy: string) {
   return apiRequest('admin_category_approve', {
     category_id: categoryId,

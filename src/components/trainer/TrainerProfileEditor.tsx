@@ -107,6 +107,9 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
   const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [hasDisciplineCertificate, setHasDisciplineCertificate] = useState(false)
+  const [showSuggestDiscipline, setShowSuggestDiscipline] = useState(false)
+  const [suggestDisciplineForm, setSuggestDisciplineForm] = useState({ name: '', description: '' })
+  const [suggestingDiscipline, setSuggestingDiscipline] = useState(false)
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -390,6 +393,41 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
     }
   }
 
+  const handleSuggestDiscipline = async () => {
+    if (!suggestDisciplineForm.name.trim()) {
+      toast({ title: 'Required', description: 'Please enter a discipline name', variant: 'destructive' })
+      return
+    }
+
+    setSuggestingDiscipline(true)
+    try {
+      const response = await apiService.suggestDiscipline(
+        suggestDisciplineForm.name.trim(),
+        suggestDisciplineForm.description.trim() || undefined,
+        userId
+      )
+
+      if (response?.status === 'success' || response?.data) {
+        toast({
+          title: 'Discipline suggestion submitted',
+          description: 'Your suggestion has been sent to admin for review. You can save your profile and wait for approval.',
+        })
+        setSuggestDisciplineForm({ name: '', description: '' })
+        setShowSuggestDiscipline(false)
+      } else {
+        throw new Error(response?.message || 'Failed to submit suggestion')
+      }
+    } catch (error) {
+      console.error('Suggest discipline error:', error)
+      toast({
+        title: 'Failed to submit',
+        description: error instanceof Error ? error.message : 'Could not submit discipline suggestion',
+        variant: 'destructive'
+      })
+    } finally {
+      setSuggestingDiscipline(false)
+    }
+  }
 
   const save = async () => {
     if (!userId) {
@@ -412,14 +450,8 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
         return
       }
 
-      // Validate hourly rate - required
-      const hourlyRateRaw = profile.hourly_rate == null ? '' : profile.hourly_rate
-      const hourlyRateNum = hourlyRateRaw === '' ? 0 : Number(hourlyRateRaw)
-      if (!Number.isFinite(hourlyRateNum) || hourlyRateNum <= 0) {
-        toast({ title: 'Invalid hourly rate', description: 'Please enter a valid hourly rate greater than 0.', variant: 'destructive' })
-        setLoading(false)
-        return
-      }
+      // Hourly rate will be derived from category pricing
+      const hourlyRateNum = 0 // Base rate is no longer used; pricing is set per-discipline
 
       // Validate M-Pesa number - required
       if (!profile.mpesa_number || profile.mpesa_number.trim() === '') {
@@ -686,7 +718,6 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
           <div className="text-xs text-green-700 space-y-0.5">
             {name && <p>Name: {name}</p>}
             {selectedCategoryIds.length > 0 && <p>{selectedCategoryIds.length} categories selected</p>}
-            {profile.hourly_rate && <p>Rate: Ksh {profile.hourly_rate}</p>}
             {areaLocation.label && <p>Area: {areaLocation.label}</p>}
           </div>
         </div>
@@ -800,21 +831,7 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
           <CardDescription className="text-xs">Your hourly rates and payment information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <Label htmlFor="hourly_rate">Default Hourly Rate <span className="text-red-600">*</span></Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Ksh</span>
-                <Input
-                  id="hourly_rate"
-                  type="number"
-                  value={profile.hourly_rate ?? ''}
-                  onChange={(e) => handleChange('hourly_rate', Number(e.target.value))}
-                  placeholder="300"
-                  className="bg-input border-border"
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="service_radius">Service Radius</Label>
               <div className="flex items-center gap-2">
@@ -903,7 +920,7 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
                       {selectedCategoryIds.includes(category.id) && (
                         <div className="ml-6 pt-1">
                           <label htmlFor={`price_${category.id}`} className="text-xs font-medium text-foreground block mb-1">
-                            Rate (Ksh)
+                            Rate (Ksh) <span className="text-muted-foreground">e.g. 300, 500, 1000</span>
                           </label>
                           <input
                             id={`price_${category.id}`}
@@ -916,7 +933,7 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
                               [category.id]: Number(e.target.value)
                             }))}
                             disabled={loading}
-                            placeholder="1500"
+                            placeholder="e.g. 1500"
                             className="w-32 px-2 py-1 border border-border rounded text-sm bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary"
                           />
                         </div>
@@ -927,6 +944,70 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
               {selectedCategoryIds.length === 0 && (
                 <p className="text-xs text-destructive font-medium">Please select at least one category</p>
               )}
+
+              {/* Suggest New Discipline Section */}
+              <div className="mt-4 pt-4 border-t border-border">
+                {!showSuggestDiscipline ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSuggestDiscipline(true)}
+                    className="text-xs"
+                  >
+                    + Suggest a new discipline
+                  </Button>
+                ) : (
+                  <div className="space-y-3 p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">Suggest a New Discipline</p>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Discipline Name <span className="text-red-600">*</span></label>
+                      <Input
+                        placeholder="e.g. Pilates, CrossFit, Boxing"
+                        value={suggestDisciplineForm.name}
+                        onChange={(e) => setSuggestDisciplineForm(prev => ({ ...prev, name: e.target.value }))}
+                        className="bg-input border-border"
+                        disabled={suggestingDiscipline}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Description (Optional)</label>
+                      <textarea
+                        placeholder="Brief description of this discipline..."
+                        value={suggestDisciplineForm.description}
+                        onChange={(e) => setSuggestDisciplineForm(prev => ({ ...prev, description: e.target.value }))}
+                        className="w-full px-2 py-1 border border-border rounded text-sm bg-input focus:outline-none focus:ring-2 focus:ring-trainer-primary resize-none"
+                        rows={2}
+                        disabled={suggestingDiscipline}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSuggestDiscipline}
+                        disabled={suggestingDiscipline}
+                        className="text-xs"
+                      >
+                        {suggestingDiscipline ? 'Submitting...' : 'Submit Suggestion'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowSuggestDiscipline(false)
+                          setSuggestDisciplineForm({ name: '', description: '' })
+                        }}
+                        disabled={suggestingDiscipline}
+                        className="text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

@@ -24,7 +24,7 @@ const AuthLogoComponent: React.FC<{ className?: string; containerClassName?: str
 
   return (
     <div className={`relative flex flex-col items-center justify-center gap-4 text-center ${containerClassName ? '' : ''}`}>
-      <div className={`flex h-64 w-64 sm:h-72 sm:w-72 md:h-80 md:w-80 items-center justify-center overflow-hidden rounded-3xl bg-white/95 shadow-card ring-1 ring-border/60 transition-all duration-500 dark:bg-gradient-to-br dark:from-trainer-dark dark:via-trainer-accent/25 dark:to-black dark:ring-white/15 ${containerClassName}`}>
+      <div className={`flex h-64 w-64 sm:h-72 sm:w-72 md:h-80 md:w-80 items-center justify-center overflow-hidden rounded-3xl bg-white/95 shadow-card ring-1 ring-border/60 transition-all duration-500 dark:bg-transparent dark:ring-transparent dark:shadow-none ${containerClassName}`}>
         <img
           src={logoSrc}
           alt={APP_LOGO_ALT}
