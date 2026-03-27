@@ -95,6 +95,28 @@ export async function initiatePayment(params: PaymentInitiationParams): Promise<
     description = 'Payment for session booking'
   } = params
 
+  // Validate amount is within M-Pesa limits
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return {
+      success: false,
+      error: `Invalid payment amount: ${amount}. Amount must be greater than 0.`,
+    }
+  }
+
+  if (amount < 5) {
+    return {
+      success: false,
+      error: `Amount must be at least Ksh 5. Current amount: Ksh ${amount}. Please check the trainer rate or book more sessions.`,
+    }
+  }
+
+  if (amount > 150000) {
+    return {
+      success: false,
+      error: `Amount cannot exceed Ksh 150,000. Current amount: Ksh ${amount}. Please contact support to split the booking.`,
+    }
+  }
+
   try {
     const normalizedPhone = normalizePhoneNumber(phone)
     const result = await apiRequest(
