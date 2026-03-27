@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { BookingSession } from '@/types'
 import { Button } from '@/components/ui/button'
