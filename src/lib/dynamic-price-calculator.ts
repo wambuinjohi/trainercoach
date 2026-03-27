@@ -65,9 +65,10 @@ export interface DynamicPriceResult {
     discountApplied: boolean
     discountPercentage: number
     transportFee: number
-    platformFee: number
-    compensationFee: number
-    maintenanceFee: number
+    platformFee: number // DEPRECATED: Always 0 now
+    compensationFee: number // DEPRECATED: Always 0 now
+    maintenanceFee: number // DEPRECATED: Always 0 now
+    vatAmount: number // NEW: VAT amount charged to client
     total: number
   }
 }
@@ -257,9 +258,10 @@ export function calculateDynamicPrice(input: PriceCalculationInput): DynamicPric
       discountApplied: discountPercent > 0,
       discountPercentage: discountPercent,
       transportFee,
-      platformFee: feeBreakdown.platformChargeClient,
-      compensationFee: feeBreakdown.compensationFee,
-      maintenanceFee: feeBreakdown.maintenanceFee,
+      platformFee: feeBreakdown.platformChargeClient, // DEPRECATED: Always 0 now
+      compensationFee: feeBreakdown.compensationFee, // DEPRECATED: Always 0 now
+      maintenanceFee: feeBreakdown.maintenanceFee, // DEPRECATED: Always 0 now
+      vatAmount: feeBreakdown.vatAmount, // NEW: VAT amount charged to client
       total: feeBreakdown.clientTotal,
     },
   }

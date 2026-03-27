@@ -601,54 +601,38 @@ function calculateFeeBreakdown($baseAmount, $settings, $transportFee = 0) {
     $baseAmount = max(0, floatval($baseAmount));
     $transportFee = max(0, floatval($transportFee));
 
-    // Clamp percentages to 0-100
-    $clientPct = max(0, min(100, floatval($settings['platformChargeClientPercent'] ?? 15)));
-    $trainerPct = max(0, min(100, floatval($settings['platformChargeTrainerPercent'] ?? 10)));
-    $compPct = max(0, min(100, floatval($settings['compensationFeePercent'] ?? 10)));
-    $maintPct = max(0, min(100, floatval($settings['maintenanceFeePercent'] ?? 15)));
+    // NEW PRICING LOGIC:
+    // Client pays: base + VAT (16% of base) + transport
+    // Trainer receives: base - platform fee (25% of base) + transport
+    // Platform gets: VAT + platform fee
 
-    // Step 1: Calculate all charges on base amount
-    $platformChargeClient = round(($baseAmount * $clientPct) / 100, 2);
-    $platformChargeTrainer = round(($baseAmount * $trainerPct) / 100, 2);
-    $compensationFee = round(($baseAmount * $compPct) / 100, 2);
-
-    // Step 2: Sum all charges
-    $sumOfCharges = round($platformChargeClient + $platformChargeTrainer + $compensationFee, 2);
-
-    // Step 3: Apply maintenance fee on the sum of charges
-    $maintenanceFee = round(($sumOfCharges * $maintPct) / 100, 2);
-
-    // Step 4: Calculate VAT (16% on base amount only)
+    // Step 1: Calculate VAT (16% on base amount only)
     $vatAmount = round(($baseAmount * 16) / 100, 2);
 
-    // Step 5: Calculate Platform Commission (25% on base amount, deducted from trainer)
-    $commissionAmount = round(($baseAmount * 25) / 100, 2);
+    // Step 2: Calculate Platform Fee (25% of base amount, deducted from trainer)
+    $platformFeeAmount = round(($baseAmount * 25) / 100, 2);
 
-    // Step 6: Calculate client total
-    // Client pays: base + client charges (platformChargeClient + compensationFee) + transport + VAT
-    // NOTE: Maintenance fee is NOT charged to client (it's internal platform revenue)
-    $clientCharges = $platformChargeClient + $compensationFee;
-    $clientTotal = round($baseAmount + $clientCharges + $transportFee + $vatAmount, 2);
+    // Step 3: Calculate client total
+    // Client pays: base + VAT + transport ONLY
+    $clientTotal = round($baseAmount + $vatAmount + $transportFee, 2);
 
-    // Step 7: Calculate trainer net
-    // Trainer receives: base + transport - trainer charges - commission - trainer's share of maintenance
-    // Trainer's share of maintenance is proportional to their charges
-    $trainerShareOfMaintenance = 0;
-    if ($sumOfCharges > 0) {
-        $trainerShareOfMaintenance = round(($platformChargeTrainer / $sumOfCharges) * $maintenanceFee, 2);
-    }
-    $trainerNetAmount = round($baseAmount + $transportFee - $platformChargeTrainer - $commissionAmount - $trainerShareOfMaintenance, 2);
+    // Step 4: Calculate trainer net
+    // Trainer receives: base - platform fee + transport
+    $trainerNetAmount = round($baseAmount - $platformFeeAmount + $transportFee, 2);
 
+    // Return structure with all necessary fields for compatibility
+    // Legacy fields are kept for backward compatibility but should not be used
     return [
         'baseAmount' => $baseAmount,
-        'platformChargeClient' => $platformChargeClient,
-        'platformChargeTrainer' => $platformChargeTrainer,
-        'compensationFee' => $compensationFee,
-        'sumOfCharges' => $sumOfCharges,
-        'maintenanceFee' => $maintenanceFee,
+        'platformChargeClient' => 0, // DEPRECATED: No longer charged to client
+        'platformChargeTrainer' => 0, // DEPRECATED: Consolidated into platformFeeAmount
+        'compensationFee' => 0, // DEPRECATED: No longer used
+        'sumOfCharges' => 0, // DEPRECATED: No longer used
+        'maintenanceFee' => 0, // DEPRECATED: No longer used
         'transportFee' => $transportFee,
         'vatAmount' => $vatAmount,
-        'commissionAmount' => $commissionAmount,
+        'commissionAmount' => 0, // DEPRECATED: Renamed to platformFeeAmount
+        'platformFeeAmount' => $platformFeeAmount, // NEW: 25% platform fee deducted from trainer
         'clientTotal' => $clientTotal,
         'trainerNetAmount' => $trainerNetAmount,
     ];
@@ -5542,19 +5526,19 @@ switch ($action) {
         $feeBreakdown = calculateFeeBreakdown($baseServiceAmount, $settings, $transportFee);
 
         // Extract calculated values
-        $platformChargeClient = $feeBreakdown['platformChargeClient'];
-        $platformChargeTrainer = $feeBreakdown['platformChargeTrainer'];
-        $compensationFee = $feeBreakdown['compensationFee'];
-        $maintenanceFee = $feeBreakdown['maintenanceFee'];
+        $platformChargeClient = $feeBreakdown['platformChargeClient'] ?? 0; // DEPRECATED: Always 0 now
+        $platformChargeTrainer = $feeBreakdown['platformChargeTrainer'] ?? 0; // DEPRECATED: Always 0 now
+        $compensationFee = $feeBreakdown['compensationFee'] ?? 0; // DEPRECATED: Always 0 now
+        $maintenanceFee = $feeBreakdown['maintenanceFee'] ?? 0; // DEPRECATED: Always 0 now
         $vatAmount = $feeBreakdown['vatAmount'];
-        $commissionAmount = $feeBreakdown['commissionAmount'];
+        $commissionAmount = $feeBreakdown['commissionAmount'] ?? 0; // DEPRECATED: Use platformFeeAmount instead
+        $platformFeeAmount = $feeBreakdown['platformFeeAmount'] ?? 0; // NEW: 25% deducted from trainer
         $totalAmount = $feeBreakdown['clientTotal'];
         $trainerNetAmount = $feeBreakdown['trainerNetAmount'];
 
-        // Client surcharge shown to client (charges that client directly pays)
-        // Does NOT include maintenance fee (which is internal platform revenue)
-        // Includes VAT as it's charged to client
-        $clientSurcharge = $platformChargeClient + $compensationFee + $vatAmount;
+        // NEW: Client surcharge is ONLY VAT now (no platform charges or compensation fees)
+        // Client pays: base + VAT + transport
+        $clientSurcharge = $vatAmount;
 
         // Generate booking ID
         $bookingId = 'booking_' . uniqid();
@@ -5575,9 +5559,11 @@ switch ($action) {
             respond("error", "Failed to prepare booking insert: " . $conn->error, null, 500);
         }
 
-        // For backward compatibility, use the new fee breakdown values
-        $platformFeeForDb = $clientSurcharge; // Store total client charges as platform_fee for now
-        $vatAmountForDb = $vatAmount; // Store calculated VAT amount
+        // NEW: Store correct fee values in database
+        // platform_fee = 25% deducted from trainer (not charged to client)
+        // vat_amount = 16% charged to client
+        $platformFeeForDb = $platformFeeAmount; // Store the 25% platform fee deducted from trainer
+        $vatAmountForDb = $vatAmount; // Store the 16% VAT charged to client
         $sessionsForDb = !empty($bookingSessions) ? $sessionsJson : NULL;
 
         $stmt->bind_param(
@@ -5659,13 +5645,8 @@ switch ($action) {
                 "booking_id" => $bookingId,
                 "base_service_amount" => $baseServiceAmount,
                 "transport_fee" => $transportFee,
-                "platform_charge_client" => $platformChargeClient,
-                "platform_charge_trainer" => $platformChargeTrainer,
-                "compensation_fee" => $compensationFee,
-                "maintenance_fee" => $maintenanceFee,
-                "sum_of_charges" => $feeBreakdown['sumOfCharges'],
                 "vat_amount" => $vatAmount,
-                "commission_amount" => $commissionAmount,
+                "platform_fee_amount" => $platformFeeAmount,
                 "trainer_net_amount" => $trainerNetAmount,
                 "client_surcharge" => $clientSurcharge,
                 "total_amount" => $totalAmount,

@@ -5,14 +5,15 @@ import { X, AlertCircle } from 'lucide-react'
 
 export interface FeeBreakdown {
   baseServiceAmount: number
-  platformChargeClient: number
-  platformChargeTrainer?: number
-  compensationFee: number
-  maintenanceFee: number
+  platformChargeClient?: number // DEPRECATED: Always 0 now
+  platformChargeTrainer?: number // DEPRECATED: Always 0 now
+  compensationFee?: number // DEPRECATED: Always 0 now
+  maintenanceFee?: number // DEPRECATED: Always 0 now
   transportFee: number
   vat?: number
   vatAmount?: number
-  commissionAmount?: number
+  commissionAmount?: number // DEPRECATED: Use platformFeeAmount instead
+  platformFeeAmount?: number // NEW: 25% deducted from trainer
   clientTotal: number
   trainerNetAmount?: number
 }
@@ -54,21 +55,9 @@ export const FeeBreakdownModal: React.FC<FeeBreakdownModalProps> = ({
                 <span className="text-gray-700 dark:text-gray-300">Service Amount</span>
                 <span className="font-medium">Ksh {breakdown.baseServiceAmount}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700 dark:text-gray-300">Platform Service Charge</span>
-                <span className="font-medium">Ksh {breakdown.platformChargeClient}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700 dark:text-gray-300">Compensation Fee</span>
-                <span className="font-medium">Ksh {breakdown.compensationFee}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700 dark:text-gray-300">Maintenance Fee</span>
-                <span className="font-medium">Ksh {breakdown.maintenanceFee}</span>
-              </div>
               {breakdown.transportFee > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300">Transport Fee (distance-based)</span>
+                  <span className="text-gray-700 dark:text-gray-300">Transport Fee</span>
                   <span className="font-medium">Ksh {breakdown.transportFee}</span>
                 </div>
               )}
@@ -97,16 +86,16 @@ export const FeeBreakdownModal: React.FC<FeeBreakdownModalProps> = ({
                   <span className="text-gray-700 dark:text-gray-300">Service Amount</span>
                   <span className="font-medium">Ksh {breakdown.baseServiceAmount}</span>
                 </div>
-                {breakdown.platformChargeTrainer && (
+                {(breakdown.platformFeeAmount ?? breakdown.commissionAmount) && (breakdown.platformFeeAmount ?? breakdown.commissionAmount) > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-700 dark:text-gray-300">Less: Platform Fee</span>
-                    <span className="font-medium text-red-600">- Ksh {breakdown.platformChargeTrainer}</span>
+                    <span className="text-gray-700 dark:text-gray-300">Less: Platform Fee (25%)</span>
+                    <span className="font-medium text-red-600">- Ksh {breakdown.platformFeeAmount ?? breakdown.commissionAmount}</span>
                   </div>
                 )}
-                {breakdown.commissionAmount && breakdown.commissionAmount > 0 && (
+                {breakdown.transportFee > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-700 dark:text-gray-300">Less: Platform Commission (25%)</span>
-                    <span className="font-medium text-red-600">- Ksh {breakdown.commissionAmount}</span>
+                    <span className="text-gray-700 dark:text-gray-300">Transport Fee</span>
+                    <span className="font-medium">Ksh {breakdown.transportFee}</span>
                   </div>
                 )}
                 <div className="border-t border-green-200 dark:border-green-700 my-2 pt-2 flex justify-between font-bold text-base">

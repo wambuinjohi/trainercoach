@@ -96,25 +96,13 @@ export const PriceCalculationDisplay: React.FC<PriceCalculationDisplayProps> = (
             </div>
           )}
 
-          {/* Detailed Breakdown */}
+          {/* VAT Breakdown */}
           {showBreakdown && (
             <>
               <div className="border-t border-border my-2 pt-2">
-                <div className="text-xs text-muted-foreground mb-2 font-medium">Fees Breakdown:</div>
-                
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Platform Fee (Client)</span>
-                  <span>{formatAmount(priceResult.breakdown.platformFee)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Compensation Fee</span>
-                  <span>{formatAmount(priceResult.breakdown.compensationFee)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Maintenance Fee (System)</span>
-                  <span className="text-xs opacity-70">{formatAmount(priceResult.breakdown.maintenanceFee)}</span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">VAT (16%)</span>
+                  <span>{formatAmount(priceResult.breakdown.vatAmount)}</span>
                 </div>
               </div>
             </>
