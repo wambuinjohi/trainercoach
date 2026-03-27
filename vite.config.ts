@@ -323,7 +323,10 @@ function devApiPlugin() {
             case "trainer_categories_get":
               // Proxy to real API to get trainer's categories from database
               try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                // Use authorization header from request if available, otherwise use token from body
+                const authHeader = req.headers['authorization']
+                  ? { 'Authorization': req.headers['authorization'] }
+                  : body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
                 const catResponse = await fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', ...authHeader },
@@ -334,6 +337,7 @@ function devApiPlugin() {
                 res.end(JSON.stringify(catData));
               } catch (e) {
                 console.error('Failed to fetch trainer categories:', e);
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify({
                   status: "success",
                   message: "Trainer categories retrieved",
@@ -345,7 +349,7 @@ function devApiPlugin() {
             case "trainer_category_pricing_get":
               // Proxy to real API to get trainer's category pricing from database
               try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
                 const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', ...authHeader },
@@ -356,6 +360,8 @@ function devApiPlugin() {
                 res.end(JSON.stringify(pricingData));
               } catch (e) {
                 console.error('Failed to fetch trainer category pricing:', e);
+                // Return empty data array as fallback when real API is unreachable
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify({
                   status: "success",
                   message: "Trainer category pricing retrieved",
@@ -368,17 +374,22 @@ function devApiPlugin() {
             case "get_trainer_details":
               // Proxy to real API to get trainers from database
               try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                // Use authorization header from request if available, otherwise use token from body
+                const authHeader = req.headers['authorization']
+                  ? { 'Authorization': req.headers['authorization'] }
+                  : body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
                 const trainersResponse = await fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: action, trainer_id: body.trainer_id, status: body.status, search: body.search })
+                  body: JSON.stringify({ action: action, trainer_id: body.trainer_id, status: body.status, search: body.search }),
+                  timeout: 10000 // 10 second timeout
                 });
                 const trainersData = await trainersResponse.json();
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify(trainersData));
               } catch (e) {
                 console.error('Failed to fetch trainers:', e);
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify({
                   status: "success",
                   message: "Trainers retrieved",
