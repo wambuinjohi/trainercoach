@@ -267,6 +267,25 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           throw new Error('phone required')
         }
 
+        // Validate payment amount is within M-Pesa limits (5-150000)
+        if (clientTotal < 5) {
+          toast({
+            title: 'Amount too low',
+            description: `The session cost (Ksh ${clientTotal}) is below the minimum M-Pesa payment of Ksh 5. Please check the trainer rate or session details.`,
+            variant: 'destructive'
+          })
+          throw new Error(`Payment amount ${clientTotal} is below minimum of 5`)
+        }
+
+        if (clientTotal > 150000) {
+          toast({
+            title: 'Amount too high',
+            description: `The session cost (Ksh ${clientTotal}) exceeds the maximum M-Pesa payment of Ksh 150,000. Please contact support or split the booking into smaller sessions.`,
+            variant: 'destructive'
+          })
+          throw new Error(`Payment amount ${clientTotal} exceeds maximum of 150000`)
+        }
+
         toast({ title: 'M-Pesa STK', description: 'Check your phone and enter PIN to approve.' })
 
         const paymentResult = await processBookingPayment({
@@ -357,6 +376,14 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         // Reset form to allow selection of different time
         setDate('')
         setTime('')
+      } else if (errorMessage.includes('Amount must be between') || errorMessage.includes('below minimum') || errorMessage.includes('exceeds maximum')) {
+        toast({
+          title: 'Invalid payment amount',
+          description: errorMessage.includes('below minimum') || errorMessage.includes('Amount must be between')
+            ? 'The session cost is too low for M-Pesa payment (minimum Ksh 5). Please use Mock payment or check trainer rates.'
+            : 'The session cost is too high for M-Pesa payment (maximum Ksh 150,000). Please contact support.',
+          variant: 'destructive'
+        })
       } else if (errorMessage.includes('access token') || errorMessage.includes('credentials') || errorMessage.includes('not configured')) {
         toast({
           title: 'M-Pesa not configured',
@@ -548,13 +575,45 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Transport fee (distance-based)</span><span>Ksh 0 (server-calculated)</span></div>
             <div className="flex justify-between mt-2"><span className="font-medium">Estimated Total (excl. transport)</span><span className="font-bold">Ksh {feeBreakdown.clientTotal}</span></div>
             <div className="text-xs text-muted-foreground mt-1">*Transport fee will be added based on distance at checkout</div>
+
+            {/* Warning for invalid M-Pesa amounts */}
+            {payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000) && (
+              <div className="mt-3 p-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs text-red-700 dark:text-red-300">
+                {feeBreakdown.clientTotal < 5 ? (
+                  <>
+                    <strong>⚠️ Amount too low:</strong> M-Pesa requires minimum payment of Ksh 5. Current: Ksh {feeBreakdown.clientTotal}. Use Mock payment or increase sessions.
+                  </>
+                ) : (
+                  <>
+                    <strong>⚠️ Amount too high:</strong> M-Pesa has a maximum payment limit of Ksh 150,000. Current: Ksh {feeBreakdown.clientTotal}. Use Mock payment or contact support.
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
       </div>
       <div className="flex justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
         <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
-        <Button onClick={submit} disabled={loading || !!availabilityError} className="bg-gradient-primary text-white" title={availabilityError ? 'Please select a valid date and time' : ''}>{loading ? 'Processing...' : 'Confirm & Pay'}</Button>
+        {(() => {
+          const isInvalidMpesaAmount = payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000)
+          const submitDisabled = loading || !!availabilityError || isInvalidMpesaAmount
+          let submitTitle = ''
+          if (availabilityError) submitTitle = 'Please select a valid date and time'
+          else if (isInvalidMpesaAmount) submitTitle = 'Payment amount is outside M-Pesa limits. Switch to Mock or adjust booking details.'
+
+          return (
+            <Button
+              onClick={submit}
+              disabled={submitDisabled}
+              className="bg-gradient-primary text-white"
+              title={submitTitle}
+            >
+              {loading ? 'Processing...' : 'Confirm & Pay'}
+            </Button>
+          )
+        })()}
       </div>
       {showFeeBreakdown && (
         <FeeBreakdownModal
