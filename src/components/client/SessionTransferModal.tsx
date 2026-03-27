@@ -28,6 +28,59 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [transferring, setTransferring] = useState(false)
   const [selectedTrainer, setSelectedTrainer] = useState<any | null>(null)
+  const [availabilityError, setAvailabilityError] = useState<string>('')
+
+  // Check if selected trainer is available at the booking time
+  const checkTrainerAvailability = (trainer: any): boolean => {
+    setAvailabilityError('')
+    if (!trainer || !currentBooking) return false
+
+    const availability = trainer.availability
+    if (!availability) {
+      setAvailabilityError('Trainer availability information not available')
+      return false
+    }
+
+    const bookingDate = new Date(currentBooking.session_date)
+    const dayName = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    const slots = availability[dayName]
+
+    if (!slots || !Array.isArray(slots) || slots.length === 0) {
+      const dayLabel = bookingDate.toLocaleDateString('en-US', { weekday: 'long' })
+      setAvailabilityError(`This trainer is not available on ${dayLabel}s`)
+      return false
+    }
+
+    const [bookingHour, bookingMin] = currentBooking.session_time.split(':').map(Number)
+    const bookingTimeInMinutes = bookingHour * 60 + bookingMin
+
+    const isAvailable = slots.some((slot: string) => {
+      const [start, end] = slot.split('-')
+      const [startHour, startMin] = start.split(':').map(Number)
+      const [endHour, endMin] = end.split(':').map(Number)
+      const startInMinutes = startHour * 60 + startMin
+      const endInMinutes = endHour * 60 + endMin
+
+      return bookingTimeInMinutes >= startInMinutes && bookingTimeInMinutes < endInMinutes
+    })
+
+    if (!isAvailable) {
+      const formatTime12hr = (timeStr: string): string => {
+        const [hours, minutes] = timeStr.split(':').map(Number)
+        const period = hours >= 12 ? 'PM' : 'AM'
+        const displayHours = hours % 12 || 12
+        return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
+      }
+      const availableSlotsFormatted = slots.map(slot => {
+        const [start, end] = slot.split('-')
+        return `${formatTime12hr(start)} - ${formatTime12hr(end)}`
+      }).join(', ')
+      setAvailabilityError(`Not available at that time. Available slots: ${availableSlotsFormatted}`)
+      return false
+    }
+
+    return true
+  }
 
   // Fetch suggested trainers based on current trainer's category
   useEffect(() => {
@@ -61,6 +114,16 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
 
   const handleTransfer = async () => {
     if (!selectedTrainer || !currentBooking) return
+
+    // Check availability before transferring
+    if (!checkTrainerAvailability(selectedTrainer)) {
+      toast({
+        title: 'Trainer not available',
+        description: availabilityError || 'Selected trainer is not available at the requested time',
+        variant: 'destructive',
+      })
+      return
+    }
 
     setTransferring(true)
     try {
@@ -127,11 +190,22 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
       onClose?.()
     } catch (err: any) {
       console.error('Transfer error', err)
-      toast({
-        title: 'Transfer failed',
-        description: err?.message || 'Could not transfer session',
-        variant: 'destructive',
-      })
+      const errorMessage = err?.message || String(err)
+      if (errorMessage.includes('not available') || errorMessage.includes('availability')) {
+        toast({
+          title: 'Trainer not available',
+          description: errorMessage.includes('not available on')
+            ? errorMessage
+            : 'The trainer is no longer available at this time.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Transfer failed',
+          description: errorMessage,
+          variant: 'destructive',
+        })
+      }
     } finally {
       setTransferring(false)
     }
@@ -191,15 +265,20 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
               </div>
             ) : suggestedTrainers.length > 0 ? (
-              suggestedTrainers.map(trainer => (
+              suggestedTrainers.map(trainer => {
+                const isAvailable = checkTrainerAvailability(trainer)
+                return (
                 <button
                   key={trainer.id}
-                  onClick={() => setSelectedTrainer(trainer)}
+                  onClick={() => {
+                    setSelectedTrainer(trainer)
+                    checkTrainerAvailability(trainer)
+                  }}
                   className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
                     selectedTrainer?.id === trainer.id
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
                       : 'border-border hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
+                  } ${!isAvailable ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-white text-lg flex-shrink-0">
@@ -224,10 +303,15 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
                           </span>
                         )}
                       </div>
-                      {trainer.available && (
+                      {isAvailable && trainer.available && (
                         <Badge variant="default" className="mt-2 text-xs">
                           Available
                         </Badge>
+                      )}
+                      {!isAvailable && selectedTrainer?.id === trainer.id && availabilityError && (
+                        <div className="text-xs text-red-600 dark:text-red-400 mt-2 p-2 bg-red-50 dark:bg-red-950/30 rounded">
+                          {availabilityError}
+                        </div>
                       )}
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -235,7 +319,8 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
                     </div>
                   </div>
                 </button>
-              ))
+              )
+            })
             ) : (
               <div className="p-8 text-center">
                 <p className="text-sm text-gray-500">No trainers found. Try a different search.</p>
@@ -255,8 +340,9 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
             </Button>
             <Button
               onClick={handleTransfer}
-              disabled={!selectedTrainer || transferring}
+              disabled={!selectedTrainer || transferring || !!availabilityError}
               className="flex-1 bg-gradient-primary text-white"
+              title={availabilityError ? 'Selected trainer is not available at this time' : ''}
             >
               {transferring ? (
                 <>

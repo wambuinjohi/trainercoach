@@ -55,6 +55,22 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
   const settings = loadSettings()
 
+  // Format time to 12-hour format with AM/PM
+  const formatTime12hr = (timeStr: string): string => {
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
+  }
+
+  // Format available slots into readable time ranges
+  const formatAvailableSlots = (slots: string[]): string => {
+    return slots.map(slot => {
+      const [start, end] = slot.split('-')
+      return `${formatTime12hr(start)} - ${formatTime12hr(end)}`
+    }).join(', ')
+  }
+
   // Validate availability when date or time changes
   useEffect(() => {
     setAvailabilityError('')
@@ -65,10 +81,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
     const selectedDate = new Date(date)
     const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    const dayLabel = selectedDate.toLocaleDateString('en-US', { weekday: 'long' })
     const slots = availability[dayName]
 
     if (!slots || !Array.isArray(slots) || slots.length === 0) {
-      setAvailabilityError(`Trainer is not available on ${dayName}s`)
+      setAvailabilityError(`Trainer is not available on ${dayLabel}s. Please select a different date.`)
       return
     }
 
@@ -87,8 +104,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     })
 
     if (!isAvailable) {
-      const availableTimes = slots.join(', ')
-      setAvailabilityError(`Time not available. Available slots: ${availableTimes}`)
+      const availableSlotsFormatted = formatAvailableSlots(slots)
+      setAvailabilityError(`This time is not available. Available slots: ${availableSlotsFormatted}`)
     }
   }, [date, time, trainerProfile?.availability])
 
@@ -329,7 +346,18 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       const errorMessage = err instanceof Error ? err.message : String(err)
 
       // Provide user-friendly error message
-      if (errorMessage.includes('access token') || errorMessage.includes('credentials') || errorMessage.includes('not configured')) {
+      if (errorMessage.includes('not available') || errorMessage.includes('availability')) {
+        toast({
+          title: 'Time slot unavailable',
+          description: errorMessage.includes('not available on')
+            ? errorMessage
+            : 'The trainer is no longer available at this time. Please select a different date or time.',
+          variant: 'destructive'
+        })
+        // Reset form to allow selection of different time
+        setDate('')
+        setTime('')
+      } else if (errorMessage.includes('access token') || errorMessage.includes('credentials') || errorMessage.includes('not configured')) {
         toast({
           title: 'M-Pesa not configured',
           description: 'Please use the Mock payment method to complete your booking.',
