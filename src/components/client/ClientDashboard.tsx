@@ -295,6 +295,7 @@ export const ClientDashboard: React.FC = () => {
           const trainersWithCategories = await Promise.all(
             trainersData.data.map(async (trainer: any) => {
               let categoryIds: number[] = []
+              let categoryPricing: any[] = []
               try {
                 const categoriesData = await apiService.getTrainerCategories(trainer.user_id)
                 if (categoriesData?.data && Array.isArray(categoriesData.data)) {
@@ -303,6 +304,16 @@ export const ClientDashboard: React.FC = () => {
               } catch (err) {
                 console.warn('Failed to fetch categories for trainer', trainer.user_id, err)
               }
+
+              try {
+                const pricingData = await apiService.getTrainerCategoryPricing(trainer.user_id)
+                if (pricingData?.data && Array.isArray(pricingData.data)) {
+                  categoryPricing = pricingData.data
+                }
+              } catch (err) {
+                console.warn('Failed to fetch category pricing for trainer', trainer.user_id, err)
+              }
+
               return {
                 id: trainer.user_id,
                 name: trainer.full_name || trainer.user_id,
@@ -310,6 +321,7 @@ export const ClientDashboard: React.FC = () => {
                 bio: trainer.bio || '',
                 profile_image: trainer.profile_image || null,
                 categoryIds: categoryIds,
+                categoryPricing: categoryPricing,
                 rating: Number(trainer.rating) || 0,
                 reviews: Number(trainer.total_reviews) || 0,
                 hourlyRate: Number(trainer.hourly_rate) || 0,
@@ -320,7 +332,6 @@ export const ClientDashboard: React.FC = () => {
                 location_lat: trainer.location_lat || null,
                 location_lng: trainer.location_lng || null,
                 location_label: trainer.location_label || 'Unknown',
-                image: trainer.profile_image ? null : '👤',
                 availability: Array.isArray(trainer.availability) || typeof trainer.availability === 'object' ? trainer.availability : null,
                 hourly_rate_by_radius: Array.isArray(trainer.hourly_rate_by_radius) ? trainer.hourly_rate_by_radius : [],
                 pricing_packages: Array.isArray(trainer.pricing_packages) ? trainer.pricing_packages : []
@@ -749,7 +760,11 @@ export const ClientDashboard: React.FC = () => {
                   {/* Header with name, badges */}
                   <div className="flex items-start gap-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
-                      {trainer.image}
+                      {trainer.profile_image ? (
+                        <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
+                      ) : (
+                        '👤'
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -762,6 +777,9 @@ export const ClientDashboard: React.FC = () => {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">{trainer.discipline || 'Training'}</p>
+                      {trainer.bio && (
+                        <p className="text-xs text-muted-foreground mt-1">{trainer.bio}</p>
+                      )}
                     </div>
                   </div>
 
@@ -799,23 +817,35 @@ export const ClientDashboard: React.FC = () => {
                   </div>
 
                   {/* Pricing and Availability Info */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-foreground">Ksh {formatHourlyRate(trainer.hourlyRate)}/hour</span>
-                      {trainer.pricing_packages && trainer.pricing_packages.length > 0 && (
-                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
-                          📦 Packages
-                        </Badge>
+                  <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                    <div className="flex flex-wrap gap-2">
+                      {trainer.categoryPricing && trainer.categoryPricing.length > 0 ? (
+                        trainer.categoryPricing.map((pricing: any, idx: number) => {
+                          const categoryName = dbCategories.find((cat: any) => cat.id === pricing.category_id)?.name || `Category ${pricing.category_id}`
+                          const isSelectedCategory = selectedCategory === categoryName
+                          return (
+                            <span key={idx} className={isSelectedCategory ? 'font-bold text-foreground text-sm' : 'text-muted-foreground text-sm'}>
+                              {categoryName}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
+                            </span>
+                          )
+                        })
+                      ) : (
+                        <span className="font-semibold text-foreground text-sm">Ksh {formatHourlyRate(trainer.hourlyRate)}/hour</span>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" className="bg-gradient-primary text-white" onClick={() => setSelectedTrainerForBooking(trainer)}>
-                        Book Now
-                      </Button>
-                    </div>
+                    {trainer.pricing_packages && trainer.pricing_packages.length > 0 && (
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs w-fit">
+                        📦 Packages
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" className="bg-gradient-primary text-white" onClick={() => setSelectedTrainerForBooking(trainer)}>
+                      Book Now
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1063,7 +1093,7 @@ export const ClientDashboard: React.FC = () => {
         {activeTab === 'schedule' && renderScheduleContent()}
       </div>
 
-      {selectedTrainer && <TrainerDetails trainer={selectedTrainer} onClose={closeTrainer} />}
+      {selectedTrainer && <TrainerDetails trainer={selectedTrainer} onClose={closeTrainer} selectedCategory={selectedCategory} />}
       {selectedTrainerForBooking && <BookingModal trainer={selectedTrainerForBooking} onClose={() => setSelectedTrainerForBooking(null)} />}
       {showEditProfile && <ClientProfileEditor onClose={() => setShowEditProfile(false)} />}
       {showPaymentMethods && <PaymentMethods onClose={() => setShowPaymentMethods(false)} />}

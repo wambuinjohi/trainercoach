@@ -23,10 +23,11 @@ function formatHourlyRate(rate: number | null | undefined): string {
   return num.toFixed(2).replace(/\.?0+$/, '')
 }
 
-export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = ({ trainer, onClose }) => {
+export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selectedCategory?: string | null }> = ({ trainer, onClose, selectedCategory }) => {
   const { user } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [categories, setCategories] = useState<any[]>([])
+  const [categoryPricing, setCategoryPricing] = useState<any[]>([])
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig[]>([])
   const [showBooking, setShowBooking] = useState(false)
   const [showChat, setShowChat] = useState(false)
@@ -58,6 +59,21 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = (
       }
     }
     fetchCategories()
+  }, [trainer.id])
+
+  useEffect(() => {
+    // Fetch trainer's category pricing
+    const fetchCategoryPricing = async () => {
+      try {
+        const data = await apiService.getTrainerCategoryPricing(trainer.id)
+        if (data?.data && Array.isArray(data.data)) {
+          setCategoryPricing(data.data)
+        }
+      } catch (err) {
+        console.warn('Failed to fetch trainer category pricing', err)
+      }
+    }
+    fetchCategoryPricing()
   }, [trainer.id])
 
   useEffect(() => {
@@ -146,7 +162,20 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void }> = (
 
               <div>
                 <h4 className="font-semibold mb-2">Pricing</h4>
-                {Array.isArray(profile?.hourly_rate_by_radius) && profile.hourly_rate_by_radius.length > 0 ? (
+                {categoryPricing && categoryPricing.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      {categoryPricing.map((pricing: any, idx: number) => {
+                        const isSelectedCategory = selectedCategory && pricing.category_name === selectedCategory
+                        return (
+                          <div key={idx} className={isSelectedCategory ? 'font-bold text-foreground' : 'text-muted-foreground'}>
+                            {pricing.category_name}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : Array.isArray(profile?.hourly_rate_by_radius) && profile.hourly_rate_by_radius.length > 0 ? (
                   <div className="text-sm text-muted-foreground">
                     {profile.hourly_rate_by_radius.map((tier:any, i:number) => (
                       <div key={i} className="flex justify-between">
