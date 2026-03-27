@@ -342,6 +342,28 @@ function devApiPlugin() {
               }
               return;
 
+            case "trainer_category_pricing_get":
+              // Proxy to real API to get trainer's category pricing from database
+              try {
+                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify({ action: 'trainer_category_pricing_get', trainer_id: body.trainer_id })
+                });
+                const pricingData = await pricingResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(pricingData));
+              } catch (e) {
+                console.error('Failed to fetch trainer category pricing:', e);
+                res.end(JSON.stringify({
+                  status: "success",
+                  message: "Trainer category pricing retrieved",
+                  data: []
+                }));
+              }
+              return;
+
             case "get_trainers":
             case "get_trainer_details":
               // Proxy to real API to get trainers from database
@@ -1039,9 +1061,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Mock data disabled - all API calls use real backend
-    // mode === 'development' && devApiPlugin(),
-    // mode === 'development' && adminApiPlugin(),
+    // Enable dev API mock plugin for development to avoid real backend failures
+    mode === 'development' && devApiPlugin(),
+    mode === 'development' && adminApiPlugin(),
     mode === 'development' && paymentsApiPlugin(),
     mode === 'development' && componentTagger(),
     {
