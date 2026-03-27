@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { BookingSession } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +14,7 @@ interface BookingConfirmationState {
   trainerName: string
   date: string
   time: string
-  sessions: number
+  sessions: BookingSession[]
   totalAmount: number
   disciplineName?: string
   location?: string
@@ -78,6 +80,29 @@ export default function BookingConfirmation() {
   }, [bookingId])
 
   const displayData = locationState || bookingData
+  const bookingSessions = (() => {
+    const sessionsValue = displayData?.sessions
+    if (Array.isArray(sessionsValue)) return sessionsValue as BookingSession[]
+    if (typeof sessionsValue === 'string' && sessionsValue.trim()) {
+      try {
+        const parsed = JSON.parse(sessionsValue)
+        return Array.isArray(parsed) ? parsed as BookingSession[] : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  })()
+  const primarySession = bookingSessions[0]
+  const sessionDateValue = primarySession?.date || displayData?.date || displayData?.session_date
+  const sessionCount = bookingSessions.length || displayData?.total_sessions || 1
+  const totalBookedHours = bookingSessions.reduce((sum, session) => sum + Number(session.duration_hours || 0), 0)
+  const formattedDate = sessionDateValue ? new Date(`${sessionDateValue}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }) : 'TBD'
 
   if (loading) {
     return (
@@ -107,14 +132,6 @@ export default function BookingConfirmation() {
       </div>
     )
   }
-
-  const sessionDate = new Date(displayData.date || displayData.session_date)
-  const formattedDate = sessionDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -181,16 +198,47 @@ export default function BookingConfirmation() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Date</p>
-                    <p className="font-semibold">{formattedDate}</p>
+                {bookingSessions.length > 0 ? (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">First session</p>
+                      <p className="font-semibold">
+                        {formattedDate} • {primarySession?.start_time} - {primarySession?.end_time}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {bookingSessions.slice(0, 3).map((session, index) => {
+                        const sessionLabel = new Date(`${session.date}T00:00:00`).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                        return (
+                          <div key={`${session.date}-${session.start_time}-${index}`} className="rounded-md border border-border bg-muted/20 p-2 text-sm">
+                            <div className="font-medium">Session {index + 1}</div>
+                            <div className="text-muted-foreground">
+                              {sessionLabel} • {session.start_time} - {session.end_time}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {bookingSessions.length > 3 && (
+                        <p className="text-xs text-muted-foreground">+{bookingSessions.length - 3} more sessions</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Time</p>
-                    <p className="font-semibold">{displayData.time || displayData.session_time}</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Date</p>
+                      <p className="font-semibold">{formattedDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Time</p>
+                      <p className="font-semibold">{displayData.time || displayData.session_time}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -203,8 +251,10 @@ export default function BookingConfirmation() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{displayData.sessions || displayData.total_sessions || 1}</p>
-                <p className="text-xs text-muted-foreground">1 hour each</p>
+                <p className="text-3xl font-bold">{sessionCount}</p>
+                <p className="text-xs text-muted-foreground">
+                  {bookingSessions.length > 0 ? `${totalBookedHours.toFixed(1)} total hours` : '1 hour each'}
+                </p>
               </CardContent>
             </Card>
 

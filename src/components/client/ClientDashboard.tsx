@@ -907,7 +907,22 @@ export const ClientDashboard: React.FC = () => {
       cancelled: sortedBookings.filter(b => b.status === 'cancelled'),
     }
 
-    const renderBookingCard = (booking: any, showActions: boolean = true) => (
+    const renderBookingCard = (booking: any, showActions: boolean = true) => {
+      const bookingSessions = (() => {
+        const sessionsValue = booking?.sessions
+        if (Array.isArray(sessionsValue)) return sessionsValue
+        if (typeof sessionsValue === 'string' && sessionsValue.trim()) {
+          try {
+            const parsed = JSON.parse(sessionsValue)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        }
+        return []
+      })()
+      const primarySession = bookingSessions[0]
+      return (
       <Card key={booking.id} className="bg-card border-border">
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">
@@ -956,6 +971,13 @@ export const ClientDashboard: React.FC = () => {
               <Clock className="h-4 w-4" />
               {booking.session_time || 'Time TBD'}
             </div>
+            {bookingSessions.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {bookingSessions.length === 1
+                  ? `Single session on ${primarySession?.date || booking.session_date}`
+                  : `${bookingSessions.length} sessions total • first on ${primarySession?.date || booking.session_date}`}
+              </div>
+            )}
             {booking.total_amount && (
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
@@ -1007,7 +1029,8 @@ export const ClientDashboard: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    )
+      )
+    }
 
     return (
       <div className="space-y-6">
