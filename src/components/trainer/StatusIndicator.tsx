@@ -179,37 +179,63 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
 
         {/* Next Steps */}
         {status !== 'approved' && status !== 'suspended' && (
-          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-            <p className="text-sm text-gray-700">
-              {status === 'registered' && profileData && (() => {
-                const pendingItems: string[] = []
-                if (!profileData.profile_image) pendingItems.push('profile photo')
-                if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) pendingItems.push('training categories')
-                if (!profileData.bio) pendingItems.push('bio')
-                if (!profileData.hourly_rate) pendingItems.push('hourly rate')
-                if (!profileData.service_radius || !profileData.area_of_residence) pendingItems.push('service area')
-                if (!profileData.mpesa_number) pendingItems.push('M-Pesa payment method')
+          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200 space-y-2">
+            {status === 'registered' && profileData && (() => {
+              const pendingItems: string[] = []
+              if (!profileData.profile_image) pendingItems.push('profile photo')
+              if (!profileData.selectedCategories || profileData.selectedCategories.length === 0) pendingItems.push('training categories')
+              if (!profileData.bio) pendingItems.push('bio')
+              if (!profileData.hourly_rate) pendingItems.push('hourly rate')
+              if (!profileData.service_radius || !profileData.area_of_residence) pendingItems.push('service area')
+              if (!profileData.mpesa_number) pendingItems.push('M-Pesa payment method')
 
-                if (pendingItems.length === 0) {
-                  return <>
-                    <strong>Next Step:</strong> Your profile is complete. Submit your verification documents for approval.
-                  </>
-                }
+              if (pendingItems.length === 0) {
                 return <>
-                  <strong>Next Step:</strong> Complete your profile with your {pendingItems.join(', ')}.
+                  <p className="text-sm font-semibold text-gray-900"><strong>Next Step:</strong> Your profile is complete. Submit your verification documents for approval.</p>
                 </>
-              })()}
-              {status === 'profile_incomplete' && (
-                <>
-                  <strong>Next Step:</strong> Submit your verification documents for approval (National ID, Proof of Residence, Certificate of Good Conduct, etc.).
-                </>
-              )}
-              {status === 'pending_approval' && (
-                <>
-                  <strong>Status:</strong> Your documents are being reviewed by our admin team. You'll be able to start receiving bookings once approved. This typically takes 1-3 business days.
-                </>
-              )}
-            </p>
+              }
+              return <>
+                <p className="text-sm font-semibold text-gray-900"><strong>Pending Items:</strong></p>
+                <ul className="text-sm text-gray-700 space-y-1 ml-4">
+                  {pendingItems.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-gray-400 mt-0.5">•</span>
+                      <span className="capitalize">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            })()}
+            {status === 'profile_incomplete' && (
+              <>
+                <p className="text-sm font-semibold text-gray-900"><strong>Next Step:</strong></p>
+                <p className="text-sm text-gray-700">Submit your verification documents for approval:</p>
+                <ul className="text-sm text-gray-700 space-y-1 ml-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 mt-0.5">✓</span>
+                    <span>National ID</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    <span>Proof of Residence</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    <span>Certificate of Good Conduct</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-400 mt-0.5">•</span>
+                    <span>Discipline Certificate (optional)</span>
+                  </li>
+                </ul>
+              </>
+            )}
+            {status === 'pending_approval' && (
+              <>
+                <p className="text-sm font-semibold text-gray-900"><strong>Status:</strong> Documents Under Review</p>
+                <p className="text-sm text-gray-700">Your documents are being reviewed by our admin team. You'll be able to start receiving bookings once approved. This typically takes 1-3 business days.</p>
+              </>
+            )}
           </div>
         )}
       </CardContent>
