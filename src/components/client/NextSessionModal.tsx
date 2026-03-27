@@ -13,6 +13,7 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
   const [time, setTime] = useState('')
   const [loading, setLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState<string>('')
+  const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'not-available' | null>(null)
 
   // Format time to 12-hour format with AM/PM
   const formatTime12hr = (timeStr: string): string => {
@@ -33,6 +34,7 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
   // Validate availability when date or time changes
   useEffect(() => {
     setAvailabilityError('')
+    setAvailabilityStatus(null)
     if (!date || !time) return
 
     const availability = previous?.trainerProfile?.availability || previous?.trainer?.availability
@@ -45,6 +47,7 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
 
     if (!slots || !Array.isArray(slots) || slots.length === 0) {
       setAvailabilityError(`Trainer is not available on ${dayLabel}s. Please select a different date.`)
+      setAvailabilityStatus('not-available')
       return
     }
 
@@ -65,6 +68,9 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
     if (!isAvailable) {
       const availableSlotsFormatted = formatAvailableSlots(slots)
       setAvailabilityError(`This time is not available. Available slots: ${availableSlotsFormatted}`)
+      setAvailabilityStatus('not-available')
+    } else {
+      setAvailabilityStatus('available')
     }
   }, [date, time, previous?.trainerProfile?.availability, previous?.trainer?.availability])
 
@@ -136,6 +142,16 @@ export const NextSessionModal: React.FC<{ previous: any, onClose?: () => void, o
               <div>
                 <Label>Time</Label>
                 <Input type="time" value={time} onChange={(e)=>setTime(e.target.value)} />
+                {availabilityStatus === 'available' && (
+                  <div className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1 font-medium">
+                    <span className="text-lg">✓</span> Available
+                  </div>
+                )}
+                {availabilityStatus === 'not-available' && (
+                  <div className="text-xs text-red-600 dark:text-red-400 mt-2 flex items-center gap-1 font-medium">
+                    <span className="text-lg">✗</span> Not Available
+                  </div>
+                )}
                 {availabilityError && <div className="text-xs text-red-600 dark:text-red-400 mt-1">{availabilityError}</div>}
               </div>
               <div className="flex justify-end gap-2">

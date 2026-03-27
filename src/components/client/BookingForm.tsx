@@ -27,6 +27,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [payMethod, setPayMethod] = useState<'mpesa' | 'mock'>('mpesa')
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [availabilityError, setAvailabilityError] = useState<string>('')
+  const [availabilityStatus, setAvailabilityStatus] = useState<'available' | 'not-available' | null>(null)
   const [isGroupTraining, setIsGroupTraining] = useState(false)
   const [groupSize, setGroupSize] = useState<number>(1)
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig | null>(null)
@@ -74,6 +75,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   // Validate availability when date or time changes
   useEffect(() => {
     setAvailabilityError('')
+    setAvailabilityStatus(null)
     if (!date || !time) return
 
     const availability = trainerProfile?.availability
@@ -86,6 +88,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
     if (!slots || !Array.isArray(slots) || slots.length === 0) {
       setAvailabilityError(`Trainer is not available on ${dayLabel}s. Please select a different date.`)
+      setAvailabilityStatus('not-available')
       return
     }
 
@@ -106,6 +109,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     if (!isAvailable) {
       const availableSlotsFormatted = formatAvailableSlots(slots)
       setAvailabilityError(`This time is not available. Available slots: ${availableSlotsFormatted}`)
+      setAvailabilityStatus('not-available')
+    } else {
+      setAvailabilityStatus('available')
     }
   }, [date, time, trainerProfile?.availability])
 
@@ -418,6 +424,16 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <div>
           <Label>Session Time</Label>
           <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          {availabilityStatus === 'available' && (
+            <div className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1 font-medium">
+              <span className="text-lg">✓</span> Available
+            </div>
+          )}
+          {availabilityStatus === 'not-available' && (
+            <div className="text-xs text-red-600 dark:text-red-400 mt-2 flex items-center gap-1 font-medium">
+              <span className="text-lg">✗</span> Not Available
+            </div>
+          )}
           {availabilityError && <div className="text-xs text-red-600 dark:text-red-400 mt-1">{availabilityError}</div>}
         </div>
         <div>
