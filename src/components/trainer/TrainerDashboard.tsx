@@ -77,6 +77,7 @@ export const TrainerDashboard: React.FC = () => {
   const [accountStatus, setAccountStatus] = useState<'registered' | 'profile_incomplete' | 'pending_approval' | 'approved' | 'suspended'>('registered')
   const [categories, setCategories] = useState<any[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [verificationDocuments, setVerificationDocuments] = useState<any[]>([])
 
   // Check for step 2 onboarding flag and redirect if needed
   useEffect(() => {
@@ -322,32 +323,49 @@ export const TrainerDashboard: React.FC = () => {
           } else if (profileData.is_approved) {
             setAccountStatus('approved')
           } else {
-            // Check if profile is complete: has name, rate, bio, categories, service area, mpesa, and photo
-            const hasName = !!profileData.full_name
-            const hasRate = !!profileData.hourly_rate
-            const hasBio = !!profileData.bio
-            const hasPhoto = !!profileData.profile_image
-            const hasCategories = profileData.specialties && profileData.specialties.length > 0
-            const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
-            const hasMpesa = !!profileData.payout_details
+            // Load verification documents to check if any have been uploaded
+            try {
+              const docs = await apiService.getVerificationDocuments(user.id)
+              const docList = Array.isArray(docs) ? docs : (docs?.data && Array.isArray(docs.data) ? docs.data : [])
+              setVerificationDocuments(docList)
 
-            // Check if any documents have been uploaded
-            const hasUploadedDocuments = !!(
-              profileData.id_document_url ||
-              profileData.discipline_certificate_url ||
-              profileData.good_conduct_url ||
-              profileData.sponsorship_reference_url
-            )
+              // If any documents have been uploaded, trainer is waiting for approval
+              if (docList.length > 0) {
+                setAccountStatus('pending_approval')
+              } else {
+                // No documents uploaded yet - check if profile is complete
+                const hasName = !!profileData.full_name
+                const hasRate = !!profileData.hourly_rate
+                const hasBio = !!profileData.bio
+                const hasPhoto = !!profileData.profile_image
+                const hasCategories = profileData.specialties && profileData.specialties.length > 0
+                const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
+                const hasMpesa = !!profileData.payout_details
 
-            if (hasUploadedDocuments) {
-              // Documents uploaded - waiting for approval
-              setAccountStatus('pending_approval')
-            } else if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
-              // Profile is complete, documents not yet uploaded
-              setAccountStatus('profile_incomplete')
-            } else {
-              // Profile incomplete
-              setAccountStatus('registered')
+                if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
+                  // Profile is complete, documents not yet uploaded
+                  setAccountStatus('profile_incomplete')
+                } else {
+                  // Profile incomplete
+                  setAccountStatus('registered')
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to load verification documents', err)
+              // Default to profile-based status if documents load fails
+              const hasName = !!profileData.full_name
+              const hasRate = !!profileData.hourly_rate
+              const hasBio = !!profileData.bio
+              const hasPhoto = !!profileData.profile_image
+              const hasCategories = profileData.specialties && profileData.specialties.length > 0
+              const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
+              const hasMpesa = !!profileData.payout_details
+
+              if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
+                setAccountStatus('profile_incomplete')
+              } else {
+                setAccountStatus('registered')
+              }
             }
           }
         } else {
