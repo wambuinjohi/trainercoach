@@ -7,9 +7,10 @@ import { X } from 'lucide-react'
 interface ProfileEditorModalProps {
   isOpen: boolean
   onClose: () => void
+  onProfileSaved?: () => void | Promise<void>
 }
 
-export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose }) => {
+export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, onClose, onProfileSaved }) => {
   const [documentRefreshTrigger, setDocumentRefreshTrigger] = React.useState(0)
 
   const handleDocumentsComplete = () => {
@@ -20,9 +21,14 @@ export const ProfileEditorModal: React.FC<ProfileEditorModalProps> = ({ isOpen, 
     }, 500)
   }
 
-  const handleProfileSaved = () => {
+  const handleProfileSaved = async () => {
     // Trigger a reload of verification documents to pick up auto-generated proof_of_residence
     setDocumentRefreshTrigger(prev => prev + 1)
+
+    // Notify the parent component to refresh profile data
+    if (onProfileSaved) {
+      await onProfileSaved()
+    }
   }
 
   return (
