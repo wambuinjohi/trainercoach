@@ -321,8 +321,6 @@ export const TrainerDashboard: React.FC = () => {
             setAccountStatus('suspended')
           } else if (profileData.is_approved) {
             setAccountStatus('approved')
-          } else if (profileData.pending_approval) {
-            setAccountStatus('pending_approval')
           } else {
             // Check if profile is complete: has name, rate, bio, categories, service area, mpesa, and photo
             const hasName = !!profileData.full_name
@@ -333,10 +331,23 @@ export const TrainerDashboard: React.FC = () => {
             const hasServiceArea = !!profileData.area_of_residence && !!profileData.service_radius
             const hasMpesa = !!profileData.payout_details
 
-            if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
-              setAccountStatus('profile_incomplete') // All profile fields complete, awaiting approval
+            // Check if any documents have been uploaded
+            const hasUploadedDocuments = !!(
+              profileData.id_document_url ||
+              profileData.discipline_certificate_url ||
+              profileData.good_conduct_url ||
+              profileData.sponsorship_reference_url
+            )
+
+            if (hasUploadedDocuments) {
+              // Documents uploaded - waiting for approval
+              setAccountStatus('pending_approval')
+            } else if (hasName && hasRate && hasBio && hasPhoto && hasCategories && hasServiceArea && hasMpesa) {
+              // Profile is complete, documents not yet uploaded
+              setAccountStatus('profile_incomplete')
             } else {
-              setAccountStatus('registered') // Incomplete profile
+              // Profile incomplete
+              setAccountStatus('registered')
             }
           }
         } else {

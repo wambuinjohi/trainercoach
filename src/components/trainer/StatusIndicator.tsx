@@ -44,7 +44,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
       label: 'Pending Approval',
       icon: <FileCheck className="w-5 h-5" />,
       color: 'bg-purple-100 border-purple-300',
-      description: 'Admin is reviewing your application and documents'
+      description: 'Your documents are under review. You\'ll be able to start receiving bookings once approved.'
     },
     approved: {
       label: 'Approved',
@@ -245,7 +245,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
               )}
               {status === 'pending_approval' && (
                 <>
-                  <strong>Status:</strong> Your documents are being reviewed by our admin team. You'll be notified once approved.
+                  <strong>Status:</strong> Your documents are being reviewed by our admin team. You'll be able to start receiving bookings once approved. This typically takes 1-3 business days.
                 </>
               )}
             </p>
