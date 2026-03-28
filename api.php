@@ -5567,7 +5567,7 @@ switch ($action) {
         $sessionsForDb = !empty($bookingSessions) ? $sessionsJson : NULL;
 
         $stmt->bind_param(
-            "sssisiiisssdddddddssddiissds",
+            "sssisdisssdddddddssddiisdds",
             $bookingId, $clientId, $trainerId, $categoryId, $sessionDate, $sessionTime, $durationHours,
             $totalSessions, $sessionsForDb, $sessionPhase, $status, $totalAmount, $baseServiceAmount, $transportFee, $platformFeeForDb,
             $vatAmountForDb, $trainerNetAmount, $clientSurcharge, $notes, $clientLocationLabel,
@@ -5717,6 +5717,33 @@ switch ($action) {
             $stmt->close();
             respond("error", "Failed to create booking: " . $conn->error, null, 500);
         }
+        break;
+
+    // GET BOOKING DETAILS
+    case 'booking_get':
+        if (!isset($input['id'])) {
+            respond("error", "Missing booking id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['id']);
+        $stmt = $conn->prepare("SELECT * FROM bookings WHERE id = ? LIMIT 1");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare booking get statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("s", $bookingId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if (!$result || $result->num_rows === 0) {
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $booking = $result->fetch_assoc();
+        $stmt->close();
+
+        respond("success", "Booking retrieved successfully.", $booking);
         break;
 
     // UPDATE BOOKING STATUS
