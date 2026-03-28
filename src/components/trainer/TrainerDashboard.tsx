@@ -43,6 +43,9 @@ import { NotificationsCenter } from '@/components/client/NotificationsCenter'
 import { StatusIndicator } from './StatusIndicator'
 import { PromoteProfileModal } from './PromoteProfileModal'
 import { TrainerAttendanceConfirmModal } from './TrainerAttendanceConfirmModal'
+import { TrainerSessionStartModal } from './TrainerSessionStartModal'
+import { TrainerSessionEndModal } from './TrainerSessionEndModal'
+import { TrainerRatingModal } from './TrainerRatingModal'
 
 export const TrainerDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -63,6 +66,9 @@ export const TrainerDashboard: React.FC = () => {
   const [unreadNotificationsTrainer, setUnreadNotificationsTrainer] = useState(0)
   const [attendanceConfirmBooking, setAttendanceConfirmBooking] = useState<any | null>(null)
   const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false)
+  const [sessionStartBooking, setSessionStartBooking] = useState<any | null>(null)
+  const [sessionEndBooking, setSessionEndBooking] = useState<any | null>(null)
+  const [ratingBooking, setRatingBooking] = useState<any | null>(null)
   const [profileData, setProfileData] = useState<any>({
     name: user?.email,
     bio: 'Professional Trainer',
@@ -285,30 +291,31 @@ export const TrainerDashboard: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    const loadBookings = async () => {
-      if (!user?.id) return
-      try {
-        const bookingsData = await apiService.getBookings(user.id, 'trainer')
-        if (bookingsData?.data && Array.isArray(bookingsData.data)) {
-          setBookings(bookingsData.data)
+  const loadBookings = async () => {
+    if (!user?.id) return
+    try {
+      const bookingsData = await apiService.getBookings(user.id, 'trainer')
+      if (bookingsData?.data && Array.isArray(bookingsData.data)) {
+        setBookings(bookingsData.data)
 
-          // Calculate month stats
-          const now = new Date()
-          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-          const monthBookings = bookingsData.data.filter((b: any) => b.session_date && new Date(b.session_date) >= monthStart)
-          setMonthSessions(monthBookings.length)
+        // Calculate month stats
+        const now = new Date()
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthBookings = bookingsData.data.filter((b: any) => b.session_date && new Date(b.session_date) >= monthStart)
+        setMonthSessions(monthBookings.length)
 
-          const monthRevenue = monthBookings.reduce((sum: number, b: any) => sum + (Number(b.total_amount) || 0), 0)
-          setMonthRevenue(monthRevenue)
-        } else {
-          setBookings([])
-        }
-      } catch (err) {
-        console.warn('Failed to load trainer bookings', err)
+        const monthRevenue = monthBookings.reduce((sum: number, b: any) => sum + (Number(b.total_amount) || 0), 0)
+        setMonthRevenue(monthRevenue)
+      } else {
         setBookings([])
       }
+    } catch (err) {
+      console.warn('Failed to load trainer bookings', err)
+      setBookings([])
     }
+  }
+
+  useEffect(() => {
     loadBookings()
   }, [user?.id])
 
@@ -798,9 +805,9 @@ export const TrainerDashboard: React.FC = () => {
               <Button size="sm" onClick={() => openChat(b)}>Chat</Button>
               {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => acceptBooking(b.id)}>Accept</Button>}
               {(b.status === 'pending' || !b.status) && <Button size="sm" onClick={() => declineBooking(b.id)}>Decline</Button>}
-              {b.status === 'confirmed' && <Button size="sm" onClick={() => startSession(b.id)}>Start Session</Button>}
-              {b.status === 'in_session' && b.session_phase !== 'awaiting_completion' && <Button size="sm" onClick={() => startSession(b.id)}>End Session</Button>}
-              {b.status === 'in_session' && b.session_phase === 'awaiting_completion' && <Button size="sm" variant="secondary" onClick={() => startSession(b.id)}>Awaiting Client</Button>}
+              {b.status === 'confirmed' && <Button size="sm" onClick={() => setSessionStartBooking(b)}>Start Session</Button>}
+              {b.status === 'in_session' && b.session_phase !== 'awaiting_completion' && <Button size="sm" onClick={() => setSessionEndBooking(b)}>End Session</Button>}
+              {b.status === 'in_session' && b.session_phase === 'awaiting_completion' && <Button size="sm" variant="secondary" onClick={() => setSessionEndBooking(b)}>Awaiting Client</Button>}
             </div>
           )}
         </CardContent>
@@ -867,6 +874,44 @@ export const TrainerDashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground mt-1">Your bookings will appear here</p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Session Start Modal */}
+        {sessionStartBooking && (
+          <TrainerSessionStartModal
+            booking={sessionStartBooking}
+            onConfirm={() => {
+              loadBookings()
+              setSessionStartBooking(null)
+            }}
+            onDismiss={() => setSessionStartBooking(null)}
+          />
+        )}
+
+        {/* Session End Modal */}
+        {sessionEndBooking && (
+          <TrainerSessionEndModal
+            booking={sessionEndBooking}
+            onConfirm={() => {
+              loadBookings()
+              // After session end, show rating modal
+              setRatingBooking(sessionEndBooking)
+              setSessionEndBooking(null)
+            }}
+            onDismiss={() => setSessionEndBooking(null)}
+          />
+        )}
+
+        {/* Trainer Rating Modal */}
+        {ratingBooking && (
+          <TrainerRatingModal
+            booking={ratingBooking}
+            onConfirm={() => {
+              loadBookings()
+              setRatingBooking(null)
+            }}
+            onDismiss={() => setRatingBooking(null)}
+          />
         )}
       </div>
     )
