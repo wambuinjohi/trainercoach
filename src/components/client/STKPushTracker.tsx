@@ -21,6 +21,9 @@ interface STKSession {
   result_description?: string
   created_at: string
   updated_at: string
+  retry_count?: number
+  should_retry?: boolean
+  next_retry_at?: string
 }
 
 export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -30,6 +33,7 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
   const [selectedSession, setSelectedSession] = useState<STKSession | null>(null)
   const [pollingSessions, setPollingSessions] = useState<Set<string>>(new Set())
   const [showDetails, setShowDetails] = useState<Set<string>>(new Set())
+  const [retrySessions, setRetrySessions] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadSessions()
@@ -91,6 +95,33 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
       }
       return next
     })
+  }
+
+  const retrySession = async (sessionId: string) => {
+    try {
+      const session = sessions.find(s => s.id === sessionId)
+      if (!session) return
+
+      setRetrySessions(prev => new Set(prev).add(sessionId))
+
+      const data = await apiRequest('stk_push_retry', { checkout_request_id: session.checkout_request_id }, { headers: withAuth() })
+
+      if (data?.data) {
+        toast({ title: 'Retry scheduled', description: 'The system will attempt the payment again shortly' })
+        // Refresh the session immediately to show updated status
+        await new Promise(resolve => setTimeout(resolve, 500))
+        await loadSessions()
+      }
+    } catch (err) {
+      console.warn('Failed to retry payment', err)
+      toast({ title: 'Error', description: 'Failed to schedule payment retry', variant: 'destructive' })
+    } finally {
+      setRetrySessions(prev => {
+        const next = new Set(prev)
+        next.delete(sessionId)
+        return next
+      })
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -198,6 +229,8 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
                     isRefreshing={pollingSessions.has(session.id)}
                     showDetails={showDetails.has(session.id)}
                     onToggleDetails={() => toggleDetails(session.id)}
+                    onRetry={() => retrySession(session.id)}
+                    isRetrying={retrySessions.has(session.id)}
                   />
                 ))}
               </TabsContent>
@@ -213,6 +246,8 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
                       isRefreshing={pollingSessions.has(session.id)}
                       showDetails={showDetails.has(session.id)}
                       onToggleDetails={() => toggleDetails(session.id)}
+                      onRetry={() => retrySession(session.id)}
+                      isRetrying={retrySessions.has(session.id)}
                     />
                   ))}
               </TabsContent>
@@ -228,6 +263,8 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
                       isRefreshing={pollingSessions.has(session.id)}
                       showDetails={showDetails.has(session.id)}
                       onToggleDetails={() => toggleDetails(session.id)}
+                      onRetry={() => retrySession(session.id)}
+                      isRetrying={retrySessions.has(session.id)}
                     />
                   ))}
               </TabsContent>
@@ -243,6 +280,8 @@ export const STKPushTracker: React.FC<{ onClose?: () => void }> = ({ onClose }) 
                       isRefreshing={pollingSessions.has(session.id)}
                       showDetails={showDetails.has(session.id)}
                       onToggleDetails={() => toggleDetails(session.id)}
+                      onRetry={() => retrySession(session.id)}
+                      isRetrying={retrySessions.has(session.id)}
                     />
                   ))}
               </TabsContent>
@@ -266,6 +305,8 @@ interface SessionCardProps {
   isRefreshing: boolean
   showDetails: boolean
   onToggleDetails: () => void
+  onRetry: () => void
+  isRetrying: boolean
 }
 
 const SessionCard: React.FC<SessionCardProps> = ({
@@ -273,8 +314,15 @@ const SessionCard: React.FC<SessionCardProps> = ({
   onRefresh,
   isRefreshing,
   showDetails,
-  onToggleDetails
+  onToggleDetails,
+  onRetry,
+  isRetrying
 }) => {
+  const isRetryable = ['failed', 'timeout'].includes(session.status?.toLowerCase())
+  const nextRetryTime = session.next_retry_at ? new Date(session.next_retry_at) : null
+  const now = new Date()
+  const retryReady = !nextRetryTime || nextRetryTime <= now
+
   return (
     <div className="border rounded-lg p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -287,9 +335,16 @@ const SessionCard: React.FC<SessionCardProps> = ({
             </div>
           </div>
         </div>
-        <Badge className={getStatusColor(session.status)}>
-          {session.status}
-        </Badge>
+        <div className="flex flex-col items-end gap-2">
+          <Badge className={getStatusColor(session.status)}>
+            {session.status}
+          </Badge>
+          {isRetryable && session.retry_count !== undefined && (
+            <span className="text-xs text-muted-foreground">
+              Retries: {session.retry_count}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -299,7 +354,13 @@ const SessionCard: React.FC<SessionCardProps> = ({
         </div>
       </div>
 
-      <div className="flex gap-2">
+      {isRetryable && nextRetryTime && !retryReady && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+          <p>Next retry: {nextRetryTime.toLocaleString()}</p>
+        </div>
+      )}
+
+      <div className="flex gap-2 flex-wrap">
         {['pending', 'initiated'].includes(session.status?.toLowerCase()) && (
           <Button
             size="sm"
@@ -308,6 +369,16 @@ const SessionCard: React.FC<SessionCardProps> = ({
             disabled={isRefreshing}
           >
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check Status'}
+          </Button>
+        )}
+        {isRetryable && (
+          <Button
+            size="sm"
+            variant={retryReady ? 'default' : 'outline'}
+            onClick={onRetry}
+            disabled={isRetrying || !retryReady}
+          >
+            {isRetrying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Retry Payment'}
           </Button>
         )}
         <Button
@@ -341,6 +412,20 @@ const SessionCard: React.FC<SessionCardProps> = ({
             <p className="font-mono text-xs text-muted-foreground">Reference:</p>
             <p className="font-mono text-xs">{session.account_reference}</p>
           </div>
+          {isRetryable && session.retry_count !== undefined && (
+            <>
+              <div>
+                <p className="font-mono text-xs text-muted-foreground">Retry Count:</p>
+                <p className="font-mono text-xs">{session.retry_count}</p>
+              </div>
+              {session.next_retry_at && (
+                <div>
+                  <p className="font-mono text-xs text-muted-foreground">Next Retry:</p>
+                  <p className="font-mono text-xs">{new Date(session.next_retry_at).toLocaleString()}</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
