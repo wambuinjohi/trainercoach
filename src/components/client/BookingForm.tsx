@@ -51,12 +51,21 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [bookingMode, setBookingMode] = useState<'single' | 'multi'>('single')
   const [selectedSessions, setSelectedSessions] = useState<BookingSession[]>([])
+  const [categoryPricing, setCategoryPricing] = useState<any[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
 
   const computeBaseAmount = () => {
     // For multi-session mode, calculate based on total duration
     if (bookingMode === 'multi' && selectedSessions.length > 0) {
       const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
-      const hourlyRate = Number(trainer.hourlyRate || 0)
+      // Use category-specific rate if selected, otherwise use base hourly rate
+      let hourlyRate = Number(trainer.hourlyRate || 0)
+      if (selectedCategoryId && categoryPricing.length > 0) {
+        const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === selectedCategoryId)
+        if (selectedCategory) {
+          hourlyRate = Number(selectedCategory.hourly_rate || 0)
+        }
+      }
       return hourlyRate * totalDurationHours
     }
 
@@ -74,7 +83,16 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         }
       }
     }
-    return Number(trainer.hourlyRate || 0) * Number(sessions || 1)
+
+    // Use category-specific rate if selected, otherwise use base hourly rate
+    let hourlyRate = Number(trainer.hourlyRate || 0)
+    if (selectedCategoryId && categoryPricing.length > 0) {
+      const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === selectedCategoryId)
+      if (selectedCategory) {
+        hourlyRate = Number(selectedCategory.hourly_rate || 0)
+      }
+    }
+    return hourlyRate * Number(sessions || 1)
   }
 
   const settings = loadSettings()
@@ -219,6 +237,26 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
     setAvailabilityStatus('available')
   }, [date, time, liveAvailability, trainerProfile?.availability])
+
+  // Load category pricing for the trainer
+  useEffect(() => {
+    const loadCategoryPricing = async () => {
+      if (!trainer?.id) return
+      try {
+        const response = await apiService.getTrainerCategoryPricing(trainer.id)
+        // Handle both direct array response and wrapped response with .data property
+        const pricingList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+        if (pricingList.length > 0) {
+          setCategoryPricing(pricingList)
+          // Auto-select first category for convenience
+          setSelectedCategoryId(String(pricingList[0].id))
+        }
+      } catch (err) {
+        console.warn('Failed to load category pricing:', err)
+      }
+    }
+    loadCategoryPricing()
+  }, [trainer?.id])
 
   // Load group training data for the trainer
   useEffect(() => {
@@ -607,6 +645,30 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           </div>
         </div>
 
+        {/* Category Selector */}
+        {!isGroupTraining && categoryPricing.length > 0 && (
+          <div>
+            <Label>Service Category</Label>
+            <Select value={selectedCategoryId || ''} onValueChange={setSelectedCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryPricing.map((category: any) => (
+                  <SelectItem key={category.id} value={String(category.id)}>
+                    <div className="flex flex-col">
+                      <span>{category.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Ksh {Number(category.hourly_rate || 0)}/hr
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Single Session Booking */}
         {bookingMode === 'single' && (
           <>
@@ -794,7 +856,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             </>
           ) : (
             <>
-              <div className="flex justify-between"><span>Rate</span><span className="font-semibold">Ksh {Number(trainer.hourlyRate || 0)}/hr</span></div>
+              <div className="flex justify-between"><span>Rate</span><span className="font-semibold">Ksh {selectedCategoryId && categoryPricing.length > 0 ? (() => { const cat = categoryPricing.find(c => String(c.id) === selectedCategoryId); return cat ? Number(cat.hourly_rate || 0) : Number(trainer.hourlyRate || 0); })() : Number(trainer.hourlyRate || 0)}/hr</span></div>
             </>
           )}
           <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{bookingMode === 'multi' ? selectedSessionCount : sessions}</span></div>

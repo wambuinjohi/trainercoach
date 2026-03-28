@@ -4,9 +4,12 @@ import { BookingSession } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, MapPin, Clock, Users, DollarSign, MessageSquare, ArrowLeft } from 'lucide-react'
+import { CheckCircle2, MapPin, Clock, Users, DollarSign, MessageSquare, ArrowLeft, Send, AlertCircle } from 'lucide-react'
 import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { Chat } from '@/components/client/Chat'
+import * as apiService from '@/lib/api-service'
+import { toast } from '@/hooks/use-toast'
 
 interface BookingConfirmationState {
   bookingId: string
@@ -29,9 +32,36 @@ export default function BookingConfirmation() {
   const [trainerProfile, setTrainerProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showChat, setShowChat] = useState(false)
+  const [trainerConfirmationStatus, setTrainerConfirmationStatus] = useState<'pending' | 'confirmed' | 'declined' | null>(null)
+  const [alternativeTrainers, setAlternativeTrainers] = useState<any[]>([])
+  const [loadingAlternatives, setLoadingAlternatives] = useState(false)
+  const [pollingActive, setPollingActive] = useState(true)
 
   // Get booking details from location state or fetch from API
   const locationState = location.state as BookingConfirmationState | null
+
+  // Function to fetch alternative trainers by same criteria
+  const fetchAlternativeTrainers = async (declinedTrainerId: string, discipline?: string) => {
+    if (!discipline) return
+
+    setLoadingAlternatives(true)
+    try {
+      const response = await apiRequest(
+        'trainers_get',
+        { discipline, exclude_trainer_id: declinedTrainerId },
+        { headers: withAuth() }
+      )
+
+      if (response && Array.isArray(response.data)) {
+        setAlternativeTrainers(response.data.slice(0, 5)) // Show top 5 alternatives
+      }
+    } catch (err) {
+      console.warn('Failed to fetch alternative trainers:', err)
+    } finally {
+      setLoadingAlternatives(false)
+    }
+  }
 
   useEffect(() => {
     const fetchBookingDetails = async () => {
@@ -53,6 +83,28 @@ export default function BookingConfirmation() {
         if (response && response.id) {
           setBookingData(response)
 
+          // Determine trainer confirmation status
+          if (response.status === 'confirmed') {
+            setTrainerConfirmationStatus('confirmed')
+            setPollingActive(false) // Stop polling once confirmed
+            toast({
+              title: 'Booking Confirmed!',
+              description: 'Your trainer has confirmed the session. You can now proceed with preparation.',
+            })
+          } else if (response.status === 'cancelled' || response.status === 'declined') {
+            setTrainerConfirmationStatus('declined')
+            setPollingActive(false) // Stop polling once declined
+            toast({
+              title: 'Booking Not Confirmed',
+              description: 'The trainer has not confirmed this booking. Please select another trainer.',
+              variant: 'destructive'
+            })
+            // Fetch alternative trainers
+            await fetchAlternativeTrainers(response.trainer_id, response.discipline || locationState?.disciplineName)
+          } else {
+            setTrainerConfirmationStatus('pending')
+          }
+
           // Fetch trainer profile
           const trainerResponse = await apiRequest(
             'profile_get',
@@ -73,6 +125,49 @@ export default function BookingConfirmation() {
 
     fetchBookingDetails()
   }, [bookingId])
+
+  // Polling effect to check for trainer confirmation status changes
+  useEffect(() => {
+    if (!bookingId || !pollingActive || trainerConfirmationStatus !== 'pending') return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await apiRequest(
+          'booking_get',
+          { id: bookingId },
+          { headers: withAuth() }
+        )
+
+        if (response && response.status && response.status !== 'pending') {
+          // Status has changed!
+          if (response.status === 'confirmed') {
+            setTrainerConfirmationStatus('confirmed')
+            setPollingActive(false)
+            toast({
+              title: 'Booking Confirmed!',
+              description: 'Your trainer has confirmed the session. You can now proceed with preparation.',
+            })
+          } else if (response.status === 'cancelled' || response.status === 'declined') {
+            setTrainerConfirmationStatus('declined')
+            setPollingActive(false)
+            toast({
+              title: 'Trainer Did Not Confirm',
+              description: 'The trainer failed to confirm attendance. Please select another coach from the profiles below.',
+              variant: 'destructive'
+            })
+            // Fetch alternative trainers
+            await fetchAlternativeTrainers(response.trainer_id, response.discipline || bookingData?.discipline)
+          }
+
+          setBookingData(response)
+        }
+      } catch (err) {
+        console.warn('Polling error:', err)
+      }
+    }, 5000) // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [bookingId, pollingActive, trainerConfirmationStatus, bookingData?.discipline])
 
   const displayData = locationState || bookingData
   const bookingSessions = (() => {
@@ -150,17 +245,76 @@ export default function BookingConfirmation() {
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
               <div>
-                <CardTitle>Your booking has been submitted!</CardTitle>
+                <CardTitle>Booking confirmed and payment processed!</CardTitle>
                 <CardDescription>
-                  The trainer will review your request and confirm the session
+                  Your session has been booked and payment has been completed. The trainer will confirm and contact you shortly.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
+          {displayData.totalAmount && (
+            <CardContent className="border-t border-green-500/20 pt-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Payment Status:</span>
+                <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                  Completed
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="font-medium">Amount Paid:</span>
+                <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                  KES {displayData.totalAmount.toLocaleString()}
+                </span>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Booking Details */}
         <div className="space-y-4">
+          {/* Trainer Confirmation Status */}
+          {trainerConfirmationStatus && (
+            <Card className={
+              trainerConfirmationStatus === 'confirmed'
+                ? 'border-green-500/30 bg-green-50/5 dark:bg-green-950/10'
+                : trainerConfirmationStatus === 'declined'
+                ? 'border-red-500/30 bg-red-50/5 dark:bg-red-950/10'
+                : 'border-blue-500/30 bg-blue-50/5 dark:bg-blue-950/10'
+            }>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    {trainerConfirmationStatus === 'confirmed' ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Trainer Confirmed Attendance
+                      </>
+                    ) : trainerConfirmationStatus === 'declined' ? (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-red-600" />
+                        Trainer Failed To Confirm Attendance
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-4 h-4 text-blue-600" />
+                        Waiting For Trainer To Confirm Attendance
+                      </>
+                    )}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">
+                  {trainerConfirmationStatus === 'confirmed'
+                    ? 'Your trainer has confirmed the session. If you would like to talk to the trainer, kindly press the chat button.'
+                    : trainerConfirmationStatus === 'declined'
+                    ? 'The trainer failed to confirm attendance. Kindly select another coach from the profiles below who are of the same criteria.'
+                    : 'The trainer is reviewing your request. You will be notified once they confirm attendance. Use in-app chat for communication.'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Trainer Info */}
           <Card>
             <CardHeader>
@@ -174,11 +328,22 @@ export default function BookingConfirmation() {
                     <p className="text-sm text-muted-foreground">{displayData.disciplineName}</p>
                   )}
                 </div>
-                <Badge variant="secondary">Pending Review</Badge>
+                <Badge variant={trainerConfirmationStatus === 'confirmed' ? 'default' : 'secondary'}>
+                  {trainerConfirmationStatus === 'confirmed' ? 'Confirmed' : 'Pending Review'}
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                The trainer will review your booking request and send you a confirmation.
+                {trainerConfirmationStatus === 'confirmed'
+                  ? 'Your trainer has confirmed this booking and is ready to begin.'
+                  : 'The trainer will review your booking request and send you a confirmation.'}
               </p>
+              <button
+                onClick={() => setShowChat(true)}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-sm font-medium transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Open Chat with Trainer
+              </button>
             </CardContent>
           </Card>
 
@@ -268,18 +433,35 @@ export default function BookingConfirmation() {
               </Card>
             )}
 
-            {/* Total Amount */}
+            {/* Payment Receipt */}
             {displayData.totalAmount && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
                     <DollarSign className="w-4 h-4" />
-                    Total Amount
+                    Payment Receipt
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">KES {displayData.totalAmount.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Payment completed</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Amount Paid</span>
+                      <span className="font-semibold">KES {displayData.totalAmount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Payment Method</span>
+                      <span className="font-semibold">M-Pesa/Mobile Money</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Status</span>
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs">
+                        ✓ Completed
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                      Your payment has been successfully processed and credited to the trainer.
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -300,49 +482,186 @@ export default function BookingConfirmation() {
             </Card>
           )}
 
-          {/* Next Steps */}
-          <Card className="bg-blue-50/5 dark:bg-blue-950/10 border-blue-200/50 dark:border-blue-800/50">
-            <CardHeader>
-              <CardTitle className="text-sm">What happens next?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ol className="space-y-3 text-sm">
-                <li className="flex gap-3">
-                  <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">1.</span>
-                  <span>The trainer will review your booking request</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">2.</span>
-                  <span>You'll receive a notification once they confirm</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">3.</span>
-                  <span>Use in-app chat to communicate before the session</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">4.</span>
-                  <span>Show up for your training session at the scheduled time</span>
-                </li>
-              </ol>
-            </CardContent>
-          </Card>
+          {/* Alternative Trainers (shown when booking is declined) */}
+          {trainerConfirmationStatus === 'declined' && (
+            <Card className="border-amber-200 dark:border-amber-800/50 bg-amber-50/5 dark:bg-amber-950/10">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Other Available Coaches With Same Criteria
+                </CardTitle>
+                <CardDescription>
+                  Choose from these coaches who specialize in the same discipline
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingAlternatives ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="text-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-primary mx-auto mb-2 animate-pulse"></div>
+                      <p className="text-xs text-muted-foreground">Finding alternative coaches...</p>
+                    </div>
+                  </div>
+                ) : alternativeTrainers.length > 0 ? (
+                  <div className="space-y-3">
+                    {alternativeTrainers.map((trainer: any) => (
+                      <div key={trainer.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-white flex-shrink-0">
+                            {trainer.name ? trainer.name.charAt(0).toUpperCase() : '?'}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm">{trainer.name || 'Coach'}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {trainer.discipline || displayData.disciplineName}
+                            </p>
+                            {trainer.rating && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-yellow-600 dark:text-yellow-400">★ {trainer.rating}</span>
+                                <span className="text-xs text-muted-foreground">({trainer.reviews || 0} reviews)</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-semibold text-sm">Ksh {trainer.hourlyRate || 0}/hr</p>
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/trainer/${trainer.id}`)}
+                              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                            >
+                              Book Now
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No alternative coaches found at the moment. Please try again later.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/client')}
-              className="w-full"
-            >
-              Back to Dashboard
-            </Button>
-            <Button
-              onClick={() => navigate(`/client?tab=bookings&booking=${bookingId}`)}
-              className="w-full"
-            >
-              View Booking Details
-            </Button>
-          </div>
+          {/* Next Steps - conditional based on status */}
+          {trainerConfirmationStatus !== 'declined' ? (
+            <Card className="bg-blue-50/5 dark:bg-blue-950/10 border-blue-200/50 dark:border-blue-800/50">
+              <CardHeader>
+                <CardTitle className="text-sm">What happens next?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-3 text-sm">
+                  {trainerConfirmationStatus === 'pending' ? (
+                    <>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">1.</span>
+                        <span>The trainer will review your booking request</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">2.</span>
+                        <span>You'll receive a notification once they confirm attendance</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">3.</span>
+                        <span>Use in-app chat to communicate with the trainer before the session</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">4.</span>
+                        <span>Show up for your training session at the scheduled time</span>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-green-600 dark:text-green-400 flex-shrink-0">✓</span>
+                        <span>Trainer has confirmed your session</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-green-600 dark:text-green-400 flex-shrink-0">✓</span>
+                        <span>Payment has been processed and credited to the trainer</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">3.</span>
+                        <span>If you would like to talk to the trainer, kindly press the chat button</span>
+                      </li>
+                      <li className="flex gap-3">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">4.</span>
+                        <span>Show up for your training session at the scheduled time</span>
+                      </li>
+                    </>
+                  )}
+                </ol>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-red-50/5 dark:bg-red-950/10 border-red-200/50 dark:border-red-800/50">
+              <CardHeader>
+                <CardTitle className="text-sm">What to do now?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="font-semibold text-red-600 dark:text-red-400 flex-shrink-0">1.</span>
+                    <span>Select another coach from the list above who matches your needs</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">2.</span>
+                    <span>Your payment has been credited to your account and can be used for a new booking</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0">3.</span>
+                    <span>Click "Book Now" to book a session with your new coach</span>
+                  </li>
+                </ol>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Action Buttons - conditional based on status */}
+          {trainerConfirmationStatus !== 'declined' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/client')}
+                className="w-full"
+              >
+                Back to Dashboard
+              </Button>
+              {trainerConfirmationStatus === 'confirmed' && (
+                <Button
+                  onClick={() => setShowChat(true)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Chat With Trainer
+                </Button>
+              )}
+              <Button
+                onClick={() => navigate(`/client?tab=bookings&booking=${bookingId}`)}
+                className="w-full"
+              >
+                View Booking Details
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/client')}
+                className="w-full"
+              >
+                Back to Dashboard
+              </Button>
+              <Button
+                onClick={() => navigate('/search')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Find More Coaches
+              </Button>
+            </div>
+          )}
 
           {/* Safety Reminder */}
           <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-lg p-4 text-sm">
@@ -353,6 +672,17 @@ export default function BookingConfirmation() {
           </div>
         </div>
       </div>
+
+      {/* Chat Modal */}
+      {showChat && displayData && (
+        <Chat
+          trainer={{
+            id: displayData.trainerId || bookingData?.trainer_id,
+            name: displayData.trainerName || trainerProfile?.name || 'Trainer',
+          }}
+          onClose={() => setShowChat(false)}
+        />
+      )}
     </div>
   )
 }
