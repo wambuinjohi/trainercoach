@@ -8717,6 +8717,98 @@ switch ($action) {
         break;
 
     // ============================================================================
+    // SESSION COMPLAINT INSERTION
+    // ============================================================================
+    case 'complaint_insert':
+        if (!isset($input['booking_id']) || !isset($input['category']) || !isset($input['description'])) {
+            respond("error", "Missing required fields: booking_id, category, description.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+        $category = $conn->real_escape_string($input['category']);
+        $description = $conn->real_escape_string($input['description']);
+        $filedByTrainer = isset($input['filed_by_trainer']) ? (bool)$input['filed_by_trainer'] : false;
+        $filedByClient = isset($input['filed_by_client']) ? (bool)$input['filed_by_client'] : false;
+        $attachmentUrl = isset($input['attachment_url']) ? $conn->real_escape_string($input['attachment_url']) : null;
+        $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : 'open';
+        $complaintId = 'complaint_' . uniqid();
+        $now = date('Y-m-d H:i:s');
+
+        $stmt = $conn->prepare("
+            INSERT INTO session_complaints (
+                id, booking_id, filed_by_trainer, filed_by_client, category, description,
+                attachment_url, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->bind_param(
+            "ssissssSss",
+            $complaintId, $bookingId, $filedByTrainer, $filedByClient, $category,
+            $description, $attachmentUrl, $status, $now, $now
+        );
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('session_complaint_filed', [
+                'complaint_id' => $complaintId,
+                'booking_id' => $bookingId,
+                'filed_by_trainer' => $filedByTrainer
+            ]);
+            respond("success", "Complaint filed successfully.", ["id" => $complaintId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to file complaint: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ============================================================================
+    // TRAINER RATING INSERTION
+    // ============================================================================
+    case 'trainer_rating_insert':
+        if (!isset($input['booking_id']) || !isset($input['trainer_id']) ||
+            !isset($input['client_rating']) || !isset($input['app_rating'])) {
+            respond("error", "Missing required fields: booking_id, trainer_id, client_rating, app_rating.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+        $trainerId = $conn->real_escape_string($input['trainer_id']);
+        $clientRating = intval($input['client_rating']);
+        $appRating = intval($input['app_rating']);
+        $review = isset($input['review']) ? $conn->real_escape_string($input['review']) : null;
+        $ratingId = 'rating_' . uniqid();
+        $now = date('Y-m-d H:i:s');
+
+        // Validate ratings are between 1-5
+        if ($clientRating < 1 || $clientRating > 5 || $appRating < 1 || $appRating > 5) {
+            respond("error", "Ratings must be between 1 and 5.", null, 400);
+        }
+
+        $stmt = $conn->prepare("
+            INSERT INTO trainer_ratings (
+                id, booking_id, trainer_id, client_rating, app_rating, review, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->bind_param(
+            "sssiiiss",
+            $ratingId, $bookingId, $trainerId, $clientRating, $appRating, $review, $now, $now
+        );
+
+        if ($stmt->execute()) {
+            $stmt->close();
+            logEvent('trainer_rating_submitted', [
+                'rating_id' => $ratingId,
+                'booking_id' => $bookingId,
+                'trainer_id' => $trainerId
+            ]);
+            respond("success", "Rating submitted successfully.", ["id" => $ratingId]);
+        } else {
+            $stmt->close();
+            respond("error", "Failed to submit rating: " . $conn->error, null, 500);
+        }
+        break;
+
+    // ============================================================================
     // M-PESA STK PUSH PAYMENT ENDPOINTS
     // ============================================================================
 
