@@ -68,7 +68,7 @@ export const LocationChoiceModal: React.FC<LocationChoiceModalProps> = ({
               <div className="flex items-start gap-3">
                 <Home className="h-5 w-5 text-blue-500 mt-1 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground">Home</h3>
+                  <h3 className="font-semibold text-foreground">Your training locality</h3>
                   <p className="text-sm text-muted-foreground truncate">
                     {homeLocation.label || 'Saved location'}
                   </p>

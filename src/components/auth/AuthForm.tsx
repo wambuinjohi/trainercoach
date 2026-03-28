@@ -372,7 +372,7 @@ const AuthFormContent: React.FC<AuthFormProps> = ({ onSuccess, initialTab = 'sig
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-location">Your locality</Label>
+                  <Label htmlFor="signup-location">Your training locality</Label>
                   <div className="relative">
                     <div className="flex gap-2">
                       <div className="flex-1 relative">
