@@ -43,24 +43,20 @@ export default function BookingConfirmation() {
 
       try {
         setLoading(true)
-        // Fetch booking details from API
+        // Fetch booking details from API using dedicated booking_get action
         const response = await apiRequest(
-          'select',
-          {
-            table: 'bookings',
-            where: `id = '${bookingId}'`,
-          },
+          'booking_get',
+          { id: bookingId },
           { headers: withAuth() }
         )
 
-        if (response && response.length > 0) {
-          const booking = response[0]
-          setBookingData(booking)
+        if (response && response.id) {
+          setBookingData(response)
 
           // Fetch trainer profile
           const trainerResponse = await apiRequest(
             'profile_get',
-            { user_id: booking.trainer_id },
+            { user_id: response.trainer_id },
             { headers: withAuth() }
           )
           setTrainerProfile(trainerResponse)
@@ -69,7 +65,7 @@ export default function BookingConfirmation() {
         }
       } catch (err) {
         console.error('Error fetching booking details:', err)
-        setError('Failed to load booking details')
+        setError(err instanceof Error ? err.message : 'Failed to load booking details')
       } finally {
         setLoading(false)
       }
