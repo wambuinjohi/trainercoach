@@ -42,6 +42,7 @@ import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { NotificationsCenter } from '@/components/client/NotificationsCenter'
 import { StatusIndicator } from './StatusIndicator'
 import { PromoteProfileModal } from './PromoteProfileModal'
+import { TrainerAttendanceConfirmModal } from './TrainerAttendanceConfirmModal'
 
 export const TrainerDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -60,6 +61,8 @@ export const TrainerDashboard: React.FC = () => {
   const [showArchivedBookings, setShowArchivedBookings] = useState(false)
   const [showPromoteModal, setShowPromoteModal] = useState(false)
   const [unreadNotificationsTrainer, setUnreadNotificationsTrainer] = useState(0)
+  const [attendanceConfirmBooking, setAttendanceConfirmBooking] = useState<any | null>(null)
+  const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false)
   const [profileData, setProfileData] = useState<any>({
     name: user?.email,
     bio: 'Professional Trainer',
@@ -505,6 +508,20 @@ export const TrainerDashboard: React.FC = () => {
       const notifs = Array.isArray(notifData) ? notifData : (notifData?.data || [])
       const unreadCount = notifs.filter((n: any) => !n.read).length
       setUnreadNotificationsTrainer(unreadCount)
+
+      // Check for pending attendance confirmation (unread notifications with confirm_attendance action_type)
+      const pendingAttendanceNotif = notifs.find(
+        (n: any) => !n.read && n.action_type === 'confirm_attendance'
+      )
+
+      if (pendingAttendanceNotif && pendingAttendanceNotif.booking_id) {
+        // Find the booking that needs confirmation
+        const booking = bookings.find(b => b.id === pendingAttendanceNotif.booking_id)
+        if (booking && booking.status === 'pending') {
+          setAttendanceConfirmBooking(booking)
+          setShowAttendanceConfirmModal(true)
+        }
+      }
     } catch (err) {
       console.warn('Failed to load notifications', err)
     }
@@ -980,6 +997,23 @@ export const TrainerDashboard: React.FC = () => {
         </div>
       )}
       {chatBooking && <TrainerChat booking={chatBooking} onClose={closeChat} />}
+      {attendanceConfirmBooking && (
+        <TrainerAttendanceConfirmModal
+          booking={attendanceConfirmBooking}
+          isOpen={showAttendanceConfirmModal}
+          onClose={() => {
+            setShowAttendanceConfirmModal(false)
+            setAttendanceConfirmBooking(null)
+          }}
+          onSuccess={() => {
+            setShowAttendanceConfirmModal(false)
+            setAttendanceConfirmBooking(null)
+            loadBookings()
+            loadNotifications()
+          }}
+          trainerProfile={profileData}
+        />
+      )}
     </div>
   )
 }

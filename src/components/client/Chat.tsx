@@ -4,12 +4,51 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-export const Chat: React.FC<{ trainer: any, onClose?: () => void }> = ({ trainer, onClose }) => {
+export const Chat: React.FC<{ trainer: any, onClose?: () => void, booking?: any }> = ({ trainer, onClose, booking }) => {
   const { user } = useAuth()
   const [messages, setMessages] = useState<any[]>([])
   const [text, setText] = useState('')
 
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null)
+
+  const quickReplies = [
+    { text: 'On my way', icon: '🚗' },
+    { text: 'I have arrived', icon: '✅' },
+  ]
+
+  const isSessionActive = booking?.session_phase === 'session_active' || booking?.session_phase === 'awaiting_completion'
+
+  const sendQuickReply = async (replyText: string) => {
+    if (!user) return
+    const msg = {
+      trainer_id: trainer.id,
+      client_id: user.id,
+      content: replyText,
+      created_at: new Date().toISOString(),
+      read_by_trainer: false,
+      read_by_client: true,
+    }
+    setMessages(prev => [...prev, msg])
+    try {
+      await apiRequest('message_insert', msg, { headers: withAuth() })
+    } catch (err) {
+      console.warn('Persist message failed', err)
+    }
+    // notify trainer and admins
+    try {
+      const nowIso = new Date().toISOString()
+      const rows:any[] = [
+        { user_id: trainer.id, title: 'New message', body: `Client sent: ${msg.content.slice(0,120)}`, created_at: nowIso, read: false }
+      ]
+      try {
+        const admins = await apiRequest('profiles_get_by_type', { user_type: 'admin' }, { headers: withAuth() })
+        for (const a of (admins||[])) rows.push({ user_id: a.user_id, title: 'Chat activity', body: `Client messaged trainer`, created_at: nowIso, read: false })
+      } catch {}
+      await apiRequest('notifications_insert', { notifications: rows }, { headers: withAuth() })
+    } catch (err) {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -86,6 +125,19 @@ export const Chat: React.FC<{ trainer: any, onClose?: () => void }> = ({ trainer
         ))}
         <div ref={messagesEndRef} />
       </div>
+      {isSessionActive && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {quickReplies.map((reply) => (
+            <button
+              key={reply.text}
+              onClick={() => sendQuickReply(reply.text)}
+              className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+            >
+              {reply.icon} {reply.text}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
         <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message..." />
         <Button onClick={send}>Send</Button>
