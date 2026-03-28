@@ -276,6 +276,13 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         return
       }
     }
+
+    // Validate payment method
+    if (payMethod === 'mpesa' && !mpesaPhone.trim()) {
+      toast({ title: 'Phone required', description: 'Enter your M-Pesa phone number (e.g., 2547XXXXXXX)', variant: 'destructive' })
+      return
+    }
+
     if (bookingMode === 'single') {
       if (availabilityError) {
         toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
