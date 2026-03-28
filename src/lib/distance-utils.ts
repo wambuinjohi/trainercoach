@@ -158,6 +158,9 @@ export interface FilterCriteria {
   categoryIds?: number[]
   searchQuery?: string
   userLocationAvailable?: boolean
+  availabilityDays?: string[]
+  availabilityStartTime?: string
+  availabilityEndTime?: string
 }
 
 export interface TrainerWithCategories {
@@ -168,7 +171,72 @@ export interface TrainerWithCategories {
   available: boolean
   distanceKm: number | null
   categoryIds: number[]
+  availability?: Record<string, string[]>
   [key: string]: any
+}
+
+/**
+ * Helper function to parse time string (HH:MM format) to minutes since midnight
+ */
+function timeToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+/**
+ * Helper function to check if a time range overlaps with trainer availability
+ */
+function checkTimeOverlap(
+  requestStartTime: string,
+  requestEndTime: string,
+  availabilitySlot: string
+): boolean {
+  try {
+    const requestStart = timeToMinutes(requestStartTime)
+    const requestEnd = timeToMinutes(requestEndTime)
+
+    // Parse availability slot (e.g., "06:00 - 20:00")
+    const [slotStart, slotEnd] = availabilitySlot
+      .split('-')
+      .map(s => s.trim())
+      .map(timeToMinutes)
+
+    // Check if there's any overlap between request time and availability
+    return requestStart < slotEnd && requestEnd > slotStart
+  } catch (err) {
+    console.warn('Failed to parse availability time:', err)
+    return true // Default to allowing if parsing fails
+  }
+}
+
+/**
+ * Helper function to check if trainer has availability on requested days/times
+ */
+function hasAvailability(
+  trainer: TrainerWithCategories,
+  requestedDays: string[],
+  requestStartTime: string,
+  requestEndTime: string
+): boolean {
+  if (!trainer.availability) {
+    return true // Assume available if no availability data
+  }
+
+  // Check if trainer is available on at least one of the requested days within the time range
+  for (const day of requestedDays) {
+    const dayKey = day.toLowerCase()
+    const slots = trainer.availability[dayKey]
+
+    if (slots && Array.isArray(slots)) {
+      for (const slot of slots) {
+        if (checkTimeOverlap(requestStartTime, requestEndTime, slot)) {
+          return true
+        }
+      }
+    }
+  }
+
+  return false
 }
 
 export function filterTrainers(
@@ -203,6 +271,13 @@ export function filterTrainers(
     // Filter by availability
     if (criteria.onlyAvailable && !trainer.available) {
       return false
+    }
+
+    // Filter by day + time availability
+    if (criteria.availabilityDays && criteria.availabilityDays.length > 0 && criteria.availabilityStartTime && criteria.availabilityEndTime) {
+      if (!hasAvailability(trainer, criteria.availabilityDays, criteria.availabilityStartTime, criteria.availabilityEndTime)) {
+        return false
+      }
     }
 
     // Filter by distance (only apply if user location is available)

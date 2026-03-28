@@ -456,49 +456,6 @@ export const ClientDashboard: React.FC = () => {
 
   // -------------------- Render Functions --------------------
   const renderHomeContent = () => {
-    if (!userLocation) {
-      return (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1"></div>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
-              <LogOut className="h-5 w-5 text-red-500" />
-            </Button>
-          </div>
-
-          <Card className="bg-gradient-primary border-0 text-white">
-            <CardContent className="p-8 text-center space-y-4">
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                  <MapPin className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold">Enable Location</h2>
-              <p className="text-white/90">We need your location to find trainers near you and calculate distances accurately.</p>
-
-              {geoLoading ? (
-                <div className="space-y-3 pt-2">
-                  <p className="text-white font-semibold">Acquiring your location...</p>
-                  <Progress value={undefined} className="bg-white/30" />
-                  <p className="text-sm text-white/70">Please allow location access and wait for GPS signal</p>
-                </div>
-              ) : (
-                <>
-                  <Button
-                    size="lg"
-                    onClick={requestLocation}
-                    className="bg-white text-trainer-accent hover:bg-gray-100 w-full font-semibold"
-                  >
-                    Enable GPS Now
-                  </Button>
-                  <p className="text-sm text-white/70">Your location is only used to show nearby trainers. We never share your data.</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )
-    }
 
     return (
       <div className="space-y-6">

@@ -10,35 +10,21 @@ import * as apiService from '@/lib/api-service'
 export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, onClose?: () => void }> = ({ initial = {}, onApply, onClose }) => {
   const [minRating, setMinRating] = useState<number>(initial.minRating ?? 0)
   const [maxPrice, setMaxPrice] = useState<number | ''>(initial.maxPrice ?? '')
-  const [onlyAvailable, setOnlyAvailable] = useState<boolean>(initial.onlyAvailable ?? false)
   const [radius, setRadius] = useState<number | ''>(initial.radius ?? '')
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(initial.categoryIds ?? [])
-  const [categories, setCategories] = useState<any[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [availabilityDays, setAvailabilityDays] = useState<string[]>(initial.availabilityDays ?? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
+  const [availabilityStartTime, setAvailabilityStartTime] = useState<string>(initial.availabilityStartTime ?? '06:00')
+  const [availabilityEndTime, setAvailabilityEndTime] = useState<string>(initial.availabilityEndTime ?? '20:00')
 
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const data = await apiService.getCategories()
-        if (data?.data) {
-          setCategories(data.data)
-        }
-      } catch (err) {
-        console.warn('Failed to load categories', err)
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-    loadCategories()
-  }, [])
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
   const handleApply = () => {
     onApply({
       minRating,
       maxPrice,
-      onlyAvailable,
       radius,
-      categoryIds: selectedCategoryIds
+      availabilityDays,
+      availabilityStartTime,
+      availabilityEndTime
     })
     onClose?.()
   }
@@ -46,16 +32,17 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
   const handleReset = () => {
     setMinRating(0)
     setMaxPrice('')
-    setOnlyAvailable(false)
     setRadius('')
-    setSelectedCategoryIds([])
+    setAvailabilityDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
+    setAvailabilityStartTime('06:00')
+    setAvailabilityEndTime('20:00')
   }
 
-  const toggleCategory = (categoryId: number) => {
-    setSelectedCategoryIds(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
+  const toggleDay = (day: string) => {
+    setAvailabilityDays(prev =>
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
     )
   }
 
@@ -73,53 +60,6 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
 
           <CardContent className="p-3 sm:p-6 flex-1 overflow-y-auto">
             <div className="space-y-6">
-              {/* Primary Filters Section */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Disciplines</h3>
-                <p className="text-xs text-muted-foreground mb-3">Select one or more types of training</p>
-                {categoriesLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading disciplines...</div>
-                ) : categories.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No disciplines available</div>
-                ) : (
-                  <div className="space-y-2">
-                    {categories.map((cat) => (
-                      <label key={cat.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedCategoryIds.includes(cat.id)}
-                          onChange={() => toggleCategory(cat.id)}
-                          className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
-                        />
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          {cat.icon && <span>{cat.icon}</span>}
-                          {cat.name}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {selectedCategoryIds.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {selectedCategoryIds.map(id => {
-                      const cat = categories.find(c => c.id === id)
-                      return (
-                        <Badge key={id} variant="secondary" className="gap-1">
-                          {cat?.icon && <span>{cat.icon}</span>}
-                          {cat?.name}
-                          <button
-                            onClick={() => toggleCategory(id)}
-                            className="ml-1 hover:text-destructive"
-                          >
-                            ×
-                          </button>
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
               {/* Distance Filter */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-2">Distance</h3>
@@ -178,15 +118,50 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
 
                 {/* Availability Filter */}
                 <div>
-                  <Label className="text-sm block mb-2">Availability</Label>
-                  <select
-                    value={onlyAvailable ? 'yes' : 'no'}
-                    onChange={(e) => setOnlyAvailable(e.target.value === 'yes')}
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-                  >
-                    <option value="no">All trainers</option>
-                    <option value="yes">Available only</option>
-                  </select>
+                  <Label className="text-sm block mb-3">Availability</Label>
+
+                  {/* Days Selection */}
+                  <div className="mb-4">
+                    <p className="text-xs text-muted-foreground mb-2 font-medium">Days</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {days.map(day => (
+                        <label key={day} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <input
+                            type="checkbox"
+                            checked={availabilityDays.includes(day)}
+                            onChange={() => toggleDay(day)}
+                            className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
+                          />
+                          <span className="text-sm text-foreground">{day.slice(0, 3)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Time Range */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2 font-medium">Time Range</p>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground block mb-1">From</label>
+                        <Input
+                          type="time"
+                          value={availabilityStartTime}
+                          onChange={(e) => setAvailabilityStartTime(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground block mb-1">To</label>
+                        <Input
+                          type="time"
+                          value={availabilityEndTime}
+                          onChange={(e) => setAvailabilityEndTime(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
