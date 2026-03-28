@@ -658,6 +658,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <div>
           <Label>Session Time</Label>
           <Input type="time" step={1800} value={time} onChange={(e) => setTime(e.target.value)} />
+          <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 bg-amber-50 dark:bg-amber-950/30 p-2 rounded">
+            ⚠️ Times are displayed in 12-hour format (AM/PM). Please ensure you select the correct AM or PM time.
+          </div>
           {availabilityStatus === 'available' && (
             <div className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1 font-medium">
               <span className="text-lg">✓</span> Available

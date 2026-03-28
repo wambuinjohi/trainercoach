@@ -436,6 +436,91 @@ export const ClientDashboard: React.FC = () => {
     await requestGeoLocation()
   }
 
+  // Helper function to format trainer availability for display
+  const getAvailabilitySummary = (trainer: any) => {
+    if (!trainer.availability) return null
+
+    let availability: any = trainer.availability
+
+    // Parse availability if it's a string (JSON)
+    if (typeof availability === 'string') {
+      try {
+        availability = JSON.parse(availability)
+      } catch {
+        return null
+      }
+    }
+
+    if (!availability || typeof availability !== 'object') return null
+
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    const workingDays = days.filter(day => availability[day] && Array.isArray(availability[day]) && availability[day].length > 0)
+
+    if (workingDays.length === 0) return null
+
+    // Get first and last working day for summary
+    const firstWorkingDay = workingDays[0].charAt(0).toUpperCase() + workingDays[0].slice(1)
+    const lastWorkingDay = workingDays[workingDays.length - 1].charAt(0).toUpperCase() + workingDays[workingDays.length - 1].slice(1)
+
+    // Get time range from first slot
+    const firstSlot = availability[workingDays[0]][0]
+    if (!firstSlot) return `Available: ${firstWorkingDay} - ${lastWorkingDay}`
+
+    const [startTime] = firstSlot.split('-')
+    const lastSlot = availability[workingDays[workingDays.length - 1]][availability[workingDays[workingDays.length - 1]].length - 1]
+    const [, endTime] = lastSlot.split('-')
+
+    if (startTime && endTime) {
+      return `Available: ${startTime} - ${endTime}`
+    }
+
+    return `Available: ${firstWorkingDay} - ${lastWorkingDay}`
+  }
+
+  // Helper function to check if trainer has availability on selected days and times
+  const trainerHasAvailability = (trainer: any) => {
+    if (!trainer.availability) return true // If no availability data, don't filter
+
+    let availability: any = trainer.availability
+
+    // Parse availability if it's a string (JSON)
+    if (typeof availability === 'string') {
+      try {
+        availability = JSON.parse(availability)
+      } catch {
+        return true // If we can't parse, don't filter
+      }
+    }
+
+    if (!availability || typeof availability !== 'object') return true
+
+    const selectedDays = filters.availabilityDays || []
+    const filterStartTime = filters.availabilityStartTime || '06:00'
+    const filterEndTime = filters.availabilityEndTime || '20:00'
+
+    // Check if trainer has any slots on selected days that overlap with filter time range
+    for (const day of selectedDays) {
+      const dayLower = day.toLowerCase()
+      const slots = availability[dayLower]
+
+      if (!Array.isArray(slots) || slots.length === 0) continue
+
+      // Check if any slot overlaps with the requested time range
+      for (const slot of slots) {
+        if (typeof slot !== 'string') continue
+
+        const [slotStart, slotEnd] = slot.split('-')
+        if (!slotStart || !slotEnd) continue
+
+        // Simple time overlap check: slot.start < filter.end AND slot.end > filter.start
+        if (slotStart < filterEndTime && slotEnd > filterStartTime) {
+          return true // Found overlapping slot
+        }
+      }
+    }
+
+    return false // No overlapping availability found
+  }
 
   const openTrainer = (trainer: any) => setSelectedTrainer(trainer)
   const closeTrainer = () => setSelectedTrainer(null)
@@ -627,6 +712,7 @@ export const ClientDashboard: React.FC = () => {
           if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
           if (filters.onlyAvailable && !t.available) return false
           if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
+          if (!trainerHasAvailability(t)) return false
           if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()))) return false
 
           return true
@@ -636,6 +722,7 @@ export const ClientDashboard: React.FC = () => {
           if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
           if (filters.onlyAvailable && !t.available) return false
           if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
+          if (!trainerHasAvailability(t)) return false
 
           // Enhanced search: check trainer name, discipline, AND category names
           if (searchQuery) {
@@ -810,11 +897,14 @@ export const ClientDashboard: React.FC = () => {
                         📦 Packages
                       </Badge>
                     )}
+                    {getAvailabilitySummary(trainer) && (
+                      <div className="text-xs text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded px-2 py-1 w-fit">
+                        <Clock className="h-3 w-3 inline mr-1" />
+                        {getAvailabilitySummary(trainer)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-2">
-                    <Button variant="outline" size="sm" onClick={() => openTrainer(trainer)}>
-                      <MessageCircle className="h-4 w-4" />
-                    </Button>
                     <Button size="sm" className="bg-gradient-primary text-white" onClick={() => setSelectedTrainerForBooking(trainer)}>
                       Book Now
                     </Button>
@@ -923,10 +1013,6 @@ export const ClientDashboard: React.FC = () => {
 
           {showActions && (
             <div className="flex gap-2 flex-wrap">
-              <Button size="sm" variant="outline" onClick={() => openTrainer({ id: booking.trainer_id })} className="flex-1">
-                <MessageCircle className="h-3 w-3 mr-1" />
-                Chat
-              </Button>
               {booking.status === 'completed' && !reviewsByBooking[booking.id] && (
                 <Button size="sm" className="flex-1 bg-gradient-primary text-white" onClick={() => setReviewBooking(booking)}>
                   <Star className="h-3 w-3 mr-1" />
