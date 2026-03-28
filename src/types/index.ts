@@ -538,6 +538,33 @@ export interface Review {
   updated_at?: string
 }
 
+export interface TrainerRating {
+  id: string
+  booking_id: string
+  trainer_id: string
+  client_rating: number // 1-5 (trainer's rating of the client)
+  app_rating: number // 1-5 (trainer's rating of the app)
+  review?: string // Review and recommendations
+  created_at?: string
+  updated_at?: string
+}
+
+export type ComplaintCategory = 'no_show' | 'late_start' | 'quality' | 'technical' | 'unprofessional' | 'other'
+export type ComplaintStatus = 'open' | 'reviewed' | 'resolved' | 'dismissed'
+
+export interface SessionComplaint {
+  id: string
+  booking_id: string
+  filed_by_trainer?: boolean
+  filed_by_client?: boolean
+  category: ComplaintCategory
+  description: string
+  attachment_url?: string
+  status: ComplaintStatus
+  created_at?: string
+  updated_at?: string
+}
+
 // ============================================================================
 // PRICING TYPES
 // ============================================================================
