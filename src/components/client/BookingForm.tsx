@@ -800,8 +800,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         </div>
         {payMethod === 'mpesa' && (
           <div>
-            <Label>M-Pesa Phone Number</Label>
-            <Input value={mpesaPhone} onChange={(e)=>setMpesaPhone(e.target.value)} placeholder="254712345678 or 0712345678" />
+            <Label>M-Pesa Phone Number <span className="text-red-500">*</span></Label>
+            <Input value={mpesaPhone} onChange={(e)=>setMpesaPhone(e.target.value)} placeholder="254712345678 or 0712345678" required />
             <p className="text-xs text-muted-foreground mt-1">Format: 254712345678 (Kenyan number). 07xxxxxxxx format will be converted automatically.</p>
           </div>
         )}
