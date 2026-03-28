@@ -345,6 +345,12 @@ const AvailabilityEditor: React.FC<AvailabilityEditorProps> = ({ onClose }) => {
             </CardContent>
           ) : (
             <CardContent className="space-y-6">
+              <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <span className="font-medium">ℹ️ Time Format:</span> All times use 24-hour format (00:00 - 23:59). For example: 09:00 = 9 AM, 14:00 = 2 PM, 17:30 = 5:30 PM.
+                </p>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Weekly summary</p>

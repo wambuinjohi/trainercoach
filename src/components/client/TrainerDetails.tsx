@@ -243,30 +243,43 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                 <div>
                   <h4 className="font-semibold mb-2">Availability</h4>
                   <div className="grid grid-cols-1 gap-1 text-sm">
-                    {Object.entries(profile.availability as any).map(([day, slots]: any) => (
-                      <div key={day} className="flex justify-between">
-                        <span className="text-muted-foreground capitalize">{day}</span>
-                        <span className="text-foreground">{Array.isArray(slots) && slots.length ? slots.join(', ') : '—'}</span>
-                      </div>
-                    ))}
+                    {(() => {
+                      let availability = profile.availability
+                      // Parse availability if it's a string (JSON)
+                      if (typeof availability === 'string') {
+                        try {
+                          availability = JSON.parse(availability)
+                        } catch {
+                          return <div className="text-muted-foreground">Unable to parse availability</div>
+                        }
+                      }
+
+                      if (!availability || typeof availability !== 'object') {
+                        return <div className="text-muted-foreground">No availability data</div>
+                      }
+
+                      return Object.entries(availability).map(([day, slots]: any) => (
+                        <div key={day} className="flex justify-between">
+                          <span className="text-muted-foreground capitalize">{day}</span>
+                          <span className="text-foreground">{Array.isArray(slots) && slots.length ? slots.join(', ') : '—'}</span>
+                        </div>
+                      ))
+                    })()}
                   </div>
                 </div>
               )}
 
               <div className="hidden sm:flex flex-col gap-1">
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={openChat}><MessageCircle className="h-4 w-4 mr-2" />Chat</Button>
                   <Button onClick={openBooking} className="bg-gradient-primary text-white"><Calendar className="h-4 w-4 mr-2" />Book Now</Button>
                   <Button variant="ghost" onClick={onClose}>Close</Button>
                 </div>
-                <div className="text-xs text-muted-foreground">Chatting in-app keeps your contact details private and helps us protect you from fraud.</div>
               </div>
 
               {/* Mobile sticky footer actions (hidden while booking/chat open) */}
               {!showBooking && !showChat && (
                 <div className="sm:hidden fixed bottom-0 left-0 right-0 z-60 bg-card border-t border-border p-3">
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" className="flex-1" onClick={openChat}><MessageCircle className="h-4 w-4 mr-2" />Chat</Button>
                     <Button className="flex-1 bg-gradient-primary text-white" onClick={openBooking}><Calendar className="h-4 w-4 mr-2" />Book Now</Button>
                   </div>
                   <div className="mt-2 flex justify-center">
