@@ -8120,6 +8120,289 @@ switch ($action) {
         ]);
         break;
 
+    // ============================================================================
+    // SESSION REMINDERS SYSTEM
+    // ============================================================================
+
+    // INSERT SESSION REMINDER
+    case 'session_reminder_insert':
+        if (!isset($input['reminder']) || !is_array($input['reminder'])) {
+            respond("error", "Missing required field: reminder (object).", null, 400);
+        }
+
+        $reminder = $input['reminder'];
+        if (!isset($reminder['booking_id']) || !isset($reminder['trainer_id']) || !isset($reminder['client_id']) || !isset($reminder['scheduled_for'])) {
+            respond("error", "Missing required reminder fields: booking_id, trainer_id, client_id, scheduled_for.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($reminder['booking_id']);
+        $trainerId = $conn->real_escape_string($reminder['trainer_id']);
+        $clientId = $conn->real_escape_string($reminder['client_id']);
+        $reminderType = isset($reminder['reminder_type']) ? $conn->real_escape_string($reminder['reminder_type']) : '2hour';
+        $scheduledFor = $conn->real_escape_string($reminder['scheduled_for']);
+        $status = isset($reminder['status']) ? $conn->real_escape_string($reminder['status']) : 'pending';
+        $now = date('Y-m-d H:i:s');
+        $reminderId = 'reminder_' . uniqid();
+
+        $stmt = $conn->prepare("
+            INSERT INTO session_reminders (id, booking_id, trainer_id, client_id, reminder_type, scheduled_for, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("ssssssss", $reminderId, $bookingId, $trainerId, $clientId, $reminderType, $scheduledFor, $status, $now);
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            respond("error", "Failed to insert reminder: " . $conn->error, null, 500);
+        }
+        $stmt->close();
+
+        logEvent('session_reminder_scheduled', [
+            'reminder_id' => $reminderId,
+            'booking_id' => $bookingId,
+            'trainer_id' => $trainerId,
+            'client_id' => $clientId,
+            'reminder_type' => $reminderType,
+            'scheduled_for' => $scheduledFor
+        ]);
+
+        respond("success", "Session reminder scheduled successfully.", [
+            "reminder_id" => $reminderId,
+            "booking_id" => $bookingId,
+            "scheduled_for" => $scheduledFor
+        ]);
+        break;
+
+    // GET SESSION REMINDER STATUS
+    case 'session_reminder_get':
+        if (!isset($input['booking_id'])) {
+            respond("error", "Missing required field: booking_id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+
+        $stmt = $conn->prepare("
+            SELECT * FROM session_reminders
+            WHERE booking_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("s", $bookingId);
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            respond("error", "Failed to fetch reminder: " . $conn->error, null, 500);
+        }
+
+        $result = $stmt->get_result();
+        $reminders = [];
+        while ($row = $result->fetch_assoc()) {
+            $reminders[] = $row;
+        }
+        $stmt->close();
+
+        respond("success", "Reminder retrieved successfully.", $reminders);
+        break;
+
+    // CANCEL SESSION REMINDER
+    case 'session_reminder_cancel':
+        if (!isset($input['booking_id'])) {
+            respond("error", "Missing required field: booking_id.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+
+        $stmt = $conn->prepare("
+            UPDATE session_reminders
+            SET status = 'cancelled'
+            WHERE booking_id = ? AND status = 'pending'
+        ");
+
+        if (!$stmt) {
+            respond("error", "Failed to prepare statement: " . $conn->error, null, 500);
+        }
+
+        $stmt->bind_param("s", $bookingId);
+
+        if (!$stmt->execute()) {
+            $stmt->close();
+            respond("error", "Failed to cancel reminder: " . $conn->error, null, 500);
+        }
+
+        $affectedRows = $stmt->affected_rows;
+        $stmt->close();
+
+        logEvent('session_reminder_cancelled', [
+            'booking_id' => $bookingId,
+            'affected_rows' => $affectedRows
+        ]);
+
+        respond("success", "Reminder cancelled successfully.", [
+            "booking_id" => $bookingId,
+            "affected_rows" => $affectedRows
+        ]);
+        break;
+
+    // SESSION REMINDER WORKER - SEND PENDING REMINDERS
+    case 'session_reminder_worker':
+        error_log("[SESSION REMINDER WORKER] === START ===");
+
+        // Fetch all pending reminders that are due
+        $sql = "
+            SELECT sr.*, b.session_date, b.session_time, b.client_id, b.trainer_id
+            FROM session_reminders sr
+            JOIN bookings b ON sr.booking_id = b.id
+            WHERE sr.status = 'pending'
+            AND sr.scheduled_for <= NOW()
+            ORDER BY sr.scheduled_for ASC
+            LIMIT 100
+        ";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            respond("error", "Failed to query reminders: " . $conn->error, null, 500);
+        }
+
+        $reminders = [];
+        $sent = 0;
+        $failed = 0;
+
+        while ($reminder = $result->fetch_assoc()) {
+            $reminders[] = $reminder;
+        }
+
+        error_log("[SESSION REMINDER WORKER] Found " . count($reminders) . " pending reminders");
+
+        foreach ($reminders as $reminder) {
+            $reminderId = $reminder['id'];
+            $bookingId = $reminder['booking_id'];
+            $trainerId = $reminder['trainer_id'];
+            $clientId = $reminder['client_id'];
+            $sessionTime = $reminder['session_time'];
+            $sessionDate = $reminder['session_date'];
+
+            try {
+                // Create in-app notification for trainer
+                $trainerNotificationId = 'notif_' . uniqid();
+                $notificationNow = date('Y-m-d H:i:s');
+                $trainerBody = "Reminder: Your session is starting in 2 hours at {$sessionTime}. Get ready!";
+
+                $notifStmt = $conn->prepare("
+                    INSERT INTO notifications (id, user_id, title, body, type, read, action_type, booking_id, created_at)
+                    VALUES (?, ?, 'Session Reminder', ?, 'session_reminder', 0, 'session_reminder', ?, ?)
+                ");
+
+                if ($notifStmt) {
+                    $notifStmt->bind_param("sssss", $trainerNotificationId, $trainerId, $trainerBody, $bookingId, $notificationNow);
+                    if ($notifStmt->execute()) {
+                        error_log("[SESSION REMINDER WORKER] Created trainer notification: $trainerNotificationId");
+                    } else {
+                        error_log("[SESSION REMINDER WORKER] Failed to create trainer notification: " . $conn->error);
+                    }
+                    $notifStmt->close();
+                }
+
+                // Create in-app notification for client
+                $clientNotificationId = 'notif_' . uniqid();
+                $clientBody = "Reminder: Your session is starting in 2 hours at {$sessionTime}. Get ready!";
+
+                $clientNotifStmt = $conn->prepare("
+                    INSERT INTO notifications (id, user_id, title, body, type, read, action_type, booking_id, created_at)
+                    VALUES (?, ?, 'Session Reminder', ?, 'session_reminder', 0, 'session_reminder', ?, ?)
+                ");
+
+                if ($clientNotifStmt) {
+                    $clientNotifStmt->bind_param("sssss", $clientNotificationId, $clientId, $clientBody, $bookingId, $notificationNow);
+                    if ($clientNotifStmt->execute()) {
+                        error_log("[SESSION REMINDER WORKER] Created client notification: $clientNotificationId");
+                    } else {
+                        error_log("[SESSION REMINDER WORKER] Failed to create client notification: " . $conn->error);
+                    }
+                    $clientNotifStmt->close();
+                }
+
+                // Attempt SMS notification if SMS helper is available
+                if (function_exists('sendReminderSMS')) {
+                    // Get user phone numbers
+                    $trainerPhone = null;
+                    $clientPhone = null;
+
+                    $trainerQuery = $conn->query("SELECT phone FROM users WHERE id = '$trainerId'");
+                    if ($trainerQuery && $row = $trainerQuery->fetch_assoc()) {
+                        $trainerPhone = $row['phone'];
+                    }
+
+                    $clientQuery = $conn->query("SELECT phone FROM users WHERE id = '$clientId'");
+                    if ($clientQuery && $row = $clientQuery->fetch_assoc()) {
+                        $clientPhone = $row['phone'];
+                    }
+
+                    // Send SMS to trainer
+                    if ($trainerPhone) {
+                        $trainerSmsMessage = "Reminder: Your session is in 2 hours at {$sessionTime} on {$sessionDate}.";
+                        sendReminderSMS($trainerPhone, $trainerSmsMessage);
+                        error_log("[SESSION REMINDER WORKER] SMS sent to trainer: $trainerId");
+                    }
+
+                    // Send SMS to client
+                    if ($clientPhone) {
+                        $clientSmsMessage = "Reminder: Your session is in 2 hours at {$sessionTime} on {$sessionDate}.";
+                        sendReminderSMS($clientPhone, $clientSmsMessage);
+                        error_log("[SESSION REMINDER WORKER] SMS sent to client: $clientId");
+                    }
+                }
+
+                // Mark reminder as sent
+                $updateStmt = $conn->prepare("
+                    UPDATE session_reminders
+                    SET status = 'sent', sent_at = NOW()
+                    WHERE id = ?
+                ");
+
+                if ($updateStmt) {
+                    $updateStmt->bind_param("s", $reminderId);
+                    if ($updateStmt->execute()) {
+                        error_log("[SESSION REMINDER WORKER] Reminder marked as sent: $reminderId");
+                        $sent++;
+                    } else {
+                        error_log("[SESSION REMINDER WORKER] Failed to mark reminder as sent: " . $conn->error);
+                        $failed++;
+                    }
+                    $updateStmt->close();
+                } else {
+                    error_log("[SESSION REMINDER WORKER] Failed to prepare update statement: " . $conn->error);
+                    $failed++;
+                }
+            } catch (Exception $e) {
+                error_log("[SESSION REMINDER WORKER] Exception: " . $e->getMessage());
+                $failed++;
+            }
+        }
+
+        logEvent('session_reminder_worker_executed', [
+            'total_processed' => count($reminders),
+            'sent' => $sent,
+            'failed' => $failed
+        ]);
+
+        error_log("[SESSION REMINDER WORKER] === END === Sent: $sent, Failed: $failed");
+
+        respond("success", "Session reminder worker executed.", [
+            "total_processed" => count($reminders),
+            "sent" => $sent,
+            "failed" => $failed
+        ]);
+        break;
+
     // WAITING LIST: SUBMIT FORM
     case 'waitlist_submit':
         if (!isset($input['name']) || !isset($input['email']) || !isset($input['telephone'])) {
