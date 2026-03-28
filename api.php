@@ -7419,8 +7419,8 @@ switch ($action) {
 
         $stmt = $conn->prepare("
             INSERT INTO stk_push_sessions (
-                id, client_id, trainer_id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, client_id, trainer_id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, status, retry_count, should_retry, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         if (!$stmt) {
@@ -7428,7 +7428,9 @@ switch ($action) {
         }
 
         $merchantRequestId = $stkResult['merchant_request_id'] ?? '';
-        $stmt->bind_param("ssssdssssssss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $initStatus, $now, $now);
+        $retryCount = 0;
+        $shouldRetry = true;
+        $stmt->bind_param("ssssdssssssibss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $initStatus, $retryCount, $shouldRetry, $now, $now);
 
         if (!$stmt->execute()) {
             $stmt->close();
@@ -7615,6 +7617,91 @@ switch ($action) {
         }
 
         respond("success", "STK push history retrieved.", ["data" => $sessions]);
+        break;
+
+    // MANUAL RETRY FOR FAILED/TIMEOUT STK PUSH SESSIONS
+    case 'stk_push_retry':
+        error_log("[API STK RETRY] === MANUAL STK RETRY REQUEST ===");
+
+        if (!isset($input['checkout_request_id'])) {
+            respond("error", "Missing checkout_request_id.", null, 400);
+        }
+
+        $checkoutRequestId = $conn->real_escape_string($input['checkout_request_id']);
+
+        // Get the session
+        $sql = "SELECT * FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1";
+        $stmt = $conn->prepare($sql);
+
+        if (!$stmt) {
+            respond("error", "Table does not exist yet. Initialize payments first.", null, 500);
+        }
+
+        $stmt->bind_param("s", $checkoutRequestId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+
+        if ($result->num_rows === 0) {
+            respond("error", "Session not found.", null, 404);
+        }
+
+        $session = $result->fetch_assoc();
+
+        // Check if session is eligible for manual retry
+        if ($session['status'] !== 'failed' && $session['status'] !== 'timeout') {
+            respond("error", "Session is not in a retryable state. Current status: " . $session['status'], null, 400);
+        }
+
+        // Reset next_retry_at to now so worker picks it up immediately
+        $resetSql = "
+            UPDATE stk_push_sessions
+            SET next_retry_at = NOW(), should_retry = TRUE, updated_at = NOW()
+            WHERE checkout_request_id = ?
+        ";
+
+        $resetStmt = $conn->prepare($resetSql);
+        $resetStmt->bind_param("s", $checkoutRequestId);
+
+        if (!$resetStmt->execute()) {
+            error_log("[API STK RETRY] Error resetting retry: " . $resetStmt->error);
+            respond("error", "Failed to schedule retry.", null, 500);
+        }
+
+        $resetStmt->close();
+
+        error_log("[API STK RETRY] Retry scheduled for session: " . $session['id']);
+        respond("success", "Retry scheduled successfully. The system will attempt the payment again.", [
+            "session_id" => $session['id'],
+            "status" => "retry_scheduled",
+            "phone" => $session['phone_number'],
+            "amount" => $session['amount'],
+            "retry_count" => $session['retry_count'] ?? 0
+        ]);
+        break;
+
+    // TRIGGER STK RETRY WORKER (can be called manually or by cron)
+    case 'stk_retry_worker':
+        error_log("[API STK WORKER] === MANUAL TRIGGER ===");
+
+        // Security check - can be enhanced with API key
+        // For now, allow from localhost or with X-Worker-Token header
+        $is_cli = php_sapi_name() === 'cli';
+        $has_token = isset($_SERVER['HTTP_X_WORKER_TOKEN']) && $_SERVER['HTTP_X_WORKER_TOKEN'] === getenv('WORKER_API_KEY');
+        $is_localhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1', 'localhost']);
+
+        if (!$is_cli && !$has_token && !$is_localhost) {
+            error_log("[API STK WORKER] Access denied from {$_SERVER['REMOTE_ADDR']}");
+            respond("error", "Unauthorized.", null, 403);
+        }
+
+        // Include and run the worker
+        require_once(__DIR__ . '/scripts/worker_stk_retry.php');
+
+        $worker = new STKRetryWorker($conn);
+        $result = $worker->run();
+
+        respond("success", "Retry worker completed.", $result);
         break;
 
     // ============================================================================
