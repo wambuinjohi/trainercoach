@@ -61,14 +61,12 @@ export function getUploadsBaseUrl(): string {
 /**
  * Get the base API URL based on environment
  *
- * IMPORTANT: System uses https://trainercoachconnect.com/api.php for ALL environments including development
- * This ensures consistent data usage across dev, staging, and production.
- *
  * Priority order:
  * 1. Environment variable VITE_API_URL (highest priority - deployment config)
  * 2. Stored preference in localStorage (runtime user override)
  * 3. Native Capacitor apps check
- * 4. Live API endpoint: https://trainercoachconnect.com/api.php (DEFAULT for all other cases)
+ * 4. Development mode: use relative path for dev server middleware
+ * 5. Live API endpoint: https://trainercoachconnect.com/api.php (production fallback)
  */
 export function getApiBaseUrl(): string {
   // Check environment variable (highest priority - deployment configuration)
@@ -103,8 +101,15 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  // Use the live API endpoint as primary default (works across dev and production)
-  // This ensures all data uses the live endpoint even in development mode
+  // In development mode, use relative path so Vite dev server middleware handles it
+  if (import.meta.env.DEV) {
+    if (typeof window !== 'undefined') {
+      console.log('[API Config] Using relative path for dev server middleware');
+    }
+    return '/api.php';
+  }
+
+  // Use the live API endpoint as fallback (production)
   const liveApiUrl = 'https://trainercoachconnect.com/api.php';
   if (typeof window !== 'undefined') {
     console.log('[API Config] Using live API endpoint:', liveApiUrl);
