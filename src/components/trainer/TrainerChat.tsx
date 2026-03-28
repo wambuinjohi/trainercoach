@@ -13,6 +13,44 @@ export const TrainerChat: React.FC<{ booking: any, onClose?: () => void }> = ({ 
   const [text, setText] = useState('')
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null)
 
+  const quickReplies = [
+    { text: 'On my way', icon: '🚗' },
+    { text: 'I have arrived', icon: '✅' },
+  ]
+
+  const isSessionActive = booking?.session_phase === 'session_active' || booking?.session_phase === 'awaiting_completion'
+
+  const sendQuickReply = async (replyText: string) => {
+    if (!trainerId || !clientId) return
+    const msg = {
+      trainer_id: trainerId,
+      client_id: clientId,
+      content: replyText,
+      booking_id: booking?.id || null,
+      created_at: new Date().toISOString(),
+      read_by_trainer: true,
+      read_by_client: false,
+    }
+    setMessages(prev => [...prev, msg])
+    try {
+      await apiRequest('message_insert', msg, { headers: withAuth() })
+    } catch (err) {
+      console.warn('Persist message failed', err)
+    }
+    // notify client and admins
+    try {
+      const nowIso = new Date().toISOString()
+      const rows:any[] = [
+        { user_id: clientId, title: 'New message', body: `Trainer sent: ${msg.content.slice(0,120)}`, created_at: nowIso, read: false }
+      ]
+      try {
+        const admins = await apiRequest('profiles_get_by_type', { user_type: 'admin' }, { headers: withAuth() })
+        for (const a of (admins||[])) rows.push({ user_id: a.user_id, title: 'Chat activity', body: `Trainer messaged client`, created_at: nowIso, read: false })
+      } catch {}
+      await apiRequest('notifications_insert', { notifications: rows }, { headers: withAuth() })
+    } catch (err) {}
+  }
+
   useEffect(() => {
     if (!trainerId || !clientId) return
     let mounted = true
@@ -99,6 +137,19 @@ export const TrainerChat: React.FC<{ booking: any, onClose?: () => void }> = ({ 
               <div ref={messagesEndRef} />
             </div>
 
+            {isSessionActive && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {quickReplies.map((reply) => (
+                  <button
+                    key={reply.text}
+                    onClick={() => sendQuickReply(reply.text)}
+                    className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                  >
+                    {reply.icon} {reply.text}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
               <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message..." />
               <Button onClick={send}>Send</Button>
