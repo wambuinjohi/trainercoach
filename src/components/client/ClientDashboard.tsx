@@ -96,7 +96,6 @@ export const ClientDashboard: React.FC = () => {
   const [selectedTrainerForBooking, setSelectedTrainerForBooking] = useState<any>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationName, setLocationName] = useState<string | null>(null)
-  const [reverseGeocodeLoading, setReverseGeocodeLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
   const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, boolean>>({})
@@ -104,7 +103,16 @@ export const ClientDashboard: React.FC = () => {
   const [unreadNotificationsClient, setUnreadNotificationsClient] = useState(0)
   const [dbCategories, setDbCategories] = useState<any[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [filters, setFilters] = useState<any>({ minRating: null, maxPrice: null, onlyAvailable: false, radius: null, categoryId: null })
+  const [filters, setFilters] = useState<any>({
+    minRating: null,
+    maxPrice: null,
+    onlyAvailable: false,
+    radius: null,
+    categoryId: null,
+    availabilityDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    availabilityStartTime: '06:00',
+    availabilityEndTime: '20:00'
+  })
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showPaymentMethods, setShowPaymentMethods] = useState(false)
@@ -140,7 +148,6 @@ export const ClientDashboard: React.FC = () => {
     }
 
     const geocode = async () => {
-      setReverseGeocodeLoading(true)
       try {
         const result = await reverseGeocode(userLocation.lat, userLocation.lng)
         if (result?.label) {
@@ -148,8 +155,6 @@ export const ClientDashboard: React.FC = () => {
         }
       } catch (err) {
         console.warn('Failed to reverse geocode location', err)
-      } finally {
-        setReverseGeocodeLoading(false)
       }
     }
 
@@ -542,38 +547,6 @@ export const ClientDashboard: React.FC = () => {
         onCategorySelect={handleCategorySelect}
       />
 
-      {userLocation && (
-        <Card className="border-0 bg-muted/30">
-          <CardContent className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="bg-trainer-accent/20 rounded-full p-2 flex-shrink-0">
-                <MapPin className="h-5 w-5 text-trainer-accent" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">Using your location</p>
-                {reverseGeocodeLoading ? (
-                  <p className="text-xs text-muted-foreground animate-pulse">Loading location details...</p>
-                ) : (
-                  <div className="text-xs text-muted-foreground space-y-0.5">
-                    {locationName && <p className="truncate">{locationName}</p>}
-                    <p className="text-muted-foreground/80">{userLocation.lat.toFixed(4)}°, {userLocation.lng.toFixed(4)}°</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={requestGeoLocation}
-              disabled={geoLoading}
-              className="flex-shrink-0"
-              title="Refresh GPS location"
-            >
-              <RefreshCw className={`h-4 w-4 ${geoLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
 
       <div className="space-y-4">
