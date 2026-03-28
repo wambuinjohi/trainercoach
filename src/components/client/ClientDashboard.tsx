@@ -393,8 +393,13 @@ export const ClientDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'explore' && !selectedLocationMode) {
       setShowLocationChoice(true)
+    } else if (activeTab !== 'explore') {
+      // Close the modal and reset location mode when navigating away from explore tab
+      // This prevents the modal from appearing on the home/schedule tabs
+      setShowLocationChoice(false)
+      setSelectedLocationMode(null)
     }
-  }, [activeTab, selectedLocationMode])
+  }, [activeTab])
 
   // Handle location selection - resolve the location and close modal
   useEffect(() => {
@@ -416,7 +421,7 @@ export const ClientDashboard: React.FC = () => {
     return <Navigate to="/" replace />
   }
 
-  const modalOpen = Boolean(selectedTrainer || selectedTrainerForBooking || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking)
+  const modalOpen = Boolean(selectedTrainer || selectedTrainerForBooking || showEditProfile || showPaymentMethods || showNotifications || showHelpSupport || showFilters || reviewBooking || nextSessionBooking || showLocationChoice)
 
   const setReviewByBooking = (bookingId: string) => {
     setReviewsByBooking(prev => ({ ...prev, [bookingId]: true }))
