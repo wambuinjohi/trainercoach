@@ -46,8 +46,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [groupTrainingData, setGroupTrainingData] = useState<GroupPricingConfig | null>(null)
   const [selectedGroupTierName, setSelectedGroupTierName] = useState<string>('')
   const [trainerCategoryId, setTrainerCategoryId] = useState<number | null>(null)
-  const [locationPreference, setLocationPreference] = useState<LocationPreference | null>(null)
-  const [showLocationSelector, setShowLocationSelector] = useState(false)
   const [showFeeBreakdown, setShowFeeBreakdown] = useState(false)
   const [liveAvailability, setLiveAvailability] = useState<LiveAvailabilitySnapshot | null>(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
@@ -335,9 +333,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       status: 'pending',
       session_phase: 'waiting_start',
       base_service_amount: baseServiceAmount,
-      notes: notes || `Session location preference: ${locationPreference?.label || 'Not specified'}${locationPreference?.customLocation ? ` (${locationPreference.customLocation})` : ''}`,
-      session_location_preference: locationPreference?.type || null,
-      session_location_custom: locationPreference?.customLocation || null,
+      notes: notes || '',
       client_location_label: (clientLocation.label || null),
       client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
       client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
@@ -762,28 +758,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         <div>
           <Label>Notes / Additional Info</Label>
           <input className="w-full p-2 border border-border rounded-md bg-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any special requests or details..." />
-        </div>
-
-        <div>
-          <Label className="mb-2 block">Session Location Preference</Label>
-          {!showLocationSelector ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowLocationSelector(true)}
-              className="w-full justify-start"
-            >
-              {locationPreference ? `✓ ${locationPreference.label}${locationPreference.customLocation ? ` (${locationPreference.customLocation})` : ''}` : 'Select location preference'}
-            </Button>
-          ) : (
-            <div className="p-3 border border-border rounded-md bg-muted/5">
-              <LocationPreferenceSelector
-                value={locationPreference || undefined}
-                onChange={setLocationPreference}
-                onClose={() => setShowLocationSelector(false)}
-              />
-            </div>
-          )}
         </div>
 
         <div>
