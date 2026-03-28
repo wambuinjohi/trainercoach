@@ -5567,7 +5567,7 @@ switch ($action) {
         $sessionsForDb = !empty($bookingSessions) ? $sessionsJson : NULL;
 
         $stmt->bind_param(
-            "sssisiiisssdddddddssddiissds",
+            "sssisdisssdddddddssddiisdds",
             $bookingId, $clientId, $trainerId, $categoryId, $sessionDate, $sessionTime, $durationHours,
             $totalSessions, $sessionsForDb, $sessionPhase, $status, $totalAmount, $baseServiceAmount, $transportFee, $platformFeeForDb,
             $vatAmountForDb, $trainerNetAmount, $clientSurcharge, $notes, $clientLocationLabel,
