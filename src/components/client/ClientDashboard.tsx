@@ -385,23 +385,9 @@ export const ClientDashboard: React.FC = () => {
     // First enrich with distance
     const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
 
-    // Then filter by service radius - only show trainers within their service area
-    const filteredTrainers = enrichedTrainers.filter(trainer => {
-      if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
-        return true // Include trainers without location/radius info
-      }
-
-      // Check if user is within trainer's service radius
-      const distance = trainer.distanceKm
-      if (distance === null) {
-        return true // Include if distance can't be calculated
-      }
-
-      return distance <= trainer.service_radius
-    })
-
-    // Update trainers with enriched distances
-    setTrainers(filteredTrainers)
+    // Display all trainers with enriched distance information
+    // (removed service radius filtering to show all available trainers)
+    setTrainers(enrichedTrainers)
     lastEnrichedLocation.current = userLocation
   }, [userLocation, trainers])
 
@@ -759,7 +745,7 @@ export const ClientDashboard: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-2xl font-bold text-foreground">
-              {selectedCategory ? `${selectedCategory} Trainers` : 'Nearby Trainers'}
+              {selectedCategory ? `${selectedCategory} Trainers` : 'All Available Trainers'}
             </h1>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}><Sliders className="h-4 w-4 mr-2" />Filters</Button>
