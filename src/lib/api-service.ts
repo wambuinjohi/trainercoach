@@ -315,6 +315,107 @@ export async function getBookingsWithPagination(options?: { page?: number; pageS
 }
 
 // ============================================================================
+// BOOKING REQUEST SERVICES (Feature #21 - Pending Session Actions)
+// ============================================================================
+
+export async function createBookingRequest(data: Record<string, any>) {
+  return apiRequest('insert', {
+    table: 'booking_requests',
+    data,
+  })
+}
+
+export async function getBookingRequests(bookingId: string) {
+  return apiRequest('select', {
+    table: 'booking_requests',
+    where: `booking_id = '${bookingId}'`,
+    order: 'created_at DESC',
+  })
+}
+
+export async function getBookingRequestsByStatus(status: string, userId?: string) {
+  let where = `status = '${status}'`
+  if (userId) {
+    where += ` AND requested_by = '${userId}'`
+  }
+  return apiRequest('select', {
+    table: 'booking_requests',
+    where,
+    order: 'created_at DESC',
+  })
+}
+
+export async function updateBookingRequest(requestId: string, data: Record<string, any>) {
+  return apiRequest('update', {
+    table: 'booking_requests',
+    data,
+    where: `id = '${requestId}'`,
+  })
+}
+
+export async function cancelBookingRequest(requestId: string, reason?: string) {
+  return apiRequest('update', {
+    table: 'booking_requests',
+    data: {
+      status: 'cancelled',
+      admin_notes: reason || null,
+      updated_at: new Date().toISOString(),
+    },
+    where: `id = '${requestId}'`,
+  })
+}
+
+// Specific booking request creators
+export async function requestTrainerChange(bookingId: string, clientId: string, newTrainerId: string, reason?: string) {
+  return createBookingRequest({
+    booking_id: bookingId,
+    request_type: 'trainer_change',
+    requested_by: clientId,
+    target_trainer_id: newTrainerId,
+    reason: reason || null,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
+}
+
+export async function requestReschedule(bookingId: string, clientId: string, newDate: string, newTime: string, newTrainerId?: string, reason?: string) {
+  return createBookingRequest({
+    booking_id: bookingId,
+    request_type: 'reschedule',
+    requested_by: clientId,
+    target_date: newDate,
+    target_time: newTime,
+    target_trainer_id: newTrainerId || null,
+    reason: reason || null,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
+}
+
+export async function requestTransferBooking(bookingId: string, clientId: string, transferToUserId: string, reason?: string) {
+  return createBookingRequest({
+    booking_id: bookingId,
+    request_type: 'transfer',
+    requested_by: clientId,
+    target_user_id: transferToUserId,
+    reason: reason || null,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
+}
+
+export async function requestRefund(bookingId: string, clientId: string, reason?: string) {
+  return createBookingRequest({
+    booking_id: bookingId,
+    request_type: 'refund',
+    requested_by: clientId,
+    reason: reason || null,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
+}
+
+// ============================================================================
 // TRAINER SERVICES
 // ============================================================================
 
