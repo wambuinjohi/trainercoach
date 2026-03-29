@@ -12,8 +12,17 @@ import * as apiService from '@/lib/api-service'
 import { toast } from '@/hooks/use-toast'
 import { retryPayment } from '@/lib/payment-service'
 
-interface BookingConfirmationState {
+interface CategoryBooking {
+  categoryId: string
+  categoryName: string
   bookingId: string
+  baseAmount: number
+}
+
+interface BookingConfirmationState {
+  bookingId?: string
+  bookingIds?: string[]
+  categoryBookings?: CategoryBooking[]
   trainerName: string
   date: string
   time: string
@@ -605,6 +614,37 @@ export default function BookingConfirmation() {
               </button>
             </CardContent>
           </Card>
+
+          {/* Categories Booked (if multiple) */}
+          {locationState?.categoryBookings && locationState.categoryBookings.length > 1 && (
+            <Card className="border-green-500/30 bg-green-50/5 dark:bg-green-950/10">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Service Categories Booked
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {locationState.categoryBookings.map((cat, idx) => (
+                    <div key={`${cat.categoryId}-${idx}`} className="flex items-center justify-between p-3 rounded-md border border-border bg-background">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">{cat.categoryName}</h4>
+                        <p className="text-xs text-muted-foreground">Booking #{(idx + 1)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">Ksh {cat.baseAmount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t border-border pt-2 mt-2 flex items-center justify-between font-semibold">
+                    <span>Total Service Cost</span>
+                    <span>Ksh {locationState.categoryBookings.reduce((sum, cat) => sum + cat.baseAmount, 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Session Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

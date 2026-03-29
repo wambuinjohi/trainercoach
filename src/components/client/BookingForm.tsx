@@ -52,21 +52,23 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [bookingMode, setBookingMode] = useState<'single' | 'multi'>('single')
   const [selectedSessions, setSelectedSessions] = useState<BookingSession[]>([])
   const [categoryPricing, setCategoryPricing] = useState<any[]>([])
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   const computeBaseAmount = () => {
     // For multi-session mode, calculate based on total duration
     if (bookingMode === 'multi' && selectedSessions.length > 0) {
       const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
-      // Use category-specific rate if selected, otherwise use base hourly rate
-      let hourlyRate = Number(trainer.hourlyRate || 0)
-      if (selectedCategoryId && categoryPricing.length > 0) {
-        const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === selectedCategoryId)
-        if (selectedCategory) {
-          hourlyRate = Number(selectedCategory.hourly_rate || 0)
-        }
+      // Sum rates for all selected categories
+      let totalHourlyRate = 0
+      if (selectedCategoryIds.length > 0 && categoryPricing.length > 0) {
+        totalHourlyRate = selectedCategoryIds.reduce((sum, catId) => {
+          const cat = categoryPricing.find((c: any) => String(c.id) === catId)
+          return sum + (cat ? Number(cat.hourly_rate || 0) : 0)
+        }, 0)
+      } else {
+        totalHourlyRate = Number(trainer.hourlyRate || 0)
       }
-      return hourlyRate * totalDurationHours
+      return totalHourlyRate * totalDurationHours
     }
 
     // For single session or group training
@@ -84,15 +86,17 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       }
     }
 
-    // Use category-specific rate if selected, otherwise use base hourly rate
-    let hourlyRate = Number(trainer.hourlyRate || 0)
-    if (selectedCategoryId && categoryPricing.length > 0) {
-      const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === selectedCategoryId)
-      if (selectedCategory) {
-        hourlyRate = Number(selectedCategory.hourly_rate || 0)
-      }
+    // Sum rates for all selected categories
+    let totalHourlyRate = 0
+    if (selectedCategoryIds.length > 0 && categoryPricing.length > 0) {
+      totalHourlyRate = selectedCategoryIds.reduce((sum, catId) => {
+        const cat = categoryPricing.find((c: any) => String(c.id) === catId)
+        return sum + (cat ? Number(cat.hourly_rate || 0) : 0)
+      }, 0)
+    } else {
+      totalHourlyRate = Number(trainer.hourlyRate || 0)
     }
-    return hourlyRate * Number(sessions || 1)
+    return totalHourlyRate * Number(sessions || 1)
   }
 
   const settings = loadSettings()
@@ -248,8 +252,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         const pricingList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
         if (pricingList.length > 0) {
           setCategoryPricing(pricingList)
-          // Auto-select first category for convenience
-          setSelectedCategoryId(String(pricingList[0].id))
+          // Auto-select all categories by default
+          setSelectedCategoryIds(pricingList.map((cat: any) => String(cat.id)))
         }
       } catch (err) {
         console.warn('Failed to load category pricing:', err)
@@ -313,6 +317,12 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       }
     }
 
+    // Validate at least one category is selected
+    if (selectedCategoryIds.length === 0 && !isGroupTraining) {
+      toast({ title: 'Missing info', description: 'Please select at least one service category', variant: 'destructive' })
+      return
+    }
+
     // Validate payment method
     if (payMethod === 'mpesa' && !mpesaPhone.trim()) {
       toast({ title: 'Phone required', description: 'Enter your M-Pesa phone number (e.g., 2547XXXXXXX)', variant: 'destructive' })
@@ -347,8 +357,6 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     }
 
     setLoading(true)
-    const baseAmount = computeBaseAmount()
-    let baseServiceAmount = baseAmount
 
     // Load client saved location to link to booking
     let clientLocation: { label?: string; lat?: number | null; lng?: number | null } = {}
@@ -360,63 +368,106 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       clientLocation = { label, lat, lng }
     } catch {}
 
-
-    const payload: any = {
-      client_id: user.id,
-      trainer_id: trainer.id,
-      session_date: bookingMode === 'multi' ? selectedSessions[0]?.date : date,
-      session_time: bookingMode === 'multi' ? selectedSessions[0]?.start_time : time,
-      duration_hours: bookingMode === 'multi' ? selectedSessions[0]?.duration_hours || 1 : 1,
-      total_sessions: bookingMode === 'multi' ? selectedSessions.length : sessions,
-      status: 'pending',
-      session_phase: 'waiting_start',
-      base_service_amount: baseServiceAmount,
-      notes: notes || '',
-      client_location_label: (clientLocation.label || null),
-      client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
-      client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
-    }
-
-    // Add sessions array for multi-session bookings
-    if (bookingMode === 'multi' && selectedSessions.length > 0) {
-      payload.sessions = selectedSessions
-    }
-
-    // Add group training data if applicable
-    if (isGroupTraining && groupTrainingData) {
-      payload.is_group_training = true
-      payload.group_size = groupSize
-      payload.group_size_tier_name = selectedGroupTierName
-      payload.category_id = trainerCategoryId
-      payload.pricing_model_used = groupTrainingData.pricing_model
-    }
-
     try {
-      // create booking using new booking_create action with server-side fee calculation
-      const bookingResponse = await apiRequest('booking_create', payload, { headers: withAuth() })
-      const bookingId = bookingResponse?.booking_id
-      if (!bookingId) {
-        throw new Error('Booking creation did not return a booking id')
-      }
-      const bookingData = { id: bookingId }
-      const clientTotal = bookingResponse?.total_amount || 0
-      const baseServiceAmount = bookingResponse?.base_service_amount || 0
-      const transportFee = bookingResponse?.transport_fee || 0
-      // NEW: Extract platform fee from new API response structure
-      const platformFee = bookingResponse?.platform_fee_amount || bookingResponse?.platform_charge_client || bookingResponse?.platform_fee || 0
-      const vatAmount = bookingResponse?.vat_amount || 0
-      const trainerNetAmount = bookingResponse?.trainer_net_amount || 0
+      // Create bookings for each selected category
+      const bookingIds: string[] = []
+      const categoryBookings: Array<{categoryId: string, categoryName: string, bookingId: string, baseAmount: number}> = []
 
-      // in-app notifications: client, trainer, admins
+      // Determine which categories to book
+      const categoriesToBook = isGroupTraining ? [trainerCategoryId?.toString() || ''] : selectedCategoryIds
+
+      for (const categoryId of categoriesToBook) {
+        // Calculate base amount for this category
+        const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === categoryId)
+        let categoryBaseAmount = 0
+
+        if (bookingMode === 'multi' && selectedSessions.length > 0) {
+          const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
+          const hourlyRate = selectedCategory ? Number(selectedCategory.hourly_rate || 0) : Number(trainer.hourlyRate || 0)
+          categoryBaseAmount = hourlyRate * totalDurationHours
+        } else if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
+          const tier = getGroupTierByName(groupTrainingData, selectedGroupTierName)
+          if (tier) {
+            const tierRate = tier.rate
+            if (groupTrainingData.pricing_model === 'per_person') {
+              categoryBaseAmount = tierRate * groupSize * Number(sessions || 1)
+            } else {
+              categoryBaseAmount = tierRate * Number(sessions || 1)
+            }
+          }
+        } else {
+          const hourlyRate = selectedCategory ? Number(selectedCategory.hourly_rate || 0) : Number(trainer.hourlyRate || 0)
+          categoryBaseAmount = hourlyRate * Number(sessions || 1)
+        }
+
+        const payload: any = {
+          client_id: user.id,
+          trainer_id: trainer.id,
+          category_id: categoryId,
+          session_date: bookingMode === 'multi' ? selectedSessions[0]?.date : date,
+          session_time: bookingMode === 'multi' ? selectedSessions[0]?.start_time : time,
+          duration_hours: bookingMode === 'multi' ? selectedSessions[0]?.duration_hours || 1 : 1,
+          total_sessions: bookingMode === 'multi' ? selectedSessions.length : sessions,
+          status: 'pending',
+          session_phase: 'waiting_start',
+          base_service_amount: categoryBaseAmount,
+          notes: notes || '',
+          client_location_label: (clientLocation.label || null),
+          client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
+          client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
+        }
+
+        // Add sessions array for multi-session bookings
+        if (bookingMode === 'multi' && selectedSessions.length > 0) {
+          payload.sessions = selectedSessions
+        }
+
+        // Add group training data if applicable
+        if (isGroupTraining && groupTrainingData) {
+          payload.is_group_training = true
+          payload.group_size = groupSize
+          payload.group_size_tier_name = selectedGroupTierName
+          payload.pricing_model_used = groupTrainingData.pricing_model
+        }
+
+        // Create the booking
+        const bookingResponse = await apiRequest('booking_create', payload, { headers: withAuth() })
+        const bookingId = bookingResponse?.booking_id
+        if (!bookingId) {
+          throw new Error(`Failed to create booking for category ${categoryId}`)
+        }
+
+        bookingIds.push(bookingId)
+        const categoryName = isGroupTraining ? trainer.disciplineName : (selectedCategory?.name || 'Session')
+        categoryBookings.push({
+          categoryId,
+          categoryName,
+          bookingId,
+          baseAmount: categoryBaseAmount
+        })
+      }
+
+      // Calculate combined total
+      const combinedBaseAmount = categoryBookings.reduce((sum, b) => sum + b.baseAmount, 0)
+      const combinedFeeBreakdown = calculateFeeBreakdown(combinedBaseAmount, {
+        platformChargeClientPercent: settings.platformChargeClientPercent || 15,
+        platformChargeTrainerPercent: settings.platformChargeTrainerPercent || 10,
+        compensationFeePercent: settings.compensationFeePercent || 10,
+        maintenanceFeePercent: settings.maintenanceFeePercent || 15,
+      }, 0)
+
+      const clientTotal = combinedFeeBreakdown.clientTotal
+
+      // Send notifications for all bookings
       try {
         const trainerUserId = trainer.id
         const nowIso = new Date().toISOString()
         const notifRows: any[] = [
           {
             user_id: user.id,
-            booking_id: bookingData?.id || null,
-            title: 'Booking submitted',
-            body: `Your session request for ${date} at ${time} has been created. Use in-app chat for safe communication and complaint follow-up.`,
+            booking_id: bookingIds[0] || null,
+            title: 'Multi-category booking submitted',
+            body: `Your booking for ${categoryBookings.map(b => b.categoryName).join(', ')} has been created. Use in-app chat for safe communication.`,
             action_type: 'view_booking',
             type: 'booking',
             created_at: nowIso,
@@ -424,9 +475,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           },
           {
             user_id: trainerUserId,
-            booking_id: bookingData?.id || null,
-            title: 'New booking request',
-            body: `A client requested ${date} at ${time}. Please confirm attendance or decline.`,
+            booking_id: bookingIds[0] || null,
+            title: 'New multi-category booking',
+            body: `A client requested ${categoryBookings.map(b => b.categoryName).join(', ')} sessions. Please confirm or decline.`,
             action_type: 'confirm_attendance',
             type: 'booking',
             created_at: nowIso,
@@ -435,7 +486,18 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         ]
         try {
           const admins = await apiRequest('profiles_get_by_type', { user_type: 'admin' }, { headers: withAuth() })
-          for (const a of (admins || [])) notifRows.push({ user_id: a.user_id, booking_id: bookingData?.id || null, title: 'New booking', body: `Booking from ${user.email || user.id} to trainer ${trainer.name || trainer.id}.`, action_type: 'view_booking', type: 'booking', created_at: nowIso, read: false })
+          for (const a of (admins || [])) {
+            notifRows.push({
+              user_id: a.user_id,
+              booking_id: bookingIds[0] || null,
+              title: 'New multi-category booking',
+              body: `Booking from ${user.email || user.id} to trainer ${trainer.name || trainer.id} for ${categoryBookings.map(b => b.categoryName).join(', ')}.`,
+              action_type: 'view_booking',
+              type: 'booking',
+              created_at: nowIso,
+              read: false
+            })
+          }
         } catch {}
         if (notifRows.length) await apiRequest('notifications_insert', { notifications: notifRows }, { headers: withAuth() })
       } catch (err) {
@@ -444,15 +506,15 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
       const paymentCreatedAt = new Date().toISOString()
       const paymentBaseRecord = {
-        booking_id: bookingData.id,
+        booking_id: bookingIds[0],
         client_id: user.id,
         trainer_id: trainer.id,
         amount: clientTotal,
-        base_service_amount: baseServiceAmount,
-        transport_fee: transportFee,
-        platform_fee: platformFee,
-        vat_amount: vatAmount,
-        trainer_net_amount: trainerNetAmount,
+        base_service_amount: combinedBaseAmount,
+        transport_fee: 0,
+        platform_fee: combinedFeeBreakdown.platformFeeAmount,
+        vat_amount: combinedFeeBreakdown.vatAmount,
+        trainer_net_amount: combinedFeeBreakdown.trainerNetAmount,
         status: 'pending' as const,
         created_at: paymentCreatedAt,
       }
@@ -469,7 +531,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         if (clientTotal < 5) {
           toast({
             title: 'Amount too low',
-            description: `The session cost (Ksh ${clientTotal}) is below the minimum M-Pesa payment of Ksh 5. Please check the trainer rate or session details.`,
+            description: `The combined cost (Ksh ${clientTotal}) is below the minimum M-Pesa payment of Ksh 5.`,
             variant: 'destructive'
           })
           throw new Error(`Payment amount ${clientTotal} is below minimum of 5`)
@@ -478,7 +540,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         if (clientTotal > 150000) {
           toast({
             title: 'Amount too high',
-            description: `The session cost (Ksh ${clientTotal}) exceeds the maximum M-Pesa payment of Ksh 150,000. Please contact support or split the booking into smaller sessions.`,
+            description: `The combined cost (Ksh ${clientTotal}) exceeds the maximum M-Pesa payment of Ksh 150,000.`,
             variant: 'destructive'
           })
           throw new Error(`Payment amount ${clientTotal} exceeds maximum of 150000`)
@@ -489,10 +551,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         const paymentResult = await processBookingPayment({
           phone: mpesaPhone,
           amount: clientTotal,
-          bookingId,
+          bookingId: bookingIds[0],
           clientId: user.id,
           trainerId: trainer.id,
-          accountReference: bookingId,
+          accountReference: bookingIds[0],
           paymentRecord: paymentBaseRecord,
         })
 
@@ -519,7 +581,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           method: 'mpesa',
         }
       } else {
-        const mockResult = await completeMockPayment(paymentBaseRecord, bookingId)
+        const mockResult = await completeMockPayment(paymentBaseRecord, bookingIds[0])
         if (!mockResult.success) {
           throw new Error(mockResult.error || 'Failed to record payment')
         }
@@ -536,16 +598,22 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           await fetch(hook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'booking_created', booking: bookingData, payer: paymentRecord }),
+            body: JSON.stringify({
+              type: 'multi_category_booking_created',
+              bookingIds: bookingIds,
+              categories: categoryBookings,
+              payer: paymentRecord
+            }),
           })
         }
       } catch (err) {
         console.warn('Zapier webhook error', err)
       }
 
-      // Navigate to booking confirmation page with booking details
+      // Navigate to booking confirmation page with all booking details
       const bookingConfirmationState = {
-        bookingId: bookingId,
+        bookingIds: bookingIds,
+        categoryBookings: categoryBookings,
         trainerName: trainer.name || 'Trainer',
         date: bookingMode === 'multi' ? selectedSessions[0]?.date || date : date,
         time: bookingMode === 'multi' ? selectedSessions[0]?.start_time || time : time,
@@ -556,7 +624,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         notes,
       }
 
-      navigate(`/booking-confirmation/${bookingId}`, { state: bookingConfirmationState })
+      navigate(`/booking-confirmation/${bookingIds[0]}`, { state: bookingConfirmationState })
       onDone?.()
     } catch (err) {
       console.error('Booking error', err)
@@ -578,8 +646,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         toast({
           title: 'Invalid payment amount',
           description: errorMessage.includes('below minimum') || errorMessage.includes('Amount must be between')
-            ? 'The session cost is too low for M-Pesa payment (minimum Ksh 5). Please use Mock payment or check trainer rates.'
-            : 'The session cost is too high for M-Pesa payment (maximum Ksh 150,000). Please contact support.',
+            ? 'The combined session cost is too low for M-Pesa payment (minimum Ksh 5). Please use Mock payment or check trainer rates.'
+            : 'The combined session cost is too high for M-Pesa payment (maximum Ksh 150,000). Please contact support.',
           variant: 'destructive'
         })
       } else if (errorMessage.includes('access token') || errorMessage.includes('credentials') || errorMessage.includes('not configured')) {
@@ -645,27 +713,36 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           </div>
         </div>
 
-        {/* Category Selector */}
+        {/* Category Selector - Multi-select */}
         {!isGroupTraining && categoryPricing.length > 0 && (
-          <div>
-            <Label>Service Category</Label>
-            <Select value={selectedCategoryId || ''} onValueChange={setSelectedCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categoryPricing.map((category: any) => (
-                  <SelectItem key={category.id} value={String(category.id)}>
-                    <div className="flex flex-col">
-                      <span>{category.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        Ksh {Number(category.hourly_rate || 0)}/hr
-                      </span>
+          <div className="border border-border rounded-md p-3 bg-muted/5">
+            <Label className="text-sm font-medium">Service Categories</Label>
+            <p className="text-xs text-muted-foreground mb-3">Select one or more categories. Pricing will be combined.</p>
+            <div className="space-y-2">
+              {categoryPricing.map((category: any) => (
+                <label key={category.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoryIds.includes(String(category.id))}
+                    onChange={(e) => {
+                      const catId = String(category.id)
+                      if (e.target.checked) {
+                        setSelectedCategoryIds([...selectedCategoryIds, catId])
+                      } else {
+                        setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== catId))
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-border cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{category.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Ksh {Number(category.hourly_rate || 0)}/hr
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
         )}
 
@@ -856,7 +933,28 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             </>
           ) : (
             <>
-              <div className="flex justify-between"><span>Rate</span><span className="font-semibold">Ksh {selectedCategoryId && categoryPricing.length > 0 ? (() => { const cat = categoryPricing.find(c => String(c.id) === selectedCategoryId); return cat ? Number(cat.hourly_rate || 0) : Number(trainer.hourlyRate || 0); })() : Number(trainer.hourlyRate || 0)}/hr</span></div>
+              {selectedCategoryIds.length > 0 ? (
+                <div className="space-y-1 mb-2">
+                  {selectedCategoryIds.map(catId => {
+                    const cat = categoryPricing.find(c => String(c.id) === catId)
+                    return (
+                      <div key={catId} className="flex justify-between text-xs">
+                        <span>{cat?.name}</span>
+                        <span className="font-medium">Ksh {Number(cat?.hourly_rate || 0)}/hr</span>
+                      </div>
+                    )
+                  })}
+                  <div className="border-t border-border pt-1 mt-1 flex justify-between">
+                    <span>Combined Rate</span>
+                    <span className="font-semibold">Ksh {selectedCategoryIds.reduce((sum, catId) => {
+                      const cat = categoryPricing.find(c => String(c.id) === catId)
+                      return sum + (cat ? Number(cat.hourly_rate || 0) : 0)
+                    }, 0)}/hr</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between"><span>Rate</span><span className="font-semibold">Ksh {Number(trainer.hourlyRate || 0)}/hr</span></div>
+              )}
             </>
           )}
           <div className="flex justify-between"><span>Sessions</span><span className="font-semibold">{bookingMode === 'multi' ? selectedSessionCount : sessions}</span></div>
