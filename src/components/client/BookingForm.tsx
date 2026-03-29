@@ -453,7 +453,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         platform_fee: platformFee,
         vat_amount: vatAmount,
         trainer_net_amount: trainerNetAmount,
-        status: 'completed' as const,
+        status: 'pending' as const,
         created_at: paymentCreatedAt,
       }
 

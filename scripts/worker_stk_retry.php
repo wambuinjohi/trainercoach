@@ -25,12 +25,15 @@ class STKRetryWorker {
     private $processed = 0;
     private $succeeded = 0;
     private $scheduled_retries = 0;
+    private $exhausted_retries = 0;
     private $errors = [];
-    
+
     // Retry configuration
     private $base_retry_interval = 60; // Start with 60 seconds
     private $max_retry_interval = 3600; // Max 1 hour between retries
     private $exponential_backoff = true; // Use exponential backoff
+    private $jitter_enabled = true; // Add randomness to prevent thundering herd
+    private $max_retry_attempts = 10; // Maximum number of retry attempts
     
     public function __construct($db_conn) {
         $this->conn = $db_conn;
@@ -53,7 +56,9 @@ class STKRetryWorker {
                 'status' => 'success',
                 'processed' => 0,
                 'succeeded' => 0,
-                'scheduled_retries' => 0
+                'scheduled_retries' => 0,
+                'exhausted_retries' => 0,
+                'errors' => []
             ];
         }
         
@@ -66,12 +71,13 @@ class STKRetryWorker {
         
         // Print summary
         $this->printSummary();
-        
+
         return [
             'status' => 'success',
             'processed' => $this->processed,
             'succeeded' => $this->succeeded,
             'scheduled_retries' => $this->scheduled_retries,
+            'exhausted_retries' => $this->exhausted_retries,
             'errors' => $this->errors
         ];
     }
@@ -109,45 +115,54 @@ class STKRetryWorker {
         $phone = $session['phone_number'];
         $checkout_request_id = $session['checkout_request_id'];
         $retry_count = $session['retry_count'] ?? 0;
-        
+
         echo "Processing: $id (Retry #{$retry_count})\n";
         echo "  Phone: $phone\n";
         echo "  Request ID: " . substr($checkout_request_id, 0, 20) . "...\n";
-        
+
         $this->processed++;
-        
+
+        // Check if max retry attempts exceeded
+        if ($retry_count >= $this->max_retry_attempts) {
+            echo "  ⚠ Max retry attempts ({$this->max_retry_attempts}) exhausted\n";
+            $this->exhaustRetry($id);
+            $this->exhausted_retries++;
+            echo "\n";
+            return;
+        }
+
         try {
             // Get M-Pesa credentials
             $mpesa_creds = $this->getMpesaCredentials();
             if (!$mpesa_creds) {
                 throw new Exception("Could not retrieve M-Pesa credentials");
             }
-            
+
             // Query current status from M-Pesa
             $query_result = querySTKPushStatus($mpesa_creds, $checkout_request_id);
-            
+
             if (!$query_result['success']) {
                 throw new Exception("Failed to query M-Pesa: " . ($query_result['error'] ?? 'Unknown error'));
             }
-            
+
             $result_code = $query_result['result_code'];
             $result_description = $query_result['result_description'] ?? '';
-            
+
             // Determine new status
             $new_status = $this->getStatusFromResultCode($result_code);
-            
+
             echo "  Result Code: $result_code\n";
             echo "  New Status: $new_status\n";
-            
+
             // Update session with query result
             $this->updateSession($id, $new_status, $result_code, $result_description, $retry_count);
-            
+
             // If successful, record the payment
             if ($new_status === 'success' && !empty($query_result['mpesaReceiptNumber'])) {
                 $this->handleSuccessfulPayment($session, $query_result);
                 echo "  ✓ Payment recorded successfully\n";
                 $this->succeeded++;
-            } 
+            }
             // If still failed/timeout, schedule next retry
             else if (in_array($new_status, ['failed', 'timeout'])) {
                 $next_retry_at = $this->calculateNextRetryTime($retry_count);
@@ -155,19 +170,26 @@ class STKRetryWorker {
                 echo "  ⟳ Scheduled next retry at: " . $next_retry_at . "\n";
                 $this->scheduled_retries++;
             }
-            
+
         } catch (Exception $e) {
             echo "  ✗ Error: " . $e->getMessage() . "\n";
             $this->errors[] = [
                 'session_id' => $id,
                 'error' => $e->getMessage()
             ];
-            
-            // Still schedule retry even on error
-            $next_retry_at = $this->calculateNextRetryTime($retry_count);
-            $this->scheduleNextRetry($id, $next_retry_at, $retry_count + 1);
+
+            // Check if this is our last attempt
+            if ($retry_count + 1 >= $this->max_retry_attempts) {
+                echo "  ⚠ Final retry attempt - will not schedule further retries\n";
+                $this->exhaustRetry($id);
+                $this->exhausted_retries++;
+            } else {
+                // Still schedule retry even on error
+                $next_retry_at = $this->calculateNextRetryTime($retry_count);
+                $this->scheduleNextRetry($id, $next_retry_at, $retry_count + 1);
+            }
         }
-        
+
         echo "\n";
     }
     
@@ -206,7 +228,8 @@ class STKRetryWorker {
     }
     
     /**
-     * Calculate the next retry time using exponential backoff
+     * Calculate the next retry time using exponential backoff with optional jitter
+     * Jitter prevents thundering herd problem when many retries are scheduled simultaneously
      */
     private function calculateNextRetryTime($attempt_number) {
         if ($this->exponential_backoff) {
@@ -217,7 +240,14 @@ class STKRetryWorker {
             // Linear backoff: retry every hour
             $interval = $this->max_retry_interval;
         }
-        
+
+        // Add jitter: randomize +/- 20% of interval to prevent thundering herd
+        if ($this->jitter_enabled) {
+            $jitter_amount = floor($interval * 0.2); // 20% jitter
+            $jitter = random_int(-$jitter_amount, $jitter_amount);
+            $interval = max($interval / 2, $interval + $jitter); // Never go below half the interval
+        }
+
         return date('Y-m-d H:i:s', time() + $interval);
     }
     
@@ -278,6 +308,29 @@ class STKRetryWorker {
         $stmt->close();
     }
     
+    /**
+     * Mark session as exhausted - stop retries and flag for manual intervention
+     */
+    private function exhaustRetry($id) {
+        $sql = "
+            UPDATE stk_push_sessions
+            SET
+                should_retry = FALSE,
+                updated_at = NOW()
+            WHERE id = ?
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        if (!$stmt) {
+            error_log("Exhaustion update failed: " . $this->conn->error);
+            return;
+        }
+
+        $stmt->bind_param('s', $id);
+        $stmt->execute();
+        $stmt->close();
+    }
+
     /**
      * Handle successful payment - record it
      */
@@ -343,18 +396,21 @@ class STKRetryWorker {
         echo str_repeat("=", 80) . "\n";
         echo "WORKER SUMMARY\n";
         echo str_repeat("=", 80) . "\n\n";
-        
+
         echo "✓ Sessions processed: {$this->processed}\n";
         echo "✓ Payments completed: {$this->succeeded}\n";
         echo "⟳ Retries scheduled: {$this->scheduled_retries}\n";
-        
+        echo "⚠ Retries exhausted: {$this->exhausted_retries} (max {$this->max_retry_attempts} attempts)\n";
+
         if (!empty($this->errors)) {
-            echo "✗ Errors: " . count($this->errors) . "\n";
+            echo "✗ Errors encountered: " . count($this->errors) . "\n";
             foreach ($this->errors as $error) {
                 echo "  - {$error['session_id']}: {$error['error']}\n";
             }
         }
-        
+
+        echo "\nBackoff Strategy: Exponential" . ($this->jitter_enabled ? " + Jitter" : "") . "\n";
+        echo "Base interval: {$this->base_retry_interval}s, Max interval: {$this->max_retry_interval}s\n";
         echo "\n";
     }
 }

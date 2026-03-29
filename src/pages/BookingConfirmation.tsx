@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Chat } from '@/components/client/Chat'
 import * as apiService from '@/lib/api-service'
 import { toast } from '@/hooks/use-toast'
+import { retryPayment } from '@/lib/payment-service'
 
 interface BookingConfirmationState {
   bookingId: string
@@ -39,6 +40,7 @@ export default function BookingConfirmation() {
   const [loadingAlternatives, setLoadingAlternatives] = useState(false)
   const [pollingActive, setPollingActive] = useState(true)
   const [paymentPollingActive, setPaymentPollingActive] = useState(true)
+  const [retryLoading, setRetryLoading] = useState(false)
 
   // Get booking details from location state or fetch from API
   const locationState = location.state as BookingConfirmationState | null
@@ -64,6 +66,88 @@ export default function BookingConfirmation() {
       setLoadingAlternatives(false)
     }
   }
+
+  // Handle payment retry
+  const handleRetryPayment = async () => {
+    if (!bookingId || !bookingData) return
+
+    setRetryLoading(true)
+    setPaymentStatus('processing')
+
+    try {
+      const paymentRecord = {
+        booking_id: bookingId,
+        client_id: user?.id || '',
+        trainer_id: bookingData.trainer_id,
+        amount: displayData?.totalAmount || bookingData.total_amount || 0,
+        base_service_amount: bookingData.base_service_amount || 0,
+        transport_fee: bookingData.transport_fee || 0,
+        platform_fee: bookingData.platform_fee_amount || bookingData.platform_fee || 0,
+        vat_amount: bookingData.vat_amount || 0,
+        trainer_net_amount: bookingData.trainer_net_amount || 0,
+        status: 'pending' as const,
+        created_at: new Date().toISOString(),
+      }
+
+      // Get phone number - try to get it from user profile
+      let phone = ''
+      try {
+        const profile = await apiRequest('profile_get', { user_id: user?.id }, { headers: withAuth() })
+        phone = profile?.phone || profile?.phone_number || ''
+      } catch {
+        // Phone not found in profile, will prompt user
+      }
+
+      if (!phone) {
+        toast({
+          title: 'Phone required',
+          description: 'Please provide your M-Pesa phone number to retry payment.',
+          variant: 'destructive'
+        })
+        setPaymentStatus('failed')
+        setRetryLoading(false)
+        return
+      }
+
+      const result = await retryPayment({
+        phone,
+        amount: paymentRecord.amount,
+        bookingId,
+        clientId: user?.id,
+        trainerId: bookingData.trainer_id,
+        accountReference: bookingId,
+        paymentRecord,
+      })
+
+      if (!result.success) {
+        toast({
+          title: 'Retry failed',
+          description: result.error || 'Failed to retry payment. Please try again.',
+          variant: 'destructive'
+        })
+        setPaymentStatus('failed')
+      } else {
+        toast({
+          title: 'Payment retry initiated',
+          description: 'Check your phone and enter your M-Pesa PIN.',
+        })
+        // Payment status will be updated by polling
+        setPaymentPollingActive(true)
+      }
+    } catch (err) {
+      console.error('Payment retry error:', err)
+      toast({
+        title: 'Error',
+        description: 'An error occurred while retrying payment.',
+        variant: 'destructive'
+      })
+      setPaymentStatus('failed')
+    } finally {
+      setRetryLoading(false)
+    }
+  }
+
+  const displayData = locationState || bookingData
 
   useEffect(() => {
     const fetchBookingDetails = async () => {
@@ -223,7 +307,6 @@ export default function BookingConfirmation() {
     return () => clearInterval(paymentPollInterval)
   }, [bookingId, paymentPollingActive, paymentStatus])
 
-  const displayData = locationState || bookingData
   const bookingSessions = (() => {
     const sessionsValue = displayData?.sessions
     if (Array.isArray(sessionsValue)) return sessionsValue as BookingSession[]
@@ -363,21 +446,50 @@ export default function BookingConfirmation() {
                 <div>
                   <CardTitle>Payment failed</CardTitle>
                   <CardDescription>
-                    Your payment could not be processed. Please try again or use a different payment method.
+                    Your payment could not be processed. Our system will automatically retry with exponential backoff, or you can retry immediately.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             {displayData.totalAmount && (
-              <CardContent className="border-t border-red-500/20 pt-4">
+              <CardContent className="border-t border-red-500/20 pt-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Amount:</span>
                   <span className="text-xl font-bold text-red-600 dark:text-red-400">
                     KES {displayData.totalAmount.toLocaleString()}
                   </span>
                 </div>
-                <Button className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white">
-                  Retry Payment
+
+                {bookingData?.retry_count !== undefined && (
+                  <div className="flex items-center justify-between pt-2 border-t border-red-500/10">
+                    <span className="text-sm text-muted-foreground">Retry attempts:</span>
+                    <span className="text-sm font-medium">{bookingData.retry_count}/10</span>
+                  </div>
+                )}
+
+                {bookingData?.next_retry_at && (
+                  <div className="flex items-center justify-between pt-2 border-t border-red-500/10">
+                    <span className="text-sm text-muted-foreground">Next auto-retry:</span>
+                    <span className="text-sm font-medium">
+                      {new Date(bookingData.next_retry_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground pt-2">
+                  💡 The system uses exponential backoff to automatically retry your payment. You can also retry immediately below.
+                </p>
+
+                <Button
+                  onClick={handleRetryPayment}
+                  disabled={retryLoading}
+                  className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                >
+                  {retryLoading ? 'Retrying...' : 'Retry Payment Now'}
                 </Button>
               </CardContent>
             )}
@@ -405,8 +517,12 @@ export default function BookingConfirmation() {
                     KES {displayData.totalAmount.toLocaleString()}
                   </span>
                 </div>
-                <Button className="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white">
-                  Proceed to Payment
+                <Button
+                  onClick={handleRetryPayment}
+                  disabled={retryLoading}
+                  className="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+                >
+                  {retryLoading ? 'Processing...' : 'Proceed to Payment'}
                 </Button>
               </CardContent>
             )}
