@@ -446,25 +446,50 @@ export default function BookingConfirmation() {
                 <div>
                   <CardTitle>Payment failed</CardTitle>
                   <CardDescription>
-                    Your payment could not be processed. Please try again or use a different payment method.
+                    Your payment could not be processed. Our system will automatically retry with exponential backoff, or you can retry immediately.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             {displayData.totalAmount && (
-              <CardContent className="border-t border-red-500/20 pt-4">
+              <CardContent className="border-t border-red-500/20 pt-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Amount:</span>
                   <span className="text-xl font-bold text-red-600 dark:text-red-400">
                     KES {displayData.totalAmount.toLocaleString()}
                   </span>
                 </div>
+
+                {bookingData?.retry_count !== undefined && (
+                  <div className="flex items-center justify-between pt-2 border-t border-red-500/10">
+                    <span className="text-sm text-muted-foreground">Retry attempts:</span>
+                    <span className="text-sm font-medium">{bookingData.retry_count}/10</span>
+                  </div>
+                )}
+
+                {bookingData?.next_retry_at && (
+                  <div className="flex items-center justify-between pt-2 border-t border-red-500/10">
+                    <span className="text-sm text-muted-foreground">Next auto-retry:</span>
+                    <span className="text-sm font-medium">
+                      {new Date(bookingData.next_retry_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground pt-2">
+                  💡 The system uses exponential backoff to automatically retry your payment. You can also retry immediately below.
+                </p>
+
                 <Button
                   onClick={handleRetryPayment}
                   disabled={retryLoading}
                   className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
                 >
-                  {retryLoading ? 'Retrying...' : 'Retry Payment'}
+                  {retryLoading ? 'Retrying...' : 'Retry Payment Now'}
                 </Button>
               </CardContent>
             )}
