@@ -11,9 +11,10 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
   const [minRating, setMinRating] = useState<number>(initial.minRating ?? 0)
   const [maxPrice, setMaxPrice] = useState<number | ''>(initial.maxPrice ?? '')
   const [radius, setRadius] = useState<number | ''>(initial.radius ?? '')
-  const [availabilityDays, setAvailabilityDays] = useState<string[]>(initial.availabilityDays ?? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
-  const [availabilityStartTime, setAvailabilityStartTime] = useState<string>(initial.availabilityStartTime ?? '06:00')
-  const [availabilityEndTime, setAvailabilityEndTime] = useState<string>(initial.availabilityEndTime ?? '20:00')
+  const [availabilityDays, setAvailabilityDays] = useState<string[] | null>(initial.availabilityDays ?? null)
+  const [availabilityStartTime, setAvailabilityStartTime] = useState<string | null>(initial.availabilityStartTime ?? null)
+  const [availabilityEndTime, setAvailabilityEndTime] = useState<string | null>(initial.availabilityEndTime ?? null)
+  const [hasAvailabilityFilter, setHasAvailabilityFilter] = useState<boolean>(initial.hasAvailabilityFilter ?? false)
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -22,9 +23,10 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
       minRating,
       maxPrice,
       radius,
-      availabilityDays,
-      availabilityStartTime,
-      availabilityEndTime
+      availabilityDays: hasAvailabilityFilter ? (availabilityDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) : null,
+      availabilityStartTime: hasAvailabilityFilter ? (availabilityStartTime || '06:00') : null,
+      availabilityEndTime: hasAvailabilityFilter ? (availabilityEndTime || '20:00') : null,
+      hasAvailabilityFilter
     })
     onClose?.()
   }
@@ -33,16 +35,18 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
     setMinRating(0)
     setMaxPrice('')
     setRadius('')
-    setAvailabilityDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
-    setAvailabilityStartTime('06:00')
-    setAvailabilityEndTime('20:00')
+    setAvailabilityDays(null)
+    setAvailabilityStartTime(null)
+    setAvailabilityEndTime(null)
+    setHasAvailabilityFilter(false)
   }
 
   const toggleDay = (day: string) => {
-    setAvailabilityDays(prev =>
-      prev.includes(day)
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
+    const current = availabilityDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    setAvailabilityDays(
+      current.includes(day)
+        ? current.filter(d => d !== day)
+        : [...current, day]
     )
   }
 
@@ -116,53 +120,67 @@ export const FiltersModal: React.FC<{ initial?: any, onApply: (f: any) => void, 
                   />
                 </div>
 
-                {/* Availability Filter */}
+                {/* Availability Filter Toggle */}
                 <div>
-                  <Label className="text-sm block mb-3">Availability</Label>
-
-                  {/* Days Selection */}
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground mb-2 font-medium">Days</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {days.map(day => (
-                        <label key={day} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-                          <input
-                            type="checkbox"
-                            checked={availabilityDays.includes(day)}
-                            onChange={() => toggleDay(day)}
-                            className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
-                          />
-                          <span className="text-sm text-foreground">{day.slice(0, 3)}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Time Range */}
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2 font-medium">Time Range</p>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">From</label>
-                        <Input
-                          type="time"
-                          value={availabilityStartTime}
-                          onChange={(e) => setAvailabilityStartTime(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground block mb-1">To</label>
-                        <Input
-                          type="time"
-                          value={availabilityEndTime}
-                          onChange={(e) => setAvailabilityEndTime(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 -m-2 p-2">
+                    <input
+                      type="checkbox"
+                      checked={hasAvailabilityFilter}
+                      onChange={(e) => setHasAvailabilityFilter(e.target.checked)}
+                      className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
+                    />
+                    <span className="text-sm font-medium text-foreground">Filter by Availability</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1 ml-7">Only show trainers with available slots</p>
                 </div>
+
+                {/* Availability Details (only shown if filter is enabled) */}
+                {hasAvailabilityFilter && (
+                  <div className="space-y-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                    {/* Days Selection */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2 font-medium">Days</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {days.map(day => (
+                          <label key={day} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={(availabilityDays || []).includes(day)}
+                              onChange={() => toggleDay(day)}
+                              className="rounded border-slate-300 text-slate-900 dark:border-slate-600 dark:bg-slate-700"
+                            />
+                            <span className="text-sm text-foreground">{day.slice(0, 3)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Time Range */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2 font-medium">Time Range</p>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">From</label>
+                          <Input
+                            type="time"
+                            value={availabilityStartTime || '06:00'}
+                            onChange={(e) => setAvailabilityStartTime(e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">To</label>
+                          <Input
+                            type="time"
+                            value={availabilityEndTime || '20:00'}
+                            onChange={(e) => setAvailabilityEndTime(e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

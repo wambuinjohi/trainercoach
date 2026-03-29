@@ -115,9 +115,10 @@ export const ClientDashboard: React.FC = () => {
     onlyAvailable: false,
     radius: null,
     categoryId: null,
-    availabilityDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-    availabilityStartTime: '06:00',
-    availabilityEndTime: '20:00'
+    availabilityDays: null, // No availability filtering by default - show all trainers
+    availabilityStartTime: null,
+    availabilityEndTime: null,
+    hasAvailabilityFilter: false // Flag to indicate if user has explicitly set availability preferences
   })
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [showEditProfile, setShowEditProfile] = useState(false)
@@ -375,49 +376,34 @@ export const ClientDashboard: React.FC = () => {
     loadClientProfile()
   }, [user?.id, filters, loadBookings, loadClientProfile])
 
-  // Update distances when user location changes and filter by service radius
+  // Update distances when user location changes - enrich but don't filter
   useEffect(() => {
     if (!userLocation || trainers.length === 0) return
 
-    // Check if we've already enriched trainers for this location to avoid redundant processing
+    // Check if we've already enriched trainers for this location to avoid infinite loops
     const locationChanged = !lastEnrichedLocation.current ||
       lastEnrichedLocation.current.lat !== userLocation.lat ||
       lastEnrichedLocation.current.lng !== userLocation.lng
 
     if (!locationChanged) return
 
-    // First enrich with distance
+    // Enrich trainers with distance calculation (but don't filter them out)
     const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
 
-    // Then filter by service radius - only show trainers within their service area
-    const filteredTrainers = enrichedTrainers.filter(trainer => {
-      if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
-        console.debug(`[Distance] Trainer ${trainer.name}: missing location/radius info, included by default`, {trainerId: trainer.id})
-        return true // Include trainers without location/radius info
-      }
-
-      // Check if user is within trainer's service radius
-      const distance = trainer.distanceKm
-      if (distance === null) {
-        console.debug(`[Distance] Trainer ${trainer.name}: distance can't be calculated, included by default`, {trainerId: trainer.id})
-        return true // Include if distance can't be calculated
-      }
-
-      const included = distance <= trainer.service_radius
-      if (!included) {
-        console.debug(`[Distance] Trainer ${trainer.name} filtered: distance ${distance.toFixed(2)}km > service_radius ${trainer.service_radius}km`, {trainerId: trainer.id})
-      }
-      return included
-    })
-
-    console.debug('[Distance] Service radius filtering summary', {
+    console.debug('[Distance] Trainers enriched with distance', {
       totalEnriched: enrichedTrainers.length,
-      afterRadiusFilter: filteredTrainers.length,
-      userLocation
+      userLocation,
+      enrichedTrainers: enrichedTrainers.map(t => ({
+        id: t.id,
+        name: t.name,
+        distanceKm: t.distanceKm,
+        service_radius: t.service_radius
+      }))
     })
 
-    // Update trainers with enriched distances
-    setTrainers(filteredTrainers)
+    // Update trainers with enriched distances - show all trainers regardless of service radius
+    // Users can manually filter by radius if needed using the filters modal
+    setTrainers(enrichedTrainers)
     lastEnrichedLocation.current = userLocation
   }, [userLocation, trainers])
 
@@ -506,6 +492,9 @@ export const ClientDashboard: React.FC = () => {
 
   // Helper function to check if trainer has availability on selected days and times
   const trainerHasAvailability = (trainer: any) => {
+    // Only apply availability filtering if user has explicitly set preferences
+    if (!filters.hasAvailabilityFilter) return true
+
     if (!trainer.availability) return true // If no availability data, don't filter
 
     let availability: any = trainer.availability
@@ -521,7 +510,7 @@ export const ClientDashboard: React.FC = () => {
 
     if (!availability || typeof availability !== 'object') return true
 
-    const selectedDays = filters.availabilityDays || []
+    const selectedDays = filters.availabilityDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     const filterStartTime = filters.availabilityStartTime || '06:00'
     const filterEndTime = filters.availabilityEndTime || '20:00'
 
