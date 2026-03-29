@@ -5993,7 +5993,7 @@ switch ($action) {
         // Create notification for trainer
         $trainerNotifId = 'notif_' . uniqid();
         $notifType = 'booking_request_pending';
-        $notifTitle = ucfirst(str_replace('_', ' ', $requestType)) . ' Request";
+        $notifTitle = ucfirst(str_replace('_', ' ', $requestType)) . ' Request';
 
         $notifStmt = $conn->prepare("
             INSERT INTO notifications (id, recipient_id, type, title, body, related_id, status, created_at)
