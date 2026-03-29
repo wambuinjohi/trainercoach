@@ -191,8 +191,13 @@ try {
                             logC2BEvent('payment_processed', ['checkout_request_id' => $checkoutRequestId]);
                         }
                     } elseif (($status === 'failed' || $status === 'timeout') && $session['id']) {
+                        // Update booking payment status to failed if booking exists
+                        if ($session['booking_id']) {
+                            $conn->query("UPDATE bookings SET payment_status = 'failed' WHERE id = '" . $conn->real_escape_string($session['booking_id']) . "'");
+                        }
                         logC2BEvent('payment_failed', [
                             'checkout_request_id' => $checkoutRequestId,
+                            'booking_id' => $session['booking_id'],
                             'status' => $status,
                             'result_code' => $resultCode,
                             'error' => $resultDesc

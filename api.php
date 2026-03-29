@@ -7803,9 +7803,13 @@ switch ($action) {
                 `description` TEXT,
                 `checkout_request_id` VARCHAR(255) UNIQUE,
                 `merchant_request_id` VARCHAR(255),
-                `status` VARCHAR(50) DEFAULT 'initiated',
+                `status` VARCHAR(50) DEFAULT 'initiated' COMMENT 'initiated, pending, success, failed, timeout',
                 `result_code` VARCHAR(10),
                 `result_description` TEXT,
+                `retry_count` INT DEFAULT 0 COMMENT 'Number of retry attempts made',
+                `last_retry_at` TIMESTAMP NULL COMMENT 'Timestamp of the last retry attempt',
+                `next_retry_at` TIMESTAMP NULL COMMENT 'Timestamp when the next retry should be attempted',
+                `should_retry` BOOLEAN DEFAULT TRUE COMMENT 'Flag to indicate if this payment should be retried',
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX `idx_phone` (`phone_number`),
@@ -7814,7 +7818,8 @@ switch ($action) {
                 INDEX `idx_booking_id` (`booking_id`),
                 INDEX `idx_client_id` (`client_id`),
                 INDEX `idx_trainer_id` (`trainer_id`),
-                INDEX `idx_created_at` (`created_at` DESC)
+                INDEX `idx_created_at` (`created_at` DESC),
+                INDEX `idx_next_retry` (`next_retry_at`, `should_retry`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ";
         $conn->query($createTableSql);
@@ -7840,6 +7845,24 @@ switch ($action) {
         }
         $stmt->close();
         error_log("[API STK PUSH] Session created: session_id=" . $sessionId . ", checkout_request_id=" . $checkoutRequestId);
+
+        // Update booking with STK session reference and payment status if booking_id was provided
+        if ($bookingId) {
+            $updateBookingStmt = $conn->prepare("
+                UPDATE bookings
+                SET stk_session_id = ?, payment_status = 'processing', updated_at = NOW()
+                WHERE id = ?
+            ");
+            if ($updateBookingStmt) {
+                $updateBookingStmt->bind_param("ss", $sessionId, $bookingId);
+                if ($updateBookingStmt->execute()) {
+                    error_log("[API STK PUSH] Booking updated with STK session: booking_id=" . $bookingId . ", stk_session_id=" . $sessionId);
+                } else {
+                    error_log("[API STK PUSH WARNING] Failed to update booking with STK session: " . $conn->error);
+                }
+                $updateBookingStmt->close();
+            }
+        }
 
         logPaymentEvent('stk_push_initiated', [
             'session_id' => $sessionId,
@@ -7919,33 +7942,47 @@ switch ($action) {
             }
         }
 
+        // Build response with full status information
+        $responseData = [
+            "session_id" => $session['id'],
+            "checkout_request_id" => $session['checkout_request_id'],
+            "status" => $queryResult['success'] && $queryResult['result_code'] === '0' ? 'success' : ($session['status'] ?? 'pending'),
+            "result_code" => $queryResult['success'] ? $queryResult['result_code'] : $session['result_code'],
+            "result_description" => $queryResult['success'] ? $queryResult['result_description'] : $session['result_description'],
+            "amount" => $session['amount'],
+            "phone" => $session['phone_number'],
+            "retry_count" => intval($session['retry_count'] ?? 0),
+            "should_retry" => (bool)($session['should_retry'] ?? false),
+            "next_retry_at" => $session['next_retry_at'],
+            "cached" => !$queryResult['success']
+        ];
+
+        // Get booking status if booking_id exists
+        if ($session['booking_id']) {
+            $bookingStmt = $conn->prepare("SELECT status, payment_status FROM bookings WHERE id = ? LIMIT 1");
+            if ($bookingStmt) {
+                $bookingStmt->bind_param("s", $session['booking_id']);
+                $bookingStmt->execute();
+                $bookingResult = $bookingStmt->get_result();
+                if ($bookingResult && $bookingRow = $bookingResult->fetch_assoc()) {
+                    $responseData['booking_status'] = $bookingRow['status'];
+                    $responseData['booking_payment_status'] = $bookingRow['payment_status'];
+                }
+                $bookingStmt->close();
+            }
+        }
+
         if (!$queryResult['success']) {
             error_log("[API STK QUERY] Query failed, returning cached data");
             logPaymentEvent('stk_push_query_failed', [
                 'checkout_request_id' => $checkoutRequestId,
                 'error' => $queryResult['error']
             ]);
-
-            respond("success", "STK push status retrieved (cached).", [
-                "session_id" => $session['id'],
-                "status" => $session['status'],
-                "result_code" => $session['result_code'],
-                "result_description" => $session['result_description'],
-                "amount" => $session['amount'],
-                "phone" => $session['phone_number'],
-                "cached" => true
-            ]);
+            respond("success", "STK push status retrieved (cached).", $responseData);
         }
 
         error_log("[API STK QUERY] === STK QUERY REQUEST END - SUCCESS ===");
-        respond("success", "STK push status retrieved.", [
-            "session_id" => $session['id'],
-            "status" => $queryResult['result_code'] === '0' ? 'success' : 'pending',
-            "result_code" => $queryResult['result_code'],
-            "result_description" => $queryResult['result_description'],
-            "amount" => $session['amount'],
-            "phone" => $session['phone_number']
-        ]);
+        respond("success", "STK push status retrieved.", $responseData);
         break;
 
     // COMPLETE STK PUSH PAYMENT (callback from M-Pesa)
@@ -7976,6 +8013,32 @@ switch ($action) {
 
         if ($stmt->execute()) {
             $stmt->close();
+
+            // Get the booking_id to update booking payment status
+            $sessionStmt = $conn->prepare("
+                SELECT booking_id FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1
+            ");
+            if ($sessionStmt) {
+                $sessionStmt->bind_param("s", $checkoutRequestId);
+                $sessionStmt->execute();
+                $sessionResult = $sessionStmt->get_result();
+                if ($sessionResult && $sessionRow = $sessionResult->fetch_assoc()) {
+                    $bookingId = $sessionRow['booking_id'];
+                    if ($bookingId) {
+                        // Update booking payment status based on STK push result
+                        if ($status === 'success') {
+                            // Payment successful - set payment_status to completed
+                            $conn->query("UPDATE bookings SET payment_status = 'completed', status = 'confirmed' WHERE id = '$bookingId'");
+                            error_log("[API STK CALLBACK] Booking payment completed: booking_id=" . $bookingId);
+                        } else {
+                            // Payment failed or timeout - set payment_status to failed
+                            $conn->query("UPDATE bookings SET payment_status = 'failed' WHERE id = '$bookingId'");
+                            error_log("[API STK CALLBACK] Booking payment failed: booking_id=" . $bookingId . ", status=" . $status);
+                        }
+                    }
+                }
+                $sessionStmt->close();
+            }
 
             logEvent('stk_push_completed', [
                 'checkout_request_id' => $checkoutRequestId,
