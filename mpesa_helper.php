@@ -1012,8 +1012,8 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
         $paymentStmt->close();
 
         if ($res && $bookingId) {
-             // Update booking status
-             $conn->query("UPDATE bookings SET status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
+             // Update booking payment status to completed and set booking status to confirmed
+             $conn->query("UPDATE bookings SET payment_status = 'completed', status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
 
              // Auto-initiate B2C payout directly to trainer's M-Pesa account
              // This sends trainer earnings immediately without wallet intermediate step

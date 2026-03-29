@@ -34,9 +34,11 @@ export default function BookingConfirmation() {
   const [error, setError] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
   const [trainerConfirmationStatus, setTrainerConfirmationStatus] = useState<'pending' | 'confirmed' | 'declined' | null>(null)
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null)
   const [alternativeTrainers, setAlternativeTrainers] = useState<any[]>([])
   const [loadingAlternatives, setLoadingAlternatives] = useState(false)
   const [pollingActive, setPollingActive] = useState(true)
+  const [paymentPollingActive, setPaymentPollingActive] = useState(true)
 
   // Get booking details from location state or fetch from API
   const locationState = location.state as BookingConfirmationState | null
@@ -82,6 +84,15 @@ export default function BookingConfirmation() {
 
         if (response && response.id) {
           setBookingData(response)
+
+          // Track payment status
+          const paymentStat = response.payment_status || 'pending'
+          setPaymentStatus(paymentStat as any)
+
+          // Stop polling if payment is completed or failed
+          if (paymentStat === 'completed' || paymentStat === 'failed') {
+            setPaymentPollingActive(false)
+          }
 
           // Determine trainer confirmation status
           if (response.status === 'confirmed') {
@@ -169,6 +180,49 @@ export default function BookingConfirmation() {
     return () => clearInterval(pollInterval)
   }, [bookingId, pollingActive, trainerConfirmationStatus, bookingData?.discipline])
 
+  // Payment status polling effect
+  useEffect(() => {
+    if (!bookingId || !paymentPollingActive || paymentStatus === 'completed' || paymentStatus === 'failed') return
+
+    const paymentPollInterval = setInterval(async () => {
+      try {
+        const response = await apiRequest(
+          'booking_get',
+          { id: bookingId },
+          { headers: withAuth() }
+        )
+
+        if (response && response.payment_status) {
+          const newPaymentStatus = response.payment_status
+
+          if (newPaymentStatus !== paymentStatus) {
+            setPaymentStatus(newPaymentStatus)
+            setBookingData(response)
+
+            if (newPaymentStatus === 'completed') {
+              setPaymentPollingActive(false)
+              toast({
+                title: 'Payment Successful!',
+                description: 'Your payment has been processed successfully.',
+              })
+            } else if (newPaymentStatus === 'failed') {
+              setPaymentPollingActive(false)
+              toast({
+                title: 'Payment Failed',
+                description: 'Your payment could not be processed. Please try again.',
+                variant: 'destructive'
+              })
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Payment polling error:', err)
+      }
+    }, 3000) // Poll every 3 seconds for faster payment status updates
+
+    return () => clearInterval(paymentPollInterval)
+  }, [bookingId, paymentPollingActive, paymentStatus])
+
   const displayData = locationState || bookingData
   const bookingSessions = (() => {
     const sessionsValue = displayData?.sessions
@@ -239,36 +293,125 @@ export default function BookingConfirmation() {
           <h1 className="text-2xl font-bold">Booking Confirmation</h1>
         </div>
 
-        {/* Success Card */}
-        <Card className="mb-6 border-2 border-green-500/30 bg-green-50/5 dark:bg-green-950/10">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <div>
-                <CardTitle>Booking confirmed and payment processed!</CardTitle>
-                <CardDescription>
-                  Your session has been booked and payment has been completed. The trainer will confirm and contact you shortly.
-                </CardDescription>
+        {/* Payment Status Card - Dynamic based on payment_status */}
+        {paymentStatus === 'completed' && (
+          <Card className="mb-6 border-2 border-green-500/30 bg-green-50/5 dark:bg-green-950/10">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <div>
+                  <CardTitle>Booking confirmed and payment processed!</CardTitle>
+                  <CardDescription>
+                    Your session has been booked and payment has been completed. The trainer will confirm and contact you shortly.
+                  </CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          {displayData.totalAmount && (
-            <CardContent className="border-t border-green-500/20 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Payment Status:</span>
-                <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                  Completed
-                </Badge>
+            </CardHeader>
+            {displayData.totalAmount && (
+              <CardContent className="border-t border-green-500/20 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Payment Status:</span>
+                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                    Completed
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="font-medium">Amount Paid:</span>
+                  <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                    KES {displayData.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {paymentStatus === 'processing' && (
+          <Card className="mb-6 border-2 border-blue-500/30 bg-blue-50/5 dark:bg-blue-950/10">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin flex-shrink-0"></div>
+                <div>
+                  <CardTitle>Processing payment...</CardTitle>
+                  <CardDescription>
+                    We're processing your M-Pesa payment. Please enter your M-Pesa PIN when prompted on your phone.
+                  </CardDescription>
+                </div>
               </div>
-              <div className="flex items-center justify-between mt-3">
-                <span className="font-medium">Amount Paid:</span>
-                <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                  KES {displayData.totalAmount.toLocaleString()}
-                </span>
+            </CardHeader>
+            {displayData.totalAmount && (
+              <CardContent className="border-t border-blue-500/20 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Amount:</span>
+                  <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                    KES {displayData.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Payment status will update automatically. Do not refresh this page.
+                </p>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {paymentStatus === 'failed' && (
+          <Card className="mb-6 border-2 border-red-500/30 bg-red-50/5 dark:bg-red-950/10">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 flex-shrink-0" />
+                <div>
+                  <CardTitle>Payment failed</CardTitle>
+                  <CardDescription>
+                    Your payment could not be processed. Please try again or use a different payment method.
+                  </CardDescription>
+                </div>
               </div>
-            </CardContent>
-          )}
-        </Card>
+            </CardHeader>
+            {displayData.totalAmount && (
+              <CardContent className="border-t border-red-500/20 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Amount:</span>
+                  <span className="text-xl font-bold text-red-600 dark:text-red-400">
+                    KES {displayData.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+                <Button className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white">
+                  Retry Payment
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {paymentStatus === 'pending' && (
+          <Card className="mb-6 border-2 border-amber-500/30 bg-amber-50/5 dark:bg-amber-950/10">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div>
+                  <CardTitle>Payment pending</CardTitle>
+                  <CardDescription>
+                    Your booking has been created. Please proceed with payment to complete the booking.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            {displayData.totalAmount && (
+              <CardContent className="border-t border-amber-500/20 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Amount to Pay:</span>
+                  <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                    KES {displayData.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+                <Button className="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white">
+                  Proceed to Payment
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Booking Details */}
         <div className="space-y-4">
