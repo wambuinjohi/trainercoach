@@ -7,7 +7,6 @@ import { AlertCircle, AlertTriangle } from 'lucide-react'
 import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
-import * as apiService from '@/lib/api-service'
 
 interface RefundRequestModalProps {
   booking: any
@@ -66,20 +65,12 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
 
     setLoading(true)
     try {
-      await apiService.requestRefund(booking.id, user.id, reason || undefined)
-
-      // Create notification for trainer/admin
-      await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: booking.trainer_id,
-          booking_id: booking.id,
-          title: 'Refund Request',
-          body: `Client has requested a refund for the booking.${reason ? ` Reason: ${reason.substring(0, 100)}` : ''}`,
-          action_type: 'review_application',
-          type: 'dispute',
-          created_at: new Date().toISOString(),
-          read: false,
-        }],
+      // Create booking request using the new API
+      await apiRequest('booking_request_create', {
+        booking_id: booking.id,
+        request_type: 'refund',
+        requested_by: user.id,
+        reason: reason || null,
       }, { headers: withAuth() })
 
       toast({

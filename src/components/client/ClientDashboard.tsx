@@ -1230,7 +1230,12 @@ export const ClientDashboard: React.FC = () => {
       }} />}
       {nextSessionBooking && <NextSessionModal previous={nextSessionBooking} onClose={() => setNextSessionBooking(null)} onBooked={() => { setNextSessionBooking(null); loadBookings() }} />}
       {pendingSessionStart && <SessionStartConfirmModal booking={pendingSessionStart} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionStart(null)} />}
-      {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
+      {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => {
+        setPendingSessionConfirm(null)
+        // Auto-show review modal after session completion (Feature #19)
+        setTimeout(() => setReviewBooking(pendingSessionConfirm), 500)
+        loadBookings()
+      }} onDismiss={() => setPendingSessionConfirm(null)} />}
       {cancellingBooking && <CancelBookingModal booking={cancellingBooking} isOpen={!!cancellingBooking} onClose={() => setCancellingBooking(null)} onSuccess={() => loadBookings()} />}
       {reschedulingBooking && <RescheduleBookingModal booking={reschedulingBooking} trainerProfile={null} isOpen={!!reschedulingBooking} onClose={() => setReschedulingBooking(null)} onSuccess={() => loadBookings()} />}
       {requestingRefund && <RefundRequestModal booking={requestingRefund} onClose={() => setRequestingRefund(null)} onSuccess={() => loadBookings()} />}

@@ -7,7 +7,6 @@ import { AlertCircle, Star, MapPin, Clock } from 'lucide-react'
 import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
-import * as apiService from '@/lib/api-service'
 
 interface ChangeTrainerModalProps {
   booking: any
@@ -39,20 +38,19 @@ export const ChangeTrainerModal: React.FC<ChangeTrainerModalProps> = ({
 
     setLoadingTrainers(true)
     try {
-      // Get all trainers
-      const trainers = await apiService.getUsers()
-      const trainerList = Array.isArray(trainers)
-        ? trainers
-        : (trainers?.data ? Array.isArray(trainers.data) ? trainers.data : [trainers.data] : [])
+      // Get all trainers from API
+      const response = await apiRequest('select', {
+        table: 'user_profiles',
+        columns: ['user_id', 'full_name', 'rating', 'total_reviews', 'is_approved']
+      }, { headers: withAuth() })
+
+      const trainerList = response?.data || []
 
       // Filter trainers
       const filtered = (trainerList || [])
         .filter((t: any) => {
           // Exclude current trainer
           if (t.user_id === booking.trainer_id) return false
-          
-          // Only trainers
-          if (t.user_type !== 'trainer') return false
 
           // Must be approved
           if (!t.is_approved) return false
@@ -80,40 +78,13 @@ export const ChangeTrainerModal: React.FC<ChangeTrainerModalProps> = ({
 
     setLoading(true)
     try {
-      await apiService.requestTrainerChange(
-        booking.id,
-        user.id,
-        selectedTrainerId,
-        'Client requested to change trainer'
-      )
-
-      // Create notification for new trainer
-      const newTrainer = availableTrainers.find(t => t.user_id === selectedTrainerId)
-      await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: selectedTrainerId,
-          booking_id: booking.id,
-          title: 'Trainer Change Request',
-          body: `A client has requested to change their trainer to you for a session on ${booking.session_date}`,
-          action_type: 'review_application',
-          type: 'booking',
-          created_at: new Date().toISOString(),
-          read: false,
-        }],
-      }, { headers: withAuth() })
-
-      // Create notification for current trainer
-      await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: booking.trainer_id,
-          booking_id: booking.id,
-          title: 'Trainer Change Request',
-          body: 'Your client has requested to change trainers for their upcoming session.',
-          action_type: 'review_application',
-          type: 'booking',
-          created_at: new Date().toISOString(),
-          read: false,
-        }],
+      // Create booking request using the new API
+      await apiRequest('booking_request_create', {
+        booking_id: booking.id,
+        request_type: 'trainer_change',
+        requested_by: user.id,
+        target_trainer_id: selectedTrainerId,
+        reason: 'Client requested to change trainer',
       }, { headers: withAuth() })
 
       toast({
