@@ -357,6 +357,10 @@ export const ClientDashboard: React.FC = () => {
               }
             })
           )
+          console.debug('[Explore] Trainers loaded', {
+            totalLoaded: trainersWithCategories.length,
+            trainers: trainersWithCategories.map(t => ({id: t.id, name: t.name, categoryIds: t.categoryIds, profile_image: t.profile_image ? 'set' : 'missing'}))
+          })
           setTrainers(trainersWithCategories)
         }
       } catch (err) {
@@ -388,16 +392,28 @@ export const ClientDashboard: React.FC = () => {
     // Then filter by service radius - only show trainers within their service area
     const filteredTrainers = enrichedTrainers.filter(trainer => {
       if (!trainer.location_lat || !trainer.location_lng || !trainer.service_radius) {
+        console.debug(`[Distance] Trainer ${trainer.name}: missing location/radius info, included by default`, {trainerId: trainer.id})
         return true // Include trainers without location/radius info
       }
 
       // Check if user is within trainer's service radius
       const distance = trainer.distanceKm
       if (distance === null) {
+        console.debug(`[Distance] Trainer ${trainer.name}: distance can't be calculated, included by default`, {trainerId: trainer.id})
         return true // Include if distance can't be calculated
       }
 
-      return distance <= trainer.service_radius
+      const included = distance <= trainer.service_radius
+      if (!included) {
+        console.debug(`[Distance] Trainer ${trainer.name} filtered: distance ${distance.toFixed(2)}km > service_radius ${trainer.service_radius}km`, {trainerId: trainer.id})
+      }
+      return included
+    })
+
+    console.debug('[Distance] Service radius filtering summary', {
+      totalEnriched: enrichedTrainers.length,
+      afterRadiusFilter: filteredTrainers.length,
+      userLocation
     })
 
     // Update trainers with enriched distances
@@ -718,22 +734,58 @@ export const ClientDashboard: React.FC = () => {
           const selectedCategoryId = dbCategories.find(c => c.name === selectedCategory)?.id
           const match = selectedCategoryId && t.categoryIds && t.categoryIds.includes(selectedCategoryId)
 
-          if (!match) return false
-          if (filters.minRating && (t.rating || 0) < filters.minRating) return false
-          if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
-          if (filters.onlyAvailable && !t.available) return false
-          if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
-          if (!trainerHasAvailability(t)) return false
-          if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()))) return false
+          if (!match) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: category "${selectedCategory}" not in trainer's categories`, {trainerId: t.id, categoryIds: t.categoryIds})
+            return false
+          }
+          if (filters.minRating && (t.rating || 0) < filters.minRating) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: rating ${t.rating} < minRating ${filters.minRating}`, {trainerId: t.id})
+            return false
+          }
+          if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: hourlyRate ${t.hourlyRate} > maxPrice ${filters.maxPrice}`, {trainerId: t.id})
+            return false
+          }
+          if (filters.onlyAvailable && !t.available) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: onlyAvailable=true but trainer.available=false`, {trainerId: t.id})
+            return false
+          }
+          if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: distanceKm ${t.distanceKm} > radius ${filters.radius}`, {trainerId: t.id})
+            return false
+          }
+          if (!trainerHasAvailability(t)) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: no matching availability for selected days/times`, {trainerId: t.id})
+            return false
+          }
+          if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()))) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: search query "${searchQuery}" doesn't match name`, {trainerId: t.id})
+            return false
+          }
 
           return true
         })
       : trainers.filter(t => {
-          if (filters.minRating && (t.rating || 0) < filters.minRating) return false
-          if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) return false
-          if (filters.onlyAvailable && !t.available) return false
-          if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
-          if (!trainerHasAvailability(t)) return false
+          if (filters.minRating && (t.rating || 0) < filters.minRating) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: rating ${t.rating} < minRating ${filters.minRating}`, {trainerId: t.id})
+            return false
+          }
+          if (filters.maxPrice && (t.hourlyRate || 0) > Number(filters.maxPrice)) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: hourlyRate ${t.hourlyRate} > maxPrice ${filters.maxPrice}`, {trainerId: t.id})
+            return false
+          }
+          if (filters.onlyAvailable && !t.available) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: onlyAvailable=true but trainer.available=false`, {trainerId: t.id})
+            return false
+          }
+          if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: distanceKm ${t.distanceKm} > radius ${filters.radius}`, {trainerId: t.id})
+            return false
+          }
+          if (!trainerHasAvailability(t)) {
+            console.debug(`[Filter] Trainer ${t.name} filtered: no matching availability for selected days/times`, {trainerId: t.id})
+            return false
+          }
 
           // Enhanced search: check trainer name, discipline, AND category names
           if (searchQuery) {
@@ -743,11 +795,22 @@ export const ClientDashboard: React.FC = () => {
             const categoryNames = getCategoryNamesForTrainer(t.categoryIds)
             const matchesCategory = categoryNames.some(c => (c.name || '').toLowerCase().includes(searchLower))
 
-            if (!matchesName && !matchesDiscipline && !matchesCategory) return false
+            if (!matchesName && !matchesDiscipline && !matchesCategory) {
+              console.debug(`[Filter] Trainer ${t.name} filtered: search query "${searchQuery}" doesn't match name, discipline, or categories`, {trainerId: t.id})
+              return false
+            }
           }
 
           return true
         })
+
+    console.debug('[Explore] Trainer filtering summary', {
+      totalTrainers: trainers.length,
+      filteredTrainers: filteredTrainers.length,
+      selectedCategory,
+      filters,
+      searchQuery
+    })
 
     const nearestTrainerId = filteredTrainers.length > 0 ? filteredTrainers[0].id : null
 
