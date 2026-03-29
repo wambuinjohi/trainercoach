@@ -308,6 +308,23 @@ export async function completeMockPayment(
 }
 
 /**
+ * Retry a failed payment by initiating a new STK push
+ * Used when a previous payment attempt failed and needs to be retried
+ */
+export async function retryPayment(
+  params: PaymentInitiationParams & {
+    paymentRecord: Omit<PaymentRecord, 'method'>
+    bookingId: string
+  }
+): Promise<{
+  success: boolean
+  checkoutRequestId?: string
+  error?: string
+}> {
+  return processBookingPayment(params)
+}
+
+/**
  * Full payment flow for a booking
  * Handles: initiation → polling → completion
  * Returns whether payment was successful
