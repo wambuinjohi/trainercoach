@@ -5915,6 +5915,408 @@ switch ($action) {
         }
         break;
 
+    // =============================
+    // BOOKING REQUEST HANDLERS
+    // =============================
+
+    // CREATE BOOKING REQUEST (change trainer, reschedule, transfer, refund)
+    case 'booking_request_create':
+        if (!isset($input['booking_id']) || !isset($input['request_type']) || !isset($input['requested_by'])) {
+            respond("error", "Missing booking_id, request_type, or requested_by.", null, 400);
+        }
+
+        $bookingId = $conn->real_escape_string($input['booking_id']);
+        $requestType = $conn->real_escape_string($input['request_type']);
+        $requestedBy = $conn->real_escape_string($input['requested_by']);
+        $reason = isset($input['reason']) ? $conn->real_escape_string($input['reason']) : null;
+
+        // Validate request type
+        $validTypes = ['trainer_change', 'reschedule', 'transfer', 'refund'];
+        if (!in_array($requestType, $validTypes)) {
+            respond("error", "Invalid request_type. Must be: " . implode(", ", $validTypes), null, 400);
+        }
+
+        // Verify booking exists
+        $bookingStmt = $conn->prepare("SELECT id, client_id, trainer_id, status FROM bookings WHERE id = ?");
+        $bookingStmt->bind_param("s", $bookingId);
+        $bookingStmt->execute();
+        $bookingResult = $bookingStmt->get_result();
+
+        if ($bookingResult->num_rows === 0) {
+            $bookingStmt->close();
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $booking = $bookingResult->fetch_assoc();
+        $bookingStmt->close();
+
+        // Verify the requester is the client
+        if ($booking['client_id'] !== $requestedBy) {
+            respond("error", "Only the booking client can create requests.", null, 403);
+        }
+
+        // Type-specific validation
+        $targetTrainerId = isset($input['target_trainer_id']) ? $conn->real_escape_string($input['target_trainer_id']) : null;
+        $targetDate = isset($input['target_date']) ? $conn->real_escape_string($input['target_date']) : null;
+        $targetTime = isset($input['target_time']) ? $conn->real_escape_string($input['target_time']) : null;
+        $targetUserId = isset($input['target_user_id']) ? $conn->real_escape_string($input['target_user_id']) : null;
+
+        if ($requestType === 'trainer_change' && !$targetTrainerId) {
+            respond("error", "trainer_change requires target_trainer_id.", null, 400);
+        }
+        if ($requestType === 'reschedule' && (!$targetDate || !$targetTime)) {
+            respond("error", "reschedule requires target_date and target_time.", null, 400);
+        }
+        if ($requestType === 'transfer' && !$targetUserId) {
+            respond("error", "transfer requires target_user_id.", null, 400);
+        }
+
+        // Create the booking request
+        $requestId = 'br_' . uniqid();
+        $insertStmt = $conn->prepare("
+            INSERT INTO booking_requests
+            (id, booking_id, request_type, requested_by, target_trainer_id, target_date, target_time, target_user_id, reason, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+        ");
+        $insertStmt->bind_param(
+            "ssssssss",
+            $requestId, $bookingId, $requestType, $requestedBy,
+            $targetTrainerId, $targetDate, $targetTime, $targetUserId, $reason
+        );
+
+        if (!$insertStmt->execute()) {
+            $insertStmt->close();
+            respond("error", "Failed to create request: " . $conn->error, null, 500);
+        }
+        $insertStmt->close();
+
+        // Create notification for trainer
+        $trainerNotifId = 'notif_' . uniqid();
+        $notifType = 'booking_request_pending';
+        $notifTitle = ucfirst(str_replace('_', ' ', $requestType)) . ' Request";
+
+        $notifStmt = $conn->prepare("
+            INSERT INTO notifications (id, recipient_id, type, title, body, related_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'unread', NOW())
+        ");
+        $notifBody = "Client has requested a " . str_replace('_', ' ', $requestType) . " for booking " . substr($bookingId, 0, 8);
+        $notifStmt->bind_param(
+            "ssssss",
+            $trainerNotifId, $booking['trainer_id'], $notifType, $notifTitle, $notifBody, $requestId
+        );
+        $notifStmt->execute();
+        $notifStmt->close();
+
+        logEvent('booking_request_created', [
+            'request_id' => $requestId,
+            'booking_id' => $bookingId,
+            'request_type' => $requestType,
+            'client_id' => $requestedBy
+        ]);
+
+        respond("success", "Booking request created.", [
+            "id" => $requestId,
+            "booking_id" => $bookingId,
+            "request_type" => $requestType,
+            "status" => "pending"
+        ]);
+        break;
+
+    // LIST BOOKING REQUESTS (for trainer or client)
+    case 'booking_request_list':
+        if (!isset($input['user_id']) && !isset($input['trainer_id'])) {
+            respond("error", "Missing user_id or trainer_id.", null, 400);
+        }
+
+        $userId = isset($input['user_id']) ? $conn->real_escape_string($input['user_id']) : null;
+        $trainerId = isset($input['trainer_id']) ? $conn->real_escape_string($input['trainer_id']) : null;
+        $status = isset($input['status']) ? $conn->real_escape_string($input['status']) : null;
+
+        $sql = "SELECT br.*, u.email as requester_email, u.phone as requester_phone, b.session_date, b.session_time
+                FROM booking_requests br
+                JOIN bookings b ON br.booking_id = b.id
+                JOIN users u ON br.requested_by = u.id
+                WHERE 1=1";
+
+        if ($userId) {
+            $sql .= " AND br.requested_by = '$userId'";
+        }
+        if ($trainerId) {
+            $sql .= " AND b.trainer_id = '$trainerId'";
+        }
+        if ($status) {
+            $sql .= " AND br.status = '$status'";
+        }
+
+        $sql .= " ORDER BY br.created_at DESC";
+
+        $result = $conn->query($sql);
+        if (!$result) {
+            respond("error", "Failed to fetch requests: " . $conn->error, null, 500);
+        }
+
+        $requests = [];
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = $row;
+        }
+
+        respond("success", "Requests retrieved.", ["requests" => $requests, "count" => count($requests)]);
+        break;
+
+    // APPROVE BOOKING REQUEST
+    case 'booking_request_approve':
+        if (!isset($input['request_id'])) {
+            respond("error", "Missing request_id.", null, 400);
+        }
+
+        $requestId = $conn->real_escape_string($input['request_id']);
+        $adminNotes = isset($input['admin_notes']) ? $conn->real_escape_string($input['admin_notes']) : null;
+        $approvedBy = isset($input['approved_by']) ? $conn->real_escape_string($input['approved_by']) : null;
+
+        // Get request details
+        $requestStmt = $conn->prepare("
+            SELECT br.*, b.client_id, b.trainer_id, b.session_date, b.session_time, b.duration_hours, b.total_amount
+            FROM booking_requests br
+            JOIN bookings b ON br.booking_id = b.id
+            WHERE br.id = ?
+        ");
+        $requestStmt->bind_param("s", $requestId);
+        $requestStmt->execute();
+        $requestResult = $requestStmt->get_result();
+
+        if ($requestResult->num_rows === 0) {
+            $requestStmt->close();
+            respond("error", "Request not found.", null, 404);
+        }
+
+        $request = $requestResult->fetch_assoc();
+        $requestStmt->close();
+
+        if ($request['status'] !== 'pending') {
+            respond("error", "Request is not pending.", null, 400);
+        }
+
+        $bookingId = $request['booking_id'];
+        $clientId = $request['client_id'];
+        $trainerIdCurrent = $request['trainer_id'];
+
+        // Execute request based on type
+        $success = true;
+        $updateMessage = "";
+
+        switch ($request['request_type']) {
+            case 'trainer_change':
+                $newTrainerId = $request['target_trainer_id'];
+                $updateStmt = $conn->prepare("UPDATE bookings SET trainer_id = ?, updated_at = NOW() WHERE id = ?");
+                $updateStmt->bind_param("ss", $newTrainerId, $bookingId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+                $updateMessage = "Trainer changed successfully";
+                break;
+
+            case 'reschedule':
+                $newDate = $request['target_date'];
+                $newTime = $request['target_time'];
+                $updateStmt = $conn->prepare("UPDATE bookings SET session_date = ?, session_time = ?, updated_at = NOW() WHERE id = ?");
+                $updateStmt->bind_param("sss", $newDate, $newTime, $bookingId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+                $updateMessage = "Session rescheduled successfully";
+                break;
+
+            case 'transfer':
+                $newClientId = $request['target_user_id'];
+                $updateStmt = $conn->prepare("UPDATE bookings SET client_id = ?, updated_at = NOW() WHERE id = ?");
+                $updateStmt->bind_param("ss", $newClientId, $bookingId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+                $updateMessage = "Booking transferred successfully";
+                break;
+
+            case 'refund':
+                // Mark booking as refunded and process refund
+                $updateStmt = $conn->prepare("UPDATE bookings SET status = 'refunded', updated_at = NOW() WHERE id = ?");
+                $updateStmt->bind_param("s", $bookingId);
+                $success = $updateStmt->execute();
+                $updateStmt->close();
+
+                if ($success) {
+                    // Create refund transaction
+                    $refundId = 'ref_' . uniqid();
+                    $refundStmt = $conn->prepare("
+                        INSERT INTO payments (id, client_id, trainer_id, booking_id, amount, type, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'refund', 'completed', NOW())
+                    ");
+                    $refundAmount = floatval($request['total_amount']);
+                    $refundStmt->bind_param("ssssd", $refundId, $clientId, $trainerIdCurrent, $bookingId, $refundAmount);
+                    $refundStmt->execute();
+                    $refundStmt->close();
+                }
+                $updateMessage = "Refund processed successfully";
+                break;
+        }
+
+        if (!$success) {
+            respond("error", "Failed to process request: " . $conn->error, null, 500);
+        }
+
+        // Update request status
+        $approveStmt = $conn->prepare("
+            UPDATE booking_requests
+            SET status = 'approved', resolved_at = NOW(), admin_notes = ?
+            WHERE id = ?
+        ");
+        $approveStmt->bind_param("ss", $adminNotes, $requestId);
+        $approveStmt->execute();
+        $approveStmt->close();
+
+        // Notify client
+        $notifId = 'notif_' . uniqid();
+        $notifStmt = $conn->prepare("
+            INSERT INTO notifications (id, recipient_id, type, title, body, related_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'unread', NOW())
+        ");
+        $notifType = 'booking_request_approved';
+        $notifTitle = 'Request Approved';
+        $notifBody = $updateMessage;
+        $notifStmt->bind_param("ssssss", $notifId, $clientId, $notifType, $notifTitle, $notifBody, $requestId);
+        $notifStmt->execute();
+        $notifStmt->close();
+
+        logEvent('booking_request_approved', [
+            'request_id' => $requestId,
+            'booking_id' => $bookingId,
+            'request_type' => $request['request_type'],
+            'approved_by' => $approvedBy
+        ]);
+
+        respond("success", "Request approved. " . $updateMessage, [
+            "request_id" => $requestId,
+            "booking_id" => $bookingId,
+            "status" => "approved"
+        ]);
+        break;
+
+    // DECLINE BOOKING REQUEST
+    case 'booking_request_decline':
+        if (!isset($input['request_id'])) {
+            respond("error", "Missing request_id.", null, 400);
+        }
+
+        $requestId = $conn->real_escape_string($input['request_id']);
+        $declineReason = isset($input['reason']) ? $conn->real_escape_string($input['reason']) : null;
+        $declinedBy = isset($input['declined_by']) ? $conn->real_escape_string($input['declined_by']) : null;
+
+        // Get request details
+        $requestStmt = $conn->prepare("SELECT booking_id, requested_by FROM booking_requests WHERE id = ?");
+        $requestStmt->bind_param("s", $requestId);
+        $requestStmt->execute();
+        $requestResult = $requestStmt->get_result();
+
+        if ($requestResult->num_rows === 0) {
+            $requestStmt->close();
+            respond("error", "Request not found.", null, 404);
+        }
+
+        $requestData = $requestResult->fetch_assoc();
+        $requestStmt->close();
+
+        $bookingId = $requestData['booking_id'];
+        $clientId = $requestData['requested_by'];
+
+        // Update request status
+        $declineStmt = $conn->prepare("
+            UPDATE booking_requests
+            SET status = 'declined', resolved_at = NOW(), admin_notes = ?
+            WHERE id = ?
+        ");
+        $declineStmt->bind_param("ss", $declineReason, $requestId);
+        $declineStmt->execute();
+        $declineStmt->close();
+
+        // Notify client
+        $notifId = 'notif_' . uniqid();
+        $notifStmt = $conn->prepare("
+            INSERT INTO notifications (id, recipient_id, type, title, body, related_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'unread', NOW())
+        ");
+        $notifType = 'booking_request_declined';
+        $notifTitle = 'Request Declined';
+        $notifBody = $declineReason ?: 'Your request has been declined.';
+        $notifStmt->bind_param("ssssss", $notifId, $clientId, $notifType, $notifTitle, $notifBody, $requestId);
+        $notifStmt->execute();
+        $notifStmt->close();
+
+        logEvent('booking_request_declined', [
+            'request_id' => $requestId,
+            'booking_id' => $bookingId,
+            'declined_by' => $declinedBy
+        ]);
+
+        respond("success", "Request declined.", ["request_id" => $requestId, "status" => "declined"]);
+        break;
+
+    // CANCEL BOOKING REQUEST (by requester)
+    case 'booking_request_cancel':
+        if (!isset($input['request_id'])) {
+            respond("error", "Missing request_id.", null, 400);
+        }
+
+        $requestId = $conn->real_escape_string($input['request_id']);
+        $cancelledBy = isset($input['cancelled_by']) ? $conn->real_escape_string($input['cancelled_by']) : null;
+
+        // Get request details
+        $requestStmt = $conn->prepare("SELECT booking_id, requested_by, status FROM booking_requests WHERE id = ?");
+        $requestStmt->bind_param("s", $requestId);
+        $requestStmt->execute();
+        $requestResult = $requestStmt->get_result();
+
+        if ($requestResult->num_rows === 0) {
+            $requestStmt->close();
+            respond("error", "Request not found.", null, 404);
+        }
+
+        $requestData = $requestResult->fetch_assoc();
+        $requestStmt->close();
+
+        // Only pending requests can be cancelled
+        if ($requestData['status'] !== 'pending') {
+            respond("error", "Only pending requests can be cancelled.", null, 400);
+        }
+
+        // Only requester or admin can cancel
+        if ($requestData['requested_by'] !== $cancelledBy) {
+            // Check if user is admin
+            $adminCheckStmt = $conn->prepare("SELECT user_type FROM users WHERE id = ?");
+            $adminCheckStmt->bind_param("s", $cancelledBy);
+            $adminCheckStmt->execute();
+            $adminCheckResult = $adminCheckStmt->get_result();
+            $adminCheckStmt->close();
+
+            if ($adminCheckResult->num_rows === 0 || $adminCheckResult->fetch_assoc()['user_type'] !== 'admin') {
+                respond("error", "Only the requester or admin can cancel this request.", null, 403);
+            }
+        }
+
+        // Update request status
+        $cancelStmt = $conn->prepare("
+            UPDATE booking_requests
+            SET status = 'cancelled', resolved_at = NOW()
+            WHERE id = ?
+        ");
+        $cancelStmt->bind_param("s", $requestId);
+        $cancelStmt->execute();
+        $cancelStmt->close();
+
+        logEvent('booking_request_cancelled', [
+            'request_id' => $requestId,
+            'booking_id' => $requestData['booking_id'],
+            'cancelled_by' => $cancelledBy
+        ]);
+
+        respond("success", "Request cancelled.", ["request_id" => $requestId, "status" => "cancelled"]);
+        break;
+
     // MARK MESSAGES AS READ
     case 'messages_mark_read':
         $trainerId = isset($input['trainer_id']) ? $conn->real_escape_string($input['trainer_id']) : null;

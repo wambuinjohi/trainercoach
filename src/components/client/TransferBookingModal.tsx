@@ -8,7 +8,6 @@ import { AlertCircle, Search, User } from 'lucide-react'
 import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
-import * as apiService from '@/lib/api-service'
 
 interface TransferBookingModalProps {
   booking: any
@@ -54,17 +53,16 @@ export const TransferBookingModal: React.FC<TransferBookingModalProps> = ({
   const loadAvailableClients = async () => {
     setLoadingClients(true)
     try {
-      // Get all users and filter for clients
-      const users = await apiService.getUsers()
-      const userList = Array.isArray(users)
-        ? users
-        : (users?.data ? Array.isArray(users.data) ? users.data : [users.data] : [])
+      // Get all clients from the API
+      const response = await apiRequest('select', {
+        table: 'user_profiles',
+        columns: ['user_id', 'full_name', 'email', 'phone_number']
+      }, { headers: withAuth() })
+
+      const userList = response?.data || []
 
       const clients = (userList || [])
         .filter((u: any) => {
-          // Only clients
-          if (u.user_type !== 'client') return false
-          
           // Exclude self
           if (u.user_id === user?.id) return false
 
@@ -94,40 +92,14 @@ export const TransferBookingModal: React.FC<TransferBookingModalProps> = ({
     setLoading(true)
     try {
       const selectedClient = allClients.find(c => c.user_id === selectedClientId)
-      
-      await apiService.requestTransferBooking(
-        booking.id,
-        user.id,
-        selectedClientId,
-        'Client requested to transfer booking to another user'
-      )
 
-      // Create notification for trainer
-      await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: booking.trainer_id,
-          booking_id: booking.id,
-          title: 'Booking Transfer Request',
-          body: `Your client is requesting to transfer their session on ${booking.session_date} to ${selectedClient?.full_name || 'another client'}.`,
-          action_type: 'review_application',
-          type: 'booking',
-          created_at: new Date().toISOString(),
-          read: false,
-        }],
-      }, { headers: withAuth() })
-
-      // Create notification for recipient client
-      await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: selectedClientId,
-          booking_id: booking.id,
-          title: 'Booking Transfer Offer',
-          body: `You have been offered a session with ${booking.trainer_name || 'a trainer'} on ${booking.session_date}. This requires trainer approval.`,
-          action_type: 'view_booking',
-          type: 'booking',
-          created_at: new Date().toISOString(),
-          read: false,
-        }],
+      // Create transfer request using the new API
+      await apiRequest('booking_request_create', {
+        booking_id: booking.id,
+        request_type: 'transfer',
+        requested_by: user.id,
+        target_user_id: selectedClientId,
+        reason: `Transfer to ${selectedClient?.full_name}`,
       }, { headers: withAuth() })
 
       toast({

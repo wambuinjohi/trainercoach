@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import { apiRequest, withAuth } from '@/lib/api'
-import * as apiService from '@/lib/api-service'
+import { useAuth } from '@/contexts/AuthContext'
 import { AlertCircle, Loader2 } from 'lucide-react'
 
 interface RescheduleBookingModalProps {
@@ -30,6 +30,7 @@ export const RescheduleBookingModal: React.FC<RescheduleBookingModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { user } = useAuth()
   const [newDate, setNewDate] = useState('')
   const [newTime, setNewTime] = useState('')
   const [loading, setLoading] = useState(false)
@@ -93,67 +94,35 @@ export const RescheduleBookingModal: React.FC<RescheduleBookingModalProps> = ({
 
     setLoading(true)
     try {
-      // Update booking with new date and time
-      await apiService.updateBooking(booking.id, {
-        session_date: newDate,
-        session_time: newTime,
-        status: 'confirmed',
-        rescheduled_from: booking.session_date,
-        rescheduled_at: new Date().toISOString(),
-      })
-
-      // Notify trainer and admins
-      const nowIso = new Date().toISOString()
-      const notifRows = [
-        {
-          user_id: booking.trainer_id,
-          booking_id: booking.id,
-          title: 'Booking rescheduled',
-          body: `Client rescheduled to ${newDate} at ${newTime}`,
-          action_type: 'view_booking',
-          type: 'booking',
-          created_at: nowIso,
-          read: false,
-        },
-      ]
-
-      try {
-        const admins = await apiRequest('profiles_get_by_type', { user_type: 'admin' }, { headers: withAuth() })
-        for (const admin of (admins || [])) {
-          notifRows.push({
-            user_id: admin.user_id,
-            booking_id: booking.id,
-            title: 'Booking rescheduled by client',
-            body: `Booking ${booking.id} was rescheduled`,
-            action_type: 'view_booking',
-            type: 'booking',
-            created_at: nowIso,
-            read: false,
-          })
-        }
-      } catch (err) {
-        console.warn('Failed to fetch admins for notification', err)
+      if (!user?.id) {
+        toast({
+          title: 'Error',
+          description: 'User not found',
+          variant: 'destructive',
+        })
+        return
       }
 
-      if (notifRows.length > 0) {
-        try {
-          await apiRequest('notifications_insert', { notifications: notifRows }, { headers: withAuth() })
-        } catch (err) {
-          console.warn('Failed to send notifications', err)
-        }
-      }
+      // Create reschedule request using the booking_request API
+      await apiRequest('booking_request_create', {
+        booking_id: booking.id,
+        request_type: 'reschedule',
+        requested_by: user.id,
+        target_date: newDate,
+        target_time: newTime,
+      }, { headers: withAuth() })
 
       toast({
-        title: 'Booking rescheduled',
-        description: `New session date: ${new Date(newDate).toLocaleDateString()} at ${newTime}`,
+        title: 'Reschedule Request Submitted',
+        description: `Request sent to trainer for ${new Date(newDate).toLocaleDateString()} at ${newTime}`,
       })
 
       onSuccess()
       onClose()
     } catch (err) {
-      console.error('Error rescheduling booking:', err)
+      console.error('Error requesting reschedule:', err)
       toast({
-        title: 'Failed to reschedule booking',
+        title: 'Failed to submit reschedule request',
         description: 'Please try again or contact support',
         variant: 'destructive',
       })
@@ -210,8 +179,8 @@ export const RescheduleBookingModal: React.FC<RescheduleBookingModalProps> = ({
             )}
           </div>
 
-          <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">
+          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-lg p-3">
+            <p className="text-xs text-blue-800 dark:text-blue-300">
               A reschedule request will be sent to the trainer for confirmation. Your original session will remain scheduled until the trainer approves the new time.
             </p>
           </div>
