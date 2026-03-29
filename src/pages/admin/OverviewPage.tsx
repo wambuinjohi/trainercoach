@@ -257,21 +257,21 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Dashboard</h1>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-500" />
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Users className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.totalUsers.toLocaleString()}</p>
+              <div className="text-center sm:text-left">
+                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalUsers.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Total Users</p>
               </div>
             </div>
@@ -279,13 +279,13 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <UserCheck className="h-5 w-5 text-blue-500" />
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <UserCheck className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.totalTrainers}</p>
+              <div className="text-center sm:text-left">
+                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalTrainers}</p>
                 <p className="text-xs text-muted-foreground">Active Trainers</p>
               </div>
             </div>
@@ -293,13 +293,13 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-purple-500" />
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                <Calendar className="h-4 sm:h-5 w-4 sm:w-5 text-purple-500" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.totalBookings.toLocaleString()}</p>
+              <div className="text-center sm:text-left">
+                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalBookings.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Total Bookings</p>
               </div>
             </div>
@@ -307,13 +307,13 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-primary" />
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">Ksh {stats.totalRevenue.toLocaleString()}</p>
+              <div className="text-center sm:text-left">
+                <p className="text-lg sm:text-2xl font-bold text-foreground">Ksh {stats.totalRevenue.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Total Revenue</p>
               </div>
             </div>
@@ -322,18 +322,18 @@ export default function OverviewPage() {
       </div>
 
       {/* Alert Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
         <Card className="bg-yellow-500/5 border-yellow-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-500" />
-                <div>
-                  <p className="font-semibold text-foreground">Pending Documents</p>
-                  <p className="text-sm text-muted-foreground">{stats.pendingDocuments} documents need review</p>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm sm:text-base text-foreground">Pending Documents</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.pendingDocuments} documents need review</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/document-review')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/document-review')} className="w-full sm:w-auto flex-shrink-0">
                 Review
               </Button>
             </div>
@@ -341,16 +341,16 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="bg-yellow-500/5 border-yellow-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-500" />
-                <div>
-                  <p className="font-semibold text-foreground">Pending Approvals</p>
-                  <p className="text-sm text-muted-foreground">{stats.pendingApprovals} trainer applications need review</p>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm sm:text-base text-foreground">Pending Approvals</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.pendingApprovals} trainer applications need review</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/approvals')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/approvals')} className="w-full sm:w-auto flex-shrink-0">
                 Review
               </Button>
             </div>
@@ -358,16 +358,16 @@ export default function OverviewPage() {
         </Card>
 
         <Card className="bg-red-500/5 border-red-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-red-500" />
-                <div>
-                  <p className="font-semibold text-foreground">Active Disputes</p>
-                  <p className="text-sm text-muted-foreground">{stats.activeDisputes} cases require attention</p>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm sm:text-base text-foreground">Active Disputes</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.activeDisputes} cases require attention</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/disputes')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/disputes')} className="w-full sm:w-auto flex-shrink-0">
                 Handle
               </Button>
             </div>
@@ -378,14 +378,15 @@ export default function OverviewPage() {
       {/* Announcement Preview */}
       <Card className="bg-card border-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5 text-primary" />
-              <CardTitle className="text-foreground">Recent Announcements</CardTitle>
+              <Megaphone className="h-4 sm:h-5 w-4 sm:w-5 text-primary flex-shrink-0" />
+              <CardTitle className="text-foreground text-base sm:text-lg">Recent Announcements</CardTitle>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')}>
-              Manage Announcements
-              <ArrowRight className="h-4 w-4 ml-2" />
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')} className="w-full sm:w-auto">
+              <span className="hidden sm:inline">Manage Announcements</span>
+              <span className="sm:hidden">Manage</span>
+              <ArrowRight className="h-3 sm:h-4 w-3 sm:w-4 ml-2" />
             </Button>
           </div>
         </CardHeader>
