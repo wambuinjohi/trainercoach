@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { API_URL } from '@/lib/api';
+import { getApiUrl } from '@/lib/api';
 
 export default function ApiTest() {
   const [testing, setTesting] = useState(false);
@@ -21,15 +21,16 @@ export default function ApiTest() {
   const runTests = async () => {
     setTesting(true);
     setResults({});
+    const apiUrl = getApiUrl();
 
     // Test 1: GET request (should return JSON error)
     try {
-      const getResponse = await fetch(`${API_URL}?action=get_users`, {
+      const getResponse = await fetch(`${apiUrl}?action=get_users`, {
         method: 'GET',
       });
       const contentType = getResponse.headers.get('content-type') || '';
       const text = await getResponse.text();
-      
+
       setResults(prev => ({
         ...prev,
         getTest: {
@@ -51,14 +52,14 @@ export default function ApiTest() {
 
     // Test 2: POST request with get_users action
     try {
-      const postResponse = await fetch(API_URL, {
+      const postResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_users' }),
       });
       const contentType = postResponse.headers.get('content-type') || '';
       const text = await postResponse.text();
-      
+
       setResults(prev => ({
         ...prev,
         postTest: {
@@ -80,10 +81,10 @@ export default function ApiTest() {
 
     // Test 3: POST login request
     try {
-      const loginResponse = await fetch(API_URL, {
+      const loginResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           action: 'login',
           email: 'admin@skatryk.co.ke',
           password: 'Test1234'
@@ -198,7 +199,7 @@ export default function ApiTest() {
           <CardContent className="space-y-4">
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>API Endpoint:</strong> <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">{API_URL}</code>
+                <strong>API Endpoint:</strong> <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">{getApiUrl()}</code>
               </p>
             </div>
 
