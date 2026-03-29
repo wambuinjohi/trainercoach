@@ -24,7 +24,10 @@ import {
   DollarSign,
   Bell,
   RefreshCw,
-  Sliders
+  Sliders,
+  Repeat2,
+  Send,
+  AlertCircle
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -41,6 +44,9 @@ import { SessionEndConfirmModal } from './SessionEndConfirmModal'
 import { SessionStartConfirmModal } from './SessionStartConfirmModal'
 import { CancelBookingModal } from './CancelBookingModal'
 import { RescheduleBookingModal } from './RescheduleBookingModal'
+import { RefundRequestModal } from './RefundRequestModal'
+import { ChangeTrainerModal } from './ChangeTrainerModal'
+import { TransferBookingModal } from './TransferBookingModal'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
 import { UnratedSessionNotice } from './UnratedSessionNotice'
 
@@ -127,6 +133,9 @@ export const ClientDashboard: React.FC = () => {
   const [reschedulingBooking, setReschedulingBooking] = useState<any>(null)
   const [selectedLocationMode, setSelectedLocationMode] = useState<'home' | 'current' | null>(null)
   const [showLocationChoice, setShowLocationChoice] = useState(false)
+  const [requestingRefund, setRequestingRefund] = useState<any>(null)
+  const [changingTrainer, setChangingTrainer] = useState<any>(null)
+  const [transferringBooking, setTransferringBooking] = useState<any>(null)
 
   // Ref to track if trainers have been enriched with the current location to avoid infinite loops
   const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
@@ -238,8 +247,10 @@ export const ClientDashboard: React.FC = () => {
       const notifData = await apiRequest('notifications_get', { user_id: user.id }, { headers: withAuth() })
       const notifs = Array.isArray(notifData) ? notifData : (notifData?.data || [])
 
-      // Find pending rate action notifications
-      const pendingRateNotif = notifs.find((n: any) => n.action_type === 'rate' && !n.read && n.booking_id)
+      // Find pending rating notifications (Feature #19)
+      const pendingRateNotif = notifs.find((n: any) =>
+        (n.action_type === 'rate' || n.action_type === 'review_requested') && !n.read && n.booking_id
+      )
 
       if (pendingRateNotif && bookings.length > 0) {
         // Find the associated booking
@@ -1012,37 +1023,67 @@ export const ClientDashboard: React.FC = () => {
           </div>
 
           {showActions && (
-            <div className="flex gap-2 flex-wrap">
-              {booking.status === 'completed' && !reviewsByBooking[booking.id] && (
-                <Button size="sm" className="flex-1 bg-gradient-primary text-white" onClick={() => setReviewBooking(booking)}>
-                  <Star className="h-3 w-3 mr-1" />
-                  Rate
-                </Button>
-              )}
+            <div className="space-y-2">
               {booking.status === 'completed' && (
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => setNextSessionBooking(booking)}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Next
-                </Button>
+                <div className="flex gap-2">
+                  {!reviewsByBooking[booking.id] && (
+                    <Button size="sm" className="flex-1 bg-gradient-primary text-white" onClick={() => setReviewBooking(booking)}>
+                      <Star className="h-3 w-3 mr-1" />
+                      Rate
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setNextSessionBooking(booking)}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Next
+                  </Button>
+                </div>
               )}
               {(booking.status === 'pending' || booking.status === 'confirmed') && (
                 <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReschedulingBooking(booking)}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Reschedule
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setChangingTrainer(booking)}
+                    >
+                      <User className="h-3 w-3 mr-1" />
+                      Trainer
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setTransferringBooking(booking)}
+                    >
+                      <Send className="h-3 w-3 mr-1" />
+                      Transfer
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
+                      onClick={() => setRequestingRefund(booking)}
+                    >
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Refund
+                    </Button>
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
-                    onClick={() => setReschedulingBooking(booking)}
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Reschedule
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                    className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                     onClick={() => setCancellingBooking(booking)}
                   >
-                    Cancel
+                    Cancel Booking
                   </Button>
                 </>
               )}
@@ -1192,6 +1233,9 @@ export const ClientDashboard: React.FC = () => {
       {pendingSessionConfirm && <SessionEndConfirmModal booking={pendingSessionConfirm} onConfirm={() => loadBookings()} onDismiss={() => setPendingSessionConfirm(null)} />}
       {cancellingBooking && <CancelBookingModal booking={cancellingBooking} isOpen={!!cancellingBooking} onClose={() => setCancellingBooking(null)} onSuccess={() => loadBookings()} />}
       {reschedulingBooking && <RescheduleBookingModal booking={reschedulingBooking} trainerProfile={null} isOpen={!!reschedulingBooking} onClose={() => setReschedulingBooking(null)} onSuccess={() => loadBookings()} />}
+      {requestingRefund && <RefundRequestModal booking={requestingRefund} onClose={() => setRequestingRefund(null)} onSuccess={() => loadBookings()} />}
+      {changingTrainer && <ChangeTrainerModal booking={changingTrainer} onClose={() => setChangingTrainer(null)} onSuccess={() => loadBookings()} />}
+      {transferringBooking && <TransferBookingModal booking={transferringBooking} onClose={() => setTransferringBooking(null)} onSuccess={() => loadBookings()} />}
       {showLocationChoice && (
         <LocationChoiceModal
           homeLocation={

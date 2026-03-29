@@ -80,19 +80,34 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
         })
       }
 
+      // Create notifications for trainer and client
       await apiRequest('notifications_insert', {
-        notifications: [{
-          user_id: booking.trainer_id,
-          booking_id: booking.id,
-          title: autoCompleted ? 'Session auto-completed' : 'Session completed',
-          body: autoCompleted
-            ? 'The session was automatically completed after no response from the client.'
-            : 'The client confirmed the session is complete.',
-          action_type: 'complete_session',
-          type: 'session',
-          created_at: new Date().toISOString(),
-          read: false,
-        }]
+        notifications: [
+          // Trainer notification about session completion
+          {
+            user_id: booking.trainer_id,
+            booking_id: booking.id,
+            title: autoCompleted ? 'Session auto-completed' : 'Session completed',
+            body: autoCompleted
+              ? 'The session was automatically completed after no response from the client.'
+              : 'The client confirmed the session is complete.',
+            action_type: 'complete_session',
+            type: 'session',
+            created_at: new Date().toISOString(),
+            read: false,
+          },
+          // Client notification to review/rate the session (Feature #19)
+          {
+            user_id: user?.id,
+            booking_id: booking.id,
+            title: 'Rate your session',
+            body: 'Please rate your coach and share feedback about the app to help us improve.',
+            action_type: 'review_requested',
+            type: 'review',
+            created_at: new Date().toISOString(),
+            read: false,
+          }
+        ]
       }, { headers: withAuth() })
     } catch (err) {
       console.warn('Completion side effects failed', err)

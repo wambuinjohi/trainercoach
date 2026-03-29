@@ -238,6 +238,13 @@ export interface Booking {
   trainer_marked_end?: boolean // Trainer confirmed session end
   client_confirmed_completion?: boolean // Client confirmed session was completed
 
+  // Rating & Review fields (Feature #19)
+  rating_submitted?: boolean // Whether client submitted coach rating
+  app_rating?: number // Client rating of the app (1-5)
+  app_review?: string // Client review/recommendations about the app
+  coach_rating?: number // Coach rating (1-5)
+  coach_review?: string // Coach review text
+
   // Issue tracking
   reported_issue_count?: number // Number of issues/disputes raised for this booking
 
@@ -245,6 +252,26 @@ export interface Booking {
   updated_at?: string
   completed_at?: string
   started_at?: string
+}
+
+export type BookingRequestType = 'trainer_change' | 'reschedule' | 'transfer' | 'refund'
+export type BookingRequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled'
+
+export interface BookingRequest {
+  id: string
+  booking_id: string
+  request_type: BookingRequestType
+  requested_by: string // client_id
+  target_trainer_id?: string // For trainer_change
+  target_date?: string // For reschedule (YYYY-MM-DD)
+  target_time?: string // For reschedule (HH:MM)
+  target_user_id?: string // For transfer
+  reason?: string
+  status: BookingRequestStatus
+  admin_notes?: string
+  created_at?: string
+  resolved_at?: string
+  updated_at?: string
 }
 
 export interface SessionReminder {
