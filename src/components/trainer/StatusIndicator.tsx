@@ -147,15 +147,15 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
         {/* Required Documents Section */}
         {status === 'profile_incomplete' && (
           <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200 space-y-2">
-            <p className="text-sm font-semibold text-yellow-900">Document Submission Requirements:</p>
+            <p className="text-sm font-semibold text-yellow-900">Required for Approval:</p>
             <ul className="text-sm text-yellow-800 space-y-1">
-              <li>✓ <strong>Required:</strong> National ID (government-issued)</li>
-              <li>✓ <strong>Required:</strong> Proof of Residence (GPS location from your profile)</li>
-              <li className="text-yellow-700">○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
-              <li className="text-yellow-700">○ <strong>Required if Direct Path:</strong> Discipline Certificate (professional certification)</li>
-              <li className="text-yellow-700">○ <strong>Required if Sponsored Path:</strong> Sponsor Trainer Validation</li>
+              <li>✓ <strong>Required:</strong> ID/Passport (National ID or Passport - at least one)</li>
+              <li>✓ <strong>Required:</strong> Proof of Residence (GPS coordinates from your profile)</li>
+              <li className="text-yellow-700">• <strong>Path-Specific:</strong> If Direct path, upload Discipline Certificate</li>
+              <li className="text-yellow-700">• <strong>Path-Specific:</strong> If Sponsored path, select an approved Sponsor</li>
+              <li className="text-yellow-700">○ <strong>Optional:</strong> Certificate of Good Conduct (recommended to enhance credibility)</li>
             </ul>
-            <p className="text-xs text-yellow-700 mt-2 font-medium">All required documents will be reviewed within 24-48 hours.</p>
+            <p className="text-xs text-yellow-700 mt-2 font-medium">All documents will be reviewed within 24-48 hours. Certificate of Good Conduct is optional and won't block your approval.</p>
           </div>
         )}
 
@@ -208,24 +208,24 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status = 'regi
             })()}
             {status === 'profile_incomplete' && (
               <>
-                <p className="text-sm font-semibold text-gray-900"><strong>Next Step:</strong></p>
-                <p className="text-sm text-gray-700">Submit your verification documents for approval:</p>
+                <p className="text-sm font-semibold text-gray-900"><strong>Next Step:</strong> Submit required documents</p>
+                <p className="text-sm text-gray-700 mb-2">Complete these before approval:</p>
                 <ul className="text-sm text-gray-700 space-y-1 ml-4">
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-0.5">✓</span>
-                    <span>National ID</span>
+                    <span className="text-red-600 font-bold mt-0.5">*</span>
+                    <span><strong>ID/Passport</strong> (National ID or Passport)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-gray-400 mt-0.5">•</span>
-                    <span>Proof of Residence</span>
+                    <span className="text-red-600 font-bold mt-0.5">*</span>
+                    <span><strong>Proof of Residence</strong> (GPS location from profile)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-gray-400 mt-0.5">•</span>
-                    <span>Certificate of Good Conduct</span>
+                    <span className="text-blue-600 mt-0.5">→</span>
+                    <span><strong>Registration Path:</strong> Direct path requires Discipline Certificate; Sponsored path requires Sponsor selection</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-gray-400 mt-0.5">•</span>
-                    <span>Discipline Certificate (optional)</span>
+                    <span className="text-gray-400 mt-0.5">○</span>
+                    <span><span className="italic text-gray-600">Optional:</span> Certificate of Good Conduct</span>
                   </li>
                 </ul>
               </>
