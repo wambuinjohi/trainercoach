@@ -7895,6 +7895,7 @@ switch ($action) {
                 `description` TEXT,
                 `checkout_request_id` VARCHAR(255) UNIQUE,
                 `merchant_request_id` VARCHAR(255),
+                `payment_type` VARCHAR(50) DEFAULT 'paybill' COMMENT 'Payment type: paybill or buygods (CustomerBuyGoodsOnline)',
                 `status` VARCHAR(50) DEFAULT 'initiated' COMMENT 'initiated, pending, success, failed, timeout',
                 `result_code` VARCHAR(10),
                 `result_description` TEXT,
@@ -7910,6 +7911,7 @@ switch ($action) {
                 INDEX `idx_booking_id` (`booking_id`),
                 INDEX `idx_client_id` (`client_id`),
                 INDEX `idx_trainer_id` (`trainer_id`),
+                INDEX `idx_payment_type` (`payment_type`),
                 INDEX `idx_created_at` (`created_at` DESC),
                 INDEX `idx_next_retry` (`next_retry_at`, `should_retry`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -7918,8 +7920,8 @@ switch ($action) {
 
         $stmt = $conn->prepare("
             INSERT INTO stk_push_sessions (
-                id, client_id, trainer_id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, status, retry_count, should_retry, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, client_id, trainer_id, phone_number, amount, booking_id, account_reference, description, checkout_request_id, merchant_request_id, payment_type, status, retry_count, should_retry, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         if (!$stmt) {
@@ -7927,9 +7929,16 @@ switch ($action) {
         }
 
         $merchantRequestId = $stkResult['merchant_request_id'] ?? '';
+        $paymentType = $mpesaCreds['payment_type'] ?? 'paybill';
+        // Normalize payment type for storage
+        if (strpos($paymentType, 'BuyGoods') !== false || strpos($paymentType, 'buygods') !== false) {
+            $paymentType = 'buygods';
+        } else {
+            $paymentType = 'paybill';
+        }
         $retryCount = 0;
         $shouldRetry = true;
-        $stmt->bind_param("ssssdssssssibss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $initStatus, $retryCount, $shouldRetry, $now, $now);
+        $stmt->bind_param("ssssdsssssssibbss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $paymentType, $initStatus, $retryCount, $shouldRetry, $now, $now);
 
         if (!$stmt->execute()) {
             $stmt->close();
