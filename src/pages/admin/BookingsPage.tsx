@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import * as apiService from '@/lib/api-service'
 import { apiRequest, withAuth } from '@/lib/api'
@@ -59,6 +61,15 @@ export default function BookingsPage() {
     title: '',
     description: '',
     action: async () => {},
+  })
+  const [cancelModal, setCancelModal] = useState<{
+    open: boolean
+    booking: any | null
+    reason: string
+  }>({
+    open: false,
+    booking: null,
+    reason: '',
   })
   const [confirmLoading, setConfirmLoading] = useState(false)
 
@@ -178,26 +189,40 @@ export default function BookingsPage() {
   }
 
   const cancelBooking = (booking: any) => {
-    setConfirmModal({
+    setCancelModal({
       open: true,
-      title: 'Cancel Booking',
-      description: `Are you sure you want to cancel this booking? This action cannot be undone.`,
-      isDestructive: true,
-      action: async () => {
-        try {
-          setConfirmLoading(true)
-          await apiService.updateBooking(booking.id, { status: 'cancelled' })
-          setBookings(bookings.map(b => (b.id === booking.id ? { ...b, status: 'cancelled' } : b)))
-          toast({ title: 'Success', description: 'Booking cancelled' })
-          setConfirmModal({ ...confirmModal, open: false })
-        } catch (err: any) {
-          console.error('Cancel booking error:', err)
-          toast({ title: 'Error', description: err?.message || 'Failed to cancel booking', variant: 'destructive' })
-        } finally {
-          setConfirmLoading(false)
-        }
-      },
+      booking,
+      reason: '',
     })
+  }
+
+  const confirmCancelBooking = async () => {
+    if (!cancelModal.booking || !cancelModal.reason.trim()) {
+      toast({
+        title: 'Cancellation reason required',
+        description: 'Please provide a reason before cancelling the booking',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setConfirmLoading(true)
+      const cancellationReason = cancelModal.reason.trim()
+      await apiService.updateBooking(cancelModal.booking.id, {
+        status: 'cancelled',
+        cancellation_reason: cancellationReason,
+        cancelled_at: new Date().toISOString(),
+      })
+      setBookings(bookings.map(b => (b.id === cancelModal.booking.id ? { ...b, status: 'cancelled', cancellation_reason: cancellationReason } : b)))
+      toast({ title: 'Success', description: 'Booking cancelled' })
+      setCancelModal({ open: false, booking: null, reason: '' })
+    } catch (err: any) {
+      console.error('Cancel booking error:', err)
+      toast({ title: 'Error', description: err?.message || 'Failed to cancel booking', variant: 'destructive' })
+    } finally {
+      setConfirmLoading(false)
+    }
   }
 
   const getPaymentStatus = (booking: any) => paymentStatusByBooking[booking.id]?.status || 'not_recorded'
@@ -375,7 +400,12 @@ export default function BookingsPage() {
                             </Button>
                           )}
                           {booking.status === 'cancelled' && (
-                            <span className="text-xs text-muted-foreground">Cancelled</span>
+                            <div className="text-xs text-muted-foreground">
+                              <div>Cancelled</div>
+                              {booking.cancellation_reason && (
+                                <div className="max-w-[220px] break-words">Reason: {booking.cancellation_reason}</div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
@@ -428,6 +458,47 @@ export default function BookingsPage() {
               className={confirmModal.isDestructive ? 'bg-red-600 hover:bg-red-700' : ''}
             >
               {confirmLoading ? 'Processing...' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cancelModal.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelModal({ open: false, booking: null, reason: '' })
+          } else {
+            setCancelModal((prev) => ({ ...prev, open }))
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please enter a reason for cancelling this booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="admin-cancellation-reason">Cancellation reason</Label>
+            <Textarea
+              id="admin-cancellation-reason"
+              value={cancelModal.reason}
+              onChange={(e) => setCancelModal((prev) => ({ ...prev, reason: e.target.value }))}
+              placeholder="Enter the reason for cancelling this booking"
+              rows={4}
+              disabled={confirmLoading}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmLoading}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelBooking}
+              disabled={confirmLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {confirmLoading ? 'Processing...' : 'Cancel Booking'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

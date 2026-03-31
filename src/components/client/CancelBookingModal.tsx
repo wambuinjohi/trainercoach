@@ -71,7 +71,7 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
       // Update booking status to cancelled
       await apiService.updateBooking(booking.id, {
         status: 'cancelled',
-        notes: reason === 'other' ? customReason : reason,
+        cancellation_reason: reason === 'other' ? customReason : reason,
         cancelled_at: new Date().toISOString(),
       })
 
