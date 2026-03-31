@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, Loader2, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import * as apiService from '@/lib/api-service'
+import { apiRequest, withAuth } from '@/lib/api'
 
 /**
  * Step 2 of client onboarding after personal details signup.
@@ -92,6 +93,12 @@ export const ClientOnboardingStep2: React.FC = () => {
     try {
       const response = await apiService.uploadProfileImage(user.id, selectedFile)
       if (response?.file_url) {
+        // Save the profile image URL to the database
+        await apiRequest('profile_update', {
+          user_id: user.id,
+          profile_image: response.file_url
+        }, { headers: withAuth() })
+
         toast({
           title: 'Success',
           description: 'Profile photo uploaded successfully'
