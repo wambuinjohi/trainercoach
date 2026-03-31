@@ -441,7 +441,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       return
     }
 
-    if (bookingMode === 'single') {
+    if (bookingMode === 'single' && !shouldShowStep2()) {
       if (availabilityError) {
         toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
         return
@@ -492,6 +492,17 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         // Calculate base amount for this category
         const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === categoryId)
         let categoryBaseAmount = 0
+        let sessionDate = date
+        let sessionTime = time
+
+        // If Step 2 was used, get timing from categoryTimings
+        if (shouldShowStep2() && bookingStep === 'step2') {
+          const categoryTiming = categoryTimings.find(t => t.categoryId === categoryId)
+          if (categoryTiming) {
+            sessionDate = categoryTiming.date
+            sessionTime = categoryTiming.time
+          }
+        }
 
         if (bookingMode === 'multi' && selectedSessions.length > 0) {
           const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
@@ -516,8 +527,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           client_id: user.id,
           trainer_id: trainer.id,
           category_id: categoryId,
-          session_date: bookingMode === 'multi' ? selectedSessions[0]?.date : date,
-          session_time: bookingMode === 'multi' ? selectedSessions[0]?.start_time : time,
+          session_date: bookingMode === 'multi' ? selectedSessions[0]?.date : sessionDate,
+          session_time: bookingMode === 'multi' ? selectedSessions[0]?.start_time : sessionTime,
           duration_hours: bookingMode === 'multi' ? selectedSessions[0]?.duration_hours || 1 : 1,
           total_sessions: bookingMode === 'multi' ? selectedSessions.length : sessions,
           status: 'pending',
@@ -786,8 +797,33 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     }
   }
 
-  return (
-    <div className="flex flex-col gap-4 h-full">
+  // Render Step 1 or Step 2 based on bookingStep
+  const renderFormContent = () => {
+    if (shouldShowStep2() && bookingStep === 'step2') {
+      // Step 2: Per-category timing selection
+      return (
+        <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto pr-2">
+          <div className="border border-border rounded-md p-3 bg-muted/5">
+            <CategoryTimingSelector
+              selectedCategories={selectedCategoryIds.map(catId => {
+                const cat = categoryPricing.find(c => String(c.id) === catId)
+                return {
+                  id: catId,
+                  name: cat?.name || 'Unknown',
+                  hourlyRate: Number(cat?.hourly_rate || 0)
+                }
+              })}
+              trainerAvailability={trainerProfile?.availability || {}}
+              onTimingsChange={setCategoryTimings}
+              onValidationChange={setCategoryTimingsValid}
+            />
+          </div>
+        </div>
+      )
+    }
+
+    // Step 1: Default booking form
+    return (
       <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto pr-2">
         {/* Booking Mode Toggle */}
         <div className="space-y-3 border border-border rounded-md p-3 bg-muted/5">
@@ -1106,18 +1142,59 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             )}
           </div>
         </div>
-
       </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      {/* Step Indicator */}
+      {shouldShowStep2() && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border border-blue-200 dark:border-blue-800/50 rounded-md p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold text-sm text-blue-900 dark:text-blue-100">
+              {bookingStep === 'step1' ? 'Step 1 of 2: Select Categories & Mode' : 'Step 2 of 2: Set Different Times Per Category'}
+            </h2>
+          </div>
+          <div className="flex gap-2">
+            <div className={`flex-1 h-1 rounded-full ${bookingStep === 'step1' ? 'bg-gradient-primary' : 'bg-gradient-primary/50'}`}></div>
+            <div className={`flex-1 h-1 rounded-full ${bookingStep === 'step2' ? 'bg-gradient-primary' : 'bg-gradient-primary/50'}`}></div>
+          </div>
+        </div>
+      )}
+
+      {renderFormContent()}
+
       <div className="flex justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
-        <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
+        {shouldShowStep2() && bookingStep === 'step2' ? (
+          <Button variant="outline" onClick={() => setBookingStep('step1')}>Back</Button>
+        ) : (
+          <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
+        )}
+
         {(() => {
+          // Handle Step 1 to Step 2 transition
+          if (shouldShowStep2() && bookingStep === 'step1') {
+            return (
+              <Button
+                onClick={submit}
+                disabled={loading || (bookingMode === 'single' && (!date || !time)) || (bookingMode === 'single' && availabilityStatus !== 'available')}
+                className="bg-gradient-primary text-white"
+              >
+                {loading ? 'Processing...' : 'Next: Set Times per Category'}
+              </Button>
+            )
+          }
+
+          // Handle Step 2 completion or single-category booking
           const isInvalidMpesaAmount = payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000)
           const isAvailabilityInvalid = bookingMode === 'single' && date && time && availabilityStatus !== 'available'
-          const submitDisabled = loading || (bookingMode === 'single' && !!availabilityError) || isInvalidMpesaAmount || isAvailabilityInvalid
+          const submitDisabled = loading || (bookingMode === 'single' && !!availabilityError) || isInvalidMpesaAmount || isAvailabilityInvalid || (shouldShowStep2() && bookingStep === 'step2' && !categoryTimingsValid)
           let submitTitle = ''
           if (bookingMode === 'single' && availabilityError) submitTitle = 'Please select a valid date and time'
           else if (isAvailabilityInvalid) submitTitle = 'Trainer is not available at selected time'
           else if (isInvalidMpesaAmount) submitTitle = 'Payment amount is outside M-Pesa limits. Switch to Mock or adjust booking details.'
+          else if (shouldShowStep2() && bookingStep === 'step2' && !categoryTimingsValid) submitTitle = 'Please set valid date and time for all categories'
 
           return (
             <Button
