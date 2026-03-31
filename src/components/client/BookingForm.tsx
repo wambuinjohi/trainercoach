@@ -390,20 +390,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
     // Handle Step 1 to Step 2 transition for multi-category bookings
     if (shouldShowStep2() && bookingStep === 'step1') {
-      // Validate step 1 before proceeding to step 2
-      if (bookingMode === 'single' && (!date || !time)) {
-        toast({ title: 'Missing info', description: 'Please select date and time before proceeding', variant: 'destructive' })
-        return
-      }
-      if (availabilityError) {
-        toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
-        return
-      }
-      if (availabilityStatus !== 'available') {
-        toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
-        return
-      }
-      // Proceed to step 2
+      // Step 1 only collects categories and booking mode for multi-category bookings.
+      // Proceed directly to step 2 where each category gets its own date/time.
       setBookingStep('step2')
       return
     }
@@ -895,7 +883,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         )}
 
         {/* Single Session Booking */}
-        {bookingMode === 'single' && (
+        {bookingMode === 'single' && !shouldShowStep2() && (
           <>
             <div>
               <Label>Session Date</Label>
@@ -1178,7 +1166,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             return (
               <Button
                 onClick={submit}
-                disabled={loading || (bookingMode === 'single' && (!date || !time)) || (bookingMode === 'single' && availabilityStatus !== 'available')}
+                disabled={loading}
                 className="bg-gradient-primary text-white"
               >
                 {loading ? 'Processing...' : 'Next: Set Times per Category'}
