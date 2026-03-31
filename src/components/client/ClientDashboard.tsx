@@ -710,7 +710,17 @@ export const ClientDashboard: React.FC = () => {
           if (filters.onlyAvailable && !t.available) return false
           if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
           if (!trainerHasAvailability(t)) return false
-          if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()))) return false
+
+          // Enhanced search: check trainer name, discipline, AND category names (same as no-category branch)
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase()
+            const matchesName = (t.name || '').toLowerCase().includes(searchLower)
+            const matchesDiscipline = (t.discipline || '').toLowerCase().includes(searchLower)
+            const categoryNames = getCategoryNamesForTrainer(t.categoryIds)
+            const matchesCategory = categoryNames.some(c => (c.name || '').toLowerCase().includes(searchLower))
+
+            if (!matchesName && !matchesDiscipline && !matchesCategory) return false
+          }
 
           return true
         })
