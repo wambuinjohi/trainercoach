@@ -285,6 +285,9 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                       ))
                     })()}
                   </div>
+                  <div className="text-xs text-amber-600 dark:text-amber-400 mt-3 bg-amber-50 dark:bg-amber-950/30 p-2 rounded">
+                    ⚠️ Times are displayed in 12-hour format (AM/PM). Please note the correct AM or PM time when booking.
+                  </div>
                 </div>
               )}
 
