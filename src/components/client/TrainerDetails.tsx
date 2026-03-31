@@ -108,6 +108,24 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
     }
   }
 
+  // Filter categories if a specific category is selected
+  const displayedCategories = selectedCategory
+    ? categories.filter((cat: any) => cat.name === selectedCategory)
+    : categories
+
+  // Filter pricing if a specific category is selected
+  const displayedPricing = selectedCategory
+    ? categoryPricing.filter((pricing: any) => pricing.name === selectedCategory)
+    : categoryPricing
+
+  // Filter group training data if a specific category is selected
+  const displayedGroupTraining = selectedCategory
+    ? groupTrainingData.filter((groupPricing: GroupPricingConfig) => {
+        // Filter group training by matching category name
+        return groupPricing.category_name === selectedCategory
+      })
+    : groupTrainingData
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -119,6 +137,9 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
           </button>
           <CardHeader className="p-4 sm:p-6">
             <CardTitle>{trainer.name}</CardTitle>
+            {selectedCategory && (
+              <p className="text-sm text-muted-foreground mt-1">for {selectedCategory}</p>
+            )}
           </CardHeader>
           <CardContent className="p-4 sm:p-6 max-h-[80vh] overflow-auto">
             <div className="grid grid-cols-1 gap-4">
@@ -147,11 +168,11 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                 <p className="text-sm text-muted-foreground">{profile?.bio || 'Experienced trainer in ' + trainer.discipline + '.'}</p>
               </div>
 
-              {categories.length > 0 && (
+              {displayedCategories.length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2">Service Categories</h4>
                   <div className="flex flex-wrap gap-2">
-                    {categories.map((cat:any,i:number)=>(
+                    {displayedCategories.map((cat:any,i:number)=>(
                       <Badge key={i} variant="outline" className="gap-1">
                         {cat.icon && <span>{cat.icon}</span>}
                         <span>{cat.name}</span>
@@ -163,17 +184,14 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
 
               <div>
                 <h4 className="font-semibold mb-2">Pricing</h4>
-                {categoryPricing && categoryPricing.length > 0 ? (
+                {displayedPricing && displayedPricing.length > 0 ? (
                   <div className="space-y-2">
                     <div className="text-sm">
-                      {categoryPricing.map((pricing: any, idx: number) => {
-                        const isSelectedCategory = selectedCategory && pricing.name === selectedCategory
-                        return (
-                          <div key={idx} className={isSelectedCategory ? 'font-bold text-foreground' : 'text-muted-foreground'}>
-                            {pricing.name}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
-                          </div>
-                        )
-                      })}
+                      {displayedPricing.map((pricing: any, idx: number) => (
+                        <div key={idx} className="text-muted-foreground">
+                          {pricing.name}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : Array.isArray(profile?.hourly_rate_by_radius) && profile.hourly_rate_by_radius.length > 0 ? (
@@ -190,14 +208,14 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                 )}
               </div>
 
-              {groupTrainingData && groupTrainingData.length > 0 && (
+              {displayedGroupTraining && displayedGroupTraining.length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Group Training
                   </h4>
                   <div className="space-y-4">
-                    {groupTrainingData.map((groupPricing: GroupPricingConfig, idx: number) => (
+                    {displayedGroupTraining.map((groupPricing: GroupPricingConfig, idx: number) => (
                       <div key={idx} className="border border-border rounded-lg p-3 bg-muted/5">
                         <div className="font-medium text-sm mb-2">
                           {groupPricing.tiers && groupPricing.tiers.length > 0 ? (
@@ -267,6 +285,9 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                       ))
                     })()}
                   </div>
+                  <div className="text-xs text-amber-600 dark:text-amber-400 mt-3 bg-amber-50 dark:bg-amber-950/30 p-2 rounded">
+                    ⚠️ Times are displayed in 12-hour format (AM/PM). Please note the correct AM or PM time when booking.
+                  </div>
                 </div>
               )}
 
@@ -304,7 +325,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
 
               {showBooking && !showPINSignup && (
                 <div className="mt-2 max-h-[60vh] overflow-auto">
-                  <BookingForm trainer={trainer} trainerProfile={profile} onDone={() => { setShowBooking(false); toast({ title: 'Booked', description: 'Booking request sent.' }); onClose(); }} />
+                  <BookingForm trainer={trainer} trainerProfile={profile} selectedCategory={selectedCategory} onDone={() => { setShowBooking(false); toast({ title: 'Booked', description: 'Booking request sent.' }); onClose(); }} />
                 </div>
               )}
 
