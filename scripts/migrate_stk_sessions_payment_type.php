@@ -1,14 +1,16 @@
 <?php
 /**
  * Migration: Add payment_type column to stk_push_sessions table
- * 
+ *
  * This migration adds the payment_type column that was missing from the stk_push_sessions table.
  * The payment_type is crucial for correctly determining which shortcode (paybill vs buygods)
  * to use when querying STK Push status.
- * 
- * Without this column, the system defaults to paybill shortcode, causing "Invalid BusinessShortCode"
- * errors for Buy Goods transactions.
- * 
+ *
+ * Without this column, the system was defaulting to paybill shortcode, causing "Invalid BusinessShortCode"
+ * errors for Buy Goods (CustomerBuyGoodsOnline) transactions.
+ *
+ * Default: buygods (CustomerBuyGoodsOnline) - update if your system uses Paybill instead
+ *
  * Usage: php scripts/migrate_stk_sessions_payment_type.php
  */
 
@@ -37,7 +39,7 @@ if ($columnExists && $columnExists->num_rows > 0) {
 echo "[MIGRATION] payment_type column not found. Adding it now...\n";
 
 // Add the payment_type column to the table
-$addColumnSql = "ALTER TABLE `stk_push_sessions` ADD COLUMN `payment_type` VARCHAR(50) DEFAULT 'paybill' COMMENT 'Payment type: paybill or buygods (CustomerBuyGoodsOnline)' AFTER `merchant_request_id`";
+$addColumnSql = "ALTER TABLE `stk_push_sessions` ADD COLUMN `payment_type` VARCHAR(50) DEFAULT 'buygods' COMMENT 'Payment type: paybill or buygods (CustomerBuyGoodsOnline)' AFTER `merchant_request_id`";
 
 if (!$conn->query($addColumnSql)) {
     echo "[MIGRATION ERROR] Failed to add payment_type column: " . $conn->error . "\n";
@@ -53,7 +55,7 @@ $indexExists = $conn->query($checkIndexSql);
 if (!$indexExists || $indexExists->num_rows === 0) {
     echo "[MIGRATION] Adding index for payment_type column...\n";
     $addIndexSql = "ALTER TABLE `stk_push_sessions` ADD INDEX `idx_payment_type` (`payment_type`)";
-    
+
     if (!$conn->query($addIndexSql)) {
         echo "[MIGRATION WARNING] Failed to add index: " . $conn->error . "\n";
         // This is not critical, continue
@@ -65,17 +67,17 @@ if (!$indexExists || $indexExists->num_rows === 0) {
 }
 
 // Update existing sessions to have correct payment_type based on their credentials
-// This is a best-effort approach - default to paybill for existing sessions
+// This is a best-effort approach - default to buygods (CustomerBuyGoodsOnline) for existing sessions
 echo "[MIGRATION] Setting payment_type for existing sessions without payment_type...\n";
-$updateSql = "UPDATE stk_push_sessions SET payment_type = 'paybill' WHERE payment_type IS NULL OR payment_type = ''";
+$updateSql = "UPDATE stk_push_sessions SET payment_type = 'buygods' WHERE payment_type IS NULL OR payment_type = ''";
 $result = $conn->query($updateSql);
 
 if (!$result) {
     echo "[MIGRATION WARNING] Failed to update existing sessions: " . $conn->error . "\n";
 } else {
     $affectedRows = $conn->affected_rows;
-    echo "[MIGRATION SUCCESS] Updated $affectedRows existing sessions to payment_type='paybill' (default)\n";
-    echo "[MIGRATION NOTE] If any of these were Buy Goods transactions, you may need to manually update them\n";
+    echo "[MIGRATION SUCCESS] Updated $affectedRows existing sessions to payment_type='buygods' (CustomerBuyGoodsOnline, default)\n";
+    echo "[MIGRATION NOTE] If any of these were Paybill transactions, you may need to manually update them\n";
 }
 
 echo "[MIGRATION] ========== MIGRATION COMPLETE ==========\n";

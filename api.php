@@ -7895,7 +7895,7 @@ switch ($action) {
                 `description` TEXT,
                 `checkout_request_id` VARCHAR(255) UNIQUE,
                 `merchant_request_id` VARCHAR(255),
-                `payment_type` VARCHAR(50) DEFAULT 'paybill' COMMENT 'Payment type: paybill or buygods (CustomerBuyGoodsOnline)',
+                `payment_type` VARCHAR(50) DEFAULT 'buygods' COMMENT 'Payment type: paybill or buygods (CustomerBuyGoodsOnline)',
                 `status` VARCHAR(50) DEFAULT 'initiated' COMMENT 'initiated, pending, success, failed, timeout',
                 `result_code` VARCHAR(10),
                 `result_description` TEXT,

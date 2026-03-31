@@ -522,7 +522,7 @@ function querySTKPushStatus($credentials, $checkout_request_id) {
     $passkey = $credentials['passkey'];
 
     // Retrieve payment_type from STK session to determine which shortcode to use
-    $paymentType = 'paybill'; // Default to paybill
+    $paymentType = 'buygods'; // Default to buygods (CustomerBuyGoodsOnline)
     $sessionQuery = "SELECT payment_type FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1";
     $sessionStmt = $conn->prepare($sessionQuery);
     if ($sessionStmt) {
@@ -531,14 +531,14 @@ function querySTKPushStatus($credentials, $checkout_request_id) {
         $sessionResult = $sessionStmt->get_result();
         if ($sessionResult && $sessionResult->num_rows > 0) {
             $sessionRow = $sessionResult->fetch_assoc();
-            $paymentType = $sessionRow['payment_type'] ?? 'paybill';
+            $paymentType = $sessionRow['payment_type'] ?? 'buygods';
             error_log("[STK QUERY] Payment type retrieved from session: $paymentType");
         } else {
-            error_log("[STK QUERY WARNING] No session found for checkout_request_id: $checkout_request_id, using default payment_type: paybill");
+            error_log("[STK QUERY WARNING] No session found for checkout_request_id: $checkout_request_id, using default payment_type: buygods");
         }
         $sessionStmt->close();
     } else {
-        error_log("[STK QUERY WARNING] Failed to prepare session query, using default payment_type: paybill");
+        error_log("[STK QUERY WARNING] Failed to prepare session query, using default payment_type: buygods");
     }
 
     // Normalize payment type
