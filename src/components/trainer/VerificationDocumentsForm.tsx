@@ -245,8 +245,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
     setLoading(true)
     try {
-      // Check backend as secondary validation
+      // Check backend as secondary validation for truly required documents
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
+
+      // Only call onComplete() if backend confirms all REQUIRED documents are submitted
+      // Note: Certificate of Good Conduct is optional and should NOT block completion
       if (checkResponse?.data?.all_submitted) {
         toast({
           title: 'Success',
@@ -254,12 +257,12 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         })
         onComplete?.()
       } else {
-        // Show success anyway since no required documents are blocking
+        // If backend says not all submitted, don't proceed yet - user must upload required docs
         toast({
-          title: 'Success',
-          description: 'Your documents have been submitted for review. You will be notified once approved.'
+          title: 'Documents Required',
+          description: 'Please upload all required documents before proceeding.',
+          variant: 'destructive'
         })
-        onComplete?.()
       }
     } catch (error) {
       toast({
@@ -272,17 +275,26 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // All documents are truly approved when backend has approved them
-  const allApproved = documents.every(d => d.status === 'approved' || d.type === 'certificate_of_good_conduct')
+  // All documents are approved only if required docs are approved, not including optional good conduct
+  // The key: good conduct is optional, so don't count it in "all approved" determination
+  const allApproved = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct') // Exclude optional good conduct
+    .every(d => d.status === 'approved')
 
-  // Check if any document is still under review
-  const anySubmitted = documents.some(d => d.status !== 'pending')
+  // Check if any document is still under review (excluding optional good conduct)
+  const anySubmitted = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .some(d => d.status !== 'pending')
 
-  // Check if any documents have been uploaded/submitted
-  const anyRequiredUploaded = documents.some(d => d.fileUrl)
+  // Check if REQUIRED documents have been uploaded (excluding optional good conduct)
+  const requiredDocumentsUploaded = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .every(d => d.fileUrl)
 
-  // Ready to submit: no documents are rejected
-  const readyToSubmit = documents.every(d => d.status !== 'rejected')
+  // Ready to submit: all required documents are uploaded and no required documents are rejected
+  const readyToSubmit = documents
+    .filter(d => d.type !== 'certificate_of_good_conduct')
+    .every(d => d.fileUrl && d.status !== 'rejected')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -354,8 +366,9 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           {/* Status Overview */}
           <div className="space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Status</p>
+              <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Requirements</p>
               <ul className="text-sm text-blue-800 space-y-1">
+                <li>✓ <strong>Required:</strong> Proof of Residence (GPS location from your profile)</li>
                 <li>○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
               </ul>
             </div>
@@ -602,8 +615,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             ))}
           </div>
 
-          {/* Submit Button - Show when at least proof of residence is available or user wants to skip optional docs */}
-          {(readyToSubmit || !allApproved) && (
+          {/* Submit Button - Show only when all REQUIRED documents are actually uploaded */}
+          {!allApproved && (
             <>
               <Alert className="bg-amber-50 border-amber-200">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -613,7 +626,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
               </Alert>
               <Button
                 onClick={handleSubmitForApproval}
-                disabled={loading}
+                disabled={loading || !readyToSubmit}
                 className="w-full"
               >
                 {loading ? (
@@ -621,6 +634,8 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Submitting...
                   </>
+                ) : !readyToSubmit ? (
+                  'Upload Required Documents to Continue'
                 ) : (
                   'Submit Documents for Approval'
                 )}
