@@ -11,6 +11,7 @@ import { Chat } from './Chat'
 import { PINSignup } from './PINSignup'
 import * as apiService from '@/lib/api-service'
 import { formatGroupPricingDisplay, type GroupPricingConfig } from '@/lib/group-pricing-utils'
+import { isTrainerAvailableNow } from '@/lib/availability-utils'
 
 // Helper function for formatting trainer hourly rate
 function formatHourlyRate(rate: number | null | undefined): string {
@@ -137,7 +138,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                 </div>
                 <div className="ml-auto text-right">
                   <div className="font-semibold">Ksh {formatHourlyRate(profile?.hourly_rate || trainer.hourlyRate)}/hour</div>
-                  <Badge variant={trainer.available ? 'default' : 'secondary'}>{trainer.available ? 'Available' : 'Busy'}</Badge>
+                  <Badge variant={isTrainerAvailableNow(profile || trainer) ? 'default' : 'secondary'}>{isTrainerAvailableNow(profile || trainer) ? 'Available Now' : 'Not Available'}</Badge>
                 </div>
               </div>
 

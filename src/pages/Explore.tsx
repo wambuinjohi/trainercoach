@@ -22,6 +22,7 @@ import {
   type FilterCriteria,
   type TrainerWithCategories,
 } from '@/lib/distance-utils'
+import { isTrainerAvailableNow } from '@/lib/availability-utils'
 
 // Icon mapping for categories (fallback)
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className: string }>> = {
@@ -148,8 +149,8 @@ const TrainerCard: React.FC<{
         {isNearest && (
           <Badge className="absolute top-3 right-3 bg-green-500 text-white">Nearest</Badge>
         )}
-        {!t.available && (
-          <Badge className="absolute top-3 left-3 bg-slate-500 text-white">Offline</Badge>
+        {!isTrainerAvailableNow(t) && (
+          <Badge className="absolute top-3 left-3 bg-slate-500 text-white">Not Available Now</Badge>
         )}
       </div>
       

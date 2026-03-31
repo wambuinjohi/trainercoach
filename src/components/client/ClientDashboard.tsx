@@ -90,6 +90,7 @@ import { enrichTrainersWithDistance } from '@/lib/distance-utils'
 import { filterTrainersByServiceRadius } from '@/lib/location-utils'
 import { apiRequest, withAuth } from '@/lib/api'
 import { reverseGeocode } from '@/lib/location'
+import { isTrainerAvailableNow } from '@/lib/availability-utils'
 
 export const ClientDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -710,7 +711,17 @@ export const ClientDashboard: React.FC = () => {
           if (filters.onlyAvailable && !t.available) return false
           if (filters.radius && (t.distanceKm == null || t.distanceKm > Number(filters.radius))) return false
           if (!trainerHasAvailability(t)) return false
-          if (searchQuery && !((t.name || '').toLowerCase().includes(searchQuery.toLowerCase()))) return false
+
+          // Enhanced search: check trainer name, discipline, AND category names (same as no-category branch)
+          if (searchQuery) {
+            const searchLower = searchQuery.toLowerCase()
+            const matchesName = (t.name || '').toLowerCase().includes(searchLower)
+            const matchesDiscipline = (t.discipline || '').toLowerCase().includes(searchLower)
+            const categoryNames = getCategoryNamesForTrainer(t.categoryIds)
+            const matchesCategory = categoryNames.some(c => (c.name || '').toLowerCase().includes(searchLower))
+
+            if (!matchesName && !matchesDiscipline && !matchesCategory) return false
+          }
 
           return true
         })
@@ -828,8 +839,8 @@ export const ClientDashboard: React.FC = () => {
                         {idx === 0 && userLocation && selectedCategory && (
                           <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
                         )}
-                        <Badge variant={trainer.available ? "default" : "secondary"} className="flex-shrink-0">
-                          {trainer.available ? 'Available' : 'Busy'}
+                        <Badge variant={isTrainerAvailableNow(trainer) ? "default" : "secondary"} className="flex-shrink-0">
+                          {isTrainerAvailableNow(trainer) ? 'Available Now' : 'Not Available'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">{trainer.discipline || 'Training'}</p>
