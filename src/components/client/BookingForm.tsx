@@ -17,6 +17,7 @@ import { LocationPreferenceSelector, type LocationPreference } from './LocationP
 import { FeeBreakdownModal, type FeeBreakdown } from './FeeBreakdownModal'
 import { MultiSessionSelector } from './MultiSessionSelector'
 import { BookingSession } from '@/types'
+import { CategoryTimingSelector, type CategoryTiming } from './CategoryTimingSelector'
 
 type LiveAvailabilitySnapshot = {
   day_label?: string
@@ -53,6 +54,23 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const [selectedSessions, setSelectedSessions] = useState<BookingSession[]>([])
   const [categoryPricing, setCategoryPricing] = useState<any[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [bookingStep, setBookingStep] = useState<'step1' | 'step2'>('step1')
+  const [categoryTimings, setCategoryTimings] = useState<CategoryTiming[]>([])
+  const [categoryTimingsValid, setCategoryTimingsValid] = useState(false)
+
+  // Determine if we should show Step 2 (per-category timing selection)
+  const shouldShowStep2 = () => {
+    // Only show Step 2 if:
+    // - Multiple categories selected
+    // - Single session mode (not multi-session mode)
+    // - Not group training
+    return (
+      selectedCategoryIds.length > 1 &&
+      bookingMode === 'single' &&
+      !isGroupTraining &&
+      categoryPricing.length > 0
+    )
+  }
 
   const computeBaseAmount = () => {
     // For multi-session mode, calculate based on total duration
@@ -262,6 +280,17 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
     loadCategoryPricing()
   }, [trainer?.id])
 
+  // Auto-advance to step 2 when conditions are met
+  useEffect(() => {
+    if (shouldShowStep2() && bookingStep === 'step1') {
+      // Check if user has progressed beyond initial category selection
+      // Only auto-advance if they've already filled in step 1 fields
+      if (date || time || sessions > 1) {
+        // Don't auto-advance yet, let user control when to proceed
+      }
+    }
+  }, [selectedCategoryIds, bookingMode, isGroupTraining, categoryPricing])
+
   // Load group training data for the trainer
   useEffect(() => {
     const loadGroupTrainingData = async () => {
@@ -301,11 +330,94 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   const selectedSessionCount = selectedSessions.length
   const selectedSessionHours = selectedSessions.reduce((sum, session) => sum + session.duration_hours, 0)
 
+  const createPerCategoryBookings = async (
+    categoriesToBook: string[],
+    clientLocation: { label?: string; lat?: number | null; lng?: number | null }
+  ) => {
+    const bookingIds: string[] = []
+    const categoryBookings: Array<{categoryId: string, categoryName: string, bookingId: string, baseAmount: number}> = []
+
+    for (const categoryId of categoriesToBook) {
+      // Find the timing for this category
+      const categoryTiming = categoryTimings.find(t => t.categoryId === categoryId)
+      if (!categoryTiming || !categoryTiming.date || !categoryTiming.time) {
+        throw new Error(`Missing timing for category ${categoryId}`)
+      }
+
+      const selectedCategory = categoryPricing.find((cat: any) => String(cat.id) === categoryId)
+      const hourlyRate = selectedCategory ? Number(selectedCategory.hourly_rate || 0) : Number(trainer.hourlyRate || 0)
+      const categoryBaseAmount = hourlyRate * (sessions || 1)
+
+      const payload: any = {
+        client_id: user!.id,
+        trainer_id: trainer.id,
+        category_id: categoryId,
+        session_date: categoryTiming.date,
+        session_time: categoryTiming.time,
+        duration_hours: 1,
+        total_sessions: sessions,
+        status: 'pending',
+        session_phase: 'waiting_start',
+        base_service_amount: categoryBaseAmount,
+        notes: notes || '',
+        client_location_label: (clientLocation.label || null),
+        client_location_lat: (clientLocation.lat != null ? clientLocation.lat : null),
+        client_location_lng: (clientLocation.lng != null ? clientLocation.lng : null),
+      }
+
+      // Create the booking
+      const bookingResponse = await apiRequest('booking_create', payload, { headers: withAuth() })
+      const bookingId = bookingResponse?.booking_id
+      if (!bookingId) {
+        throw new Error(`Failed to create booking for category ${categoryId}`)
+      }
+
+      bookingIds.push(bookingId)
+      const categoryName = selectedCategory?.name || 'Session'
+      categoryBookings.push({
+        categoryId,
+        categoryName,
+        bookingId,
+        baseAmount: categoryBaseAmount
+      })
+    }
+
+    return { bookingIds, categoryBookings }
+  }
+
   const submit = async () => {
     if (!user) return
 
+    // Handle Step 1 to Step 2 transition for multi-category bookings
+    if (shouldShowStep2() && bookingStep === 'step1') {
+      // Validate step 1 before proceeding to step 2
+      if (bookingMode === 'single' && (!date || !time)) {
+        toast({ title: 'Missing info', description: 'Please select date and time before proceeding', variant: 'destructive' })
+        return
+      }
+      if (availabilityError) {
+        toast({ title: 'Invalid time', description: availabilityError, variant: 'destructive' })
+        return
+      }
+      if (availabilityStatus !== 'available') {
+        toast({ title: 'Invalid time', description: 'Please select a time when the trainer is available', variant: 'destructive' })
+        return
+      }
+      // Proceed to step 2
+      setBookingStep('step2')
+      return
+    }
+
+    // Handle Step 2 completion (multi-category with per-category timings)
+    if (shouldShowStep2() && bookingStep === 'step2') {
+      if (!categoryTimingsValid) {
+        toast({ title: 'Missing info', description: 'Please set valid date and time for all categories', variant: 'destructive' })
+        return
+      }
+    }
+
     // Validate based on booking mode
-    if (bookingMode === 'single') {
+    if (bookingMode === 'single' && !shouldShowStep2()) {
       if (!date || !time) {
         toast({ title: 'Missing info', description: 'Please select date and time', variant: 'destructive' })
         return

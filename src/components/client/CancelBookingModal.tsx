@@ -137,7 +137,7 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle>Cancel Booking</DialogTitle>
           <DialogDescription>
