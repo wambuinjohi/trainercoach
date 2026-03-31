@@ -30,7 +30,7 @@ type LiveAvailabilitySnapshot = {
   checked_at?: string
 }
 
-export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void }> = ({ trainer, trainerProfile, onDone }) => {
+export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?: () => void, selectedCategory?: string | null }> = ({ trainer, trainerProfile, onDone, selectedCategory }) => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [date, setDate] = useState('')
@@ -270,15 +270,23 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         const pricingList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
         if (pricingList.length > 0) {
           setCategoryPricing(pricingList)
-          // Auto-select all categories by default
-          setSelectedCategoryIds(pricingList.map((cat: any) => String(cat.id)))
+          // If a specific category is selected, only select that one
+          if (selectedCategory) {
+            const selectedCat = pricingList.find((cat: any) => cat.name === selectedCategory)
+            if (selectedCat) {
+              setSelectedCategoryIds([String(selectedCat.id)])
+            }
+          } else {
+            // Auto-select all categories by default
+            setSelectedCategoryIds(pricingList.map((cat: any) => String(cat.id)))
+          }
         }
       } catch (err) {
         console.warn('Failed to load category pricing:', err)
       }
     }
     loadCategoryPricing()
-  }, [trainer?.id])
+  }, [trainer?.id, selectedCategory])
 
   // Auto-advance to step 2 when conditions are met
   useEffect(() => {
@@ -853,31 +861,40 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         {!isGroupTraining && categoryPricing.length > 0 && (
           <div className="border border-border rounded-md p-3 bg-muted/5">
             <Label className="text-sm font-medium">Service Categories</Label>
-            <p className="text-xs text-muted-foreground mb-3">Select one or more categories. Pricing will be combined.</p>
+            {selectedCategory ? (
+              <p className="text-xs text-muted-foreground mb-3">Booking for: <span className="font-semibold">{selectedCategory}</span></p>
+            ) : (
+              <p className="text-xs text-muted-foreground mb-3">Select one or more categories. Pricing will be combined.</p>
+            )}
             <div className="space-y-2">
-              {categoryPricing.map((category: any) => (
-                <label key={category.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedCategoryIds.includes(String(category.id))}
-                    onChange={(e) => {
-                      const catId = String(category.id)
-                      if (e.target.checked) {
-                        setSelectedCategoryIds([...selectedCategoryIds, catId])
-                      } else {
-                        setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== catId))
-                      }
-                    }}
-                    className="w-4 h-4 rounded border-border cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{category.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ksh {Number(category.hourly_rate || 0)}/hr
+              {categoryPricing.map((category: any) => {
+                const isSelectedCategory = category.name === selectedCategory
+                const isDisabled = selectedCategory && !isSelectedCategory
+                return (
+                  <label key={category.id} className={`flex items-center gap-3 p-2 rounded ${isDisabled ? 'opacity-50 cursor-not-allowed bg-muted/20' : 'hover:bg-muted/50 cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCategoryIds.includes(String(category.id))}
+                      onChange={(e) => {
+                        const catId = String(category.id)
+                        if (e.target.checked) {
+                          setSelectedCategoryIds([...selectedCategoryIds, catId])
+                        } else {
+                          setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== catId))
+                        }
+                      }}
+                      disabled={isDisabled}
+                      className="w-4 h-4 rounded border-border cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{category.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Ksh {Number(category.hourly_rate || 0)}/hr
+                      </div>
                     </div>
-                  </div>
-                </label>
-              ))}
+                  </label>
+                )
+              })}
             </div>
           </div>
         )}
