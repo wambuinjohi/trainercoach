@@ -130,14 +130,14 @@ export const AdminSMSManager: React.FC = () => {
   const loadSmsSettings = async () => {
     setLoading(true)
     try {
-      const res = await apiRequest('settings_sms_get', {})
-      if (res.data) {
-        setSmsSettings(res.data)
-        if (res.data.sms_configured) {
+      const res = await apiRequest<SmsSettings>('settings_sms_get', {})
+      if (res) {
+        setSmsSettings(res)
+        if (res.sms_configured) {
           setSettingsForm((prev) => ({
             ...prev,
-            sender_id: res.data.sms_sender_id || 'TRAINER LTD',
-            enabled: res.data.sms_enabled !== false,
+            sender_id: res.sms_sender_id || 'TRAINER LTD',
+            enabled: res.sms_enabled !== false,
           }))
         }
       }
@@ -196,25 +196,17 @@ export const AdminSMSManager: React.FC = () => {
     setTestingConnection(true)
     try {
       // Make a test API call with the provided credentials
-      const response = await apiRequest('settings_sms_test', {
+      await apiRequest('settings_sms_test', {
         api_key: settingsForm.api_key,
         client_id: settingsForm.client_id,
         access_key: settingsForm.access_key,
         sender_id: settingsForm.sender_id,
       })
 
-      if (response?.data?.success) {
-        toast({
-          title: 'Success',
-          description: 'SMS service connection is working correctly',
-        })
-      } else {
-        toast({
-          title: 'Connection Failed',
-          description: response?.data?.error || 'Failed to connect to SMS service',
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: 'Success',
+        description: 'SMS service connection is working correctly',
+      })
     } catch (error: any) {
       console.error('Failed to test SMS connection:', error)
       toast({
@@ -230,9 +222,10 @@ export const AdminSMSManager: React.FC = () => {
   const loadTemplates = async () => {
     setLoading(true)
     try {
-      const res = await apiRequest('sms_templates_get', {})
-      if (res.data && Array.isArray(res.data)) {
-        setTemplates(res.data)
+      const res = await apiRequest<{ data?: SmsTemplate[] } | SmsTemplate[]>('sms_templates_get', {})
+      const templatesData = Array.isArray(res) ? res : res?.data
+      if (Array.isArray(templatesData)) {
+        setTemplates(templatesData)
       }
     } catch (error) {
       console.error('Failed to load templates:', error)
@@ -380,11 +373,11 @@ export const AdminSMSManager: React.FC = () => {
         payload.user_group = sendForm.user_group
       }
 
-      const res = await apiRequest('sms_send_manual', payload)
+      const res = await apiRequest<{ sent_count?: number }>('sms_send_manual', payload)
 
       toast({
         title: 'Success',
-        description: `SMS sent to ${res?.data?.sent_count || 0} recipient(s)`,
+        description: `SMS sent to ${res?.sent_count || 0} recipient(s)`,
       })
 
       // Reset form
@@ -427,10 +420,10 @@ export const AdminSMSManager: React.FC = () => {
         payload.status = logsFilters.status
       }
 
-      const res = await apiRequest('sms_logs_get', payload)
+      const res = await apiRequest<{ data?: SmsLog[]; total?: number }>('sms_logs_get', payload)
       if (res) {
-        setSmsLogs(res?.data?.data || [])
-        setTotalLogs(res?.data?.total || 0)
+        setSmsLogs(res.data || [])
+        setTotalLogs(res.total || 0)
       }
     } catch (error) {
       console.error('Failed to load SMS logs:', error)
