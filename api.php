@@ -5606,14 +5606,45 @@ switch ($action) {
                     $clientStmt->close();
                     $trainerStmt->close();
 
+                    $smsCredentials = getSmsCredentials();
+                    $sendBookingSms = function ($userId, $phoneNumber, $message, $eventType = 'booking') use ($smsCredentials, $bookingId) {
+                        if (empty($phoneNumber) || !$smsCredentials || empty($smsCredentials['enabled'])) {
+                            return;
+                        }
+
+                        $result = sendSmsViaOnfonmedia($phoneNumber, $message, $smsCredentials);
+                        logSmsEvent(
+                            $userId,
+                            $phoneNumber,
+                            $message,
+                            null,
+                            $eventType,
+                            $bookingId,
+                            $result['success'] ? 'sent' : 'failed',
+                            $result['provider_response'] ?? null
+                        );
+                    };
+
                     if ($clientPhone) {
-                        @sendBookingSms($clientId, $clientPhone, [
-                            'id' => $bookingId,
-                            'trainer_name' => $trainerName,
-                            'date' => $sessionDate,
-                            'time' => $sessionTime,
-                            'amount' => $totalAmount
-                        ]);
+                        @sendBookingSms($clientId, $clientPhone, "Booking confirmed! ID: {$bookingId} with {$trainerName} on {$sessionDate} at {$sessionTime}.");
+                    }
+
+                    $trainerPhoneStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                    if ($trainerPhoneStmt) {
+                        $trainerPhoneStmt->bind_param("s", $trainerId);
+                        $trainerPhoneStmt->execute();
+                        $trainerPhoneResult = $trainerPhoneStmt->get_result();
+                        $trainerPhone = null;
+
+                        if ($trainerPhoneResult && $trainerPhoneRow = $trainerPhoneResult->fetch_assoc()) {
+                            $trainerPhone = $trainerPhoneRow['phone'] ?? null;
+                        }
+
+                        $trainerPhoneStmt->close();
+
+                        if ($trainerPhone) {
+                            @sendBookingSms($trainerId, $trainerPhone, "A new booking request has been created for {$sessionDate} at {$sessionTime}. Please review it in your trainer dashboard.");
+                        }
                     }
                 }
             } catch (Exception $e) {
@@ -5753,6 +5784,27 @@ switch ($action) {
         }
 
         $bookingId = $conn->real_escape_string($input['id']);
+
+        $bookingStmt = $conn->prepare("SELECT client_id, trainer_id, session_date, session_time, status, cancellation_reason FROM bookings WHERE id = ? LIMIT 1");
+        if (!$bookingStmt) {
+            respond("error", "Failed to prepare booking lookup statement: " . $conn->error, null, 500);
+        }
+
+        $bookingStmt->bind_param("s", $bookingId);
+        $bookingStmt->execute();
+        $bookingResult = $bookingStmt->get_result();
+
+        if (!$bookingResult || $bookingResult->num_rows === 0) {
+            $bookingStmt->close();
+            respond("error", "Booking not found.", null, 404);
+        }
+
+        $bookingSnapshot = $bookingResult->fetch_assoc();
+        $bookingStmt->close();
+
+        $oldStatus = $bookingSnapshot['status'] ?? null;
+        $newStatus = isset($input['status']) ? $conn->real_escape_string($input['status']) : null;
+        $smsCredentials = getSmsCredentials();
         $updates = [];
         $params = [];
         $types = "";
@@ -5794,6 +5846,84 @@ switch ($action) {
 
         if ($stmt->execute()) {
             $stmt->close();
+
+            if ($newStatus && $newStatus !== $oldStatus && $smsCredentials && !empty($smsCredentials['enabled'])) {
+                try {
+                    $sendBookingSms = function ($userId, $phoneNumber, $message) use ($smsCredentials, $bookingId) {
+                        if (empty($phoneNumber) || empty($message)) {
+                            return;
+                        }
+
+                        $result = sendSmsViaOnfonmedia($phoneNumber, $message, $smsCredentials);
+                        logSmsEvent(
+                            $userId,
+                            $phoneNumber,
+                            $message,
+                            null,
+                            'booking',
+                            $bookingId,
+                            $result['success'] ? 'sent' : 'failed',
+                            $result['provider_response'] ?? null
+                        );
+                    };
+
+                    $clientStmt = $conn->prepare("SELECT u.phone, COALESCE(up.full_name, u.email, u.id) AS display_name FROM users u LEFT JOIN user_profiles up ON up.user_id = u.id WHERE u.id = ? LIMIT 1");
+                    $trainerStmt = $conn->prepare("SELECT u.phone, COALESCE(up.full_name, u.email, u.id) AS display_name FROM users u LEFT JOIN user_profiles up ON up.user_id = u.id WHERE u.id = ? LIMIT 1");
+
+                    $clientPhone = null;
+                    $trainerPhone = null;
+                    $clientName = 'Client';
+                    $trainerName = 'Trainer';
+
+                    if ($clientStmt) {
+                        $clientId = $bookingSnapshot['client_id'] ?? '';
+                        $clientStmt->bind_param("s", $clientId);
+                        $clientStmt->execute();
+                        $clientResult = $clientStmt->get_result();
+                        if ($clientResult && $clientRow = $clientResult->fetch_assoc()) {
+                            $clientPhone = $clientRow['phone'] ?? null;
+                            $clientName = $clientRow['display_name'] ?? $clientName;
+                        }
+                        $clientStmt->close();
+                    }
+
+                    if ($trainerStmt) {
+                        $trainerId = $bookingSnapshot['trainer_id'] ?? '';
+                        $trainerStmt->bind_param("s", $trainerId);
+                        $trainerStmt->execute();
+                        $trainerResult = $trainerStmt->get_result();
+                        if ($trainerResult && $trainerRow = $trainerResult->fetch_assoc()) {
+                            $trainerPhone = $trainerRow['phone'] ?? null;
+                            $trainerName = $trainerRow['display_name'] ?? $trainerName;
+                        }
+                        $trainerStmt->close();
+                    }
+
+                    $bookingDate = !empty($bookingSnapshot['session_date']) ? date('j M Y', strtotime($bookingSnapshot['session_date'])) : 'your session date';
+                    $bookingTime = $bookingSnapshot['session_time'] ?? 'your session time';
+                    $cancellationReason = trim((string)($input['cancellation_reason'] ?? $bookingSnapshot['cancellation_reason'] ?? ''));
+                    $reasonText = $cancellationReason !== '' ? " Reason: {$cancellationReason}." : '';
+
+                    if ($newStatus === 'confirmed' && $clientPhone) {
+                        $sendBookingSms($bookingSnapshot['client_id'] ?? null, $clientPhone, "Your booking for {$bookingDate} at {$bookingTime} with {$trainerName} has been confirmed.");
+                    } elseif ($newStatus === 'in_session' && $clientPhone) {
+                        $sendBookingSms($bookingSnapshot['client_id'] ?? null, $clientPhone, "Your session with {$trainerName} for {$bookingDate} at {$bookingTime} has started.");
+                    } elseif ($newStatus === 'completed' && $clientPhone) {
+                        $sendBookingSms($bookingSnapshot['client_id'] ?? null, $clientPhone, "Your session with {$trainerName} for {$bookingDate} at {$bookingTime} has been completed.");
+                    } elseif ($newStatus === 'cancelled') {
+                        if ($clientPhone) {
+                            $sendBookingSms($bookingSnapshot['client_id'] ?? null, $clientPhone, "Your booking for {$bookingDate} at {$bookingTime} with {$trainerName} has been cancelled{$reasonText}");
+                        }
+
+                        if ($trainerPhone) {
+                            $sendBookingSms($bookingSnapshot['trainer_id'] ?? null, $trainerPhone, "A booking with {$clientName} for {$bookingDate} at {$bookingTime} has been cancelled{$reasonText}");
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("[BOOKING SMS UPDATE ERROR] Failed to send booking status SMS: " . $e->getMessage());
+                }
+            }
+
             logEvent('booking_updated', ['booking_id' => $bookingId]);
             respond("success", "Booking updated successfully.", ["id" => $bookingId]);
         } else {
