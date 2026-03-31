@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { IdDocumentUploadSection } from './IdDocumentUploadSection'
 
 interface Document {
-  type: 'proof_of_residence' | 'certificate_of_good_conduct' | 'discipline_certificate' | 'sponsor_reference'
+  type: 'national_id' | 'passport' | 'proof_of_residence' | 'certificate_of_good_conduct'
   label: string
   description: string
   status: 'pending' | 'approved' | 'rejected'
@@ -24,17 +24,26 @@ interface Document {
   idNumber?: string
   preview?: string // Data URL for image preview
   uploadProgress?: number // 0-100
+  isRequired?: boolean // Whether this document is required for completion
+  side?: 'front' | 'back' // For national_id only
 }
 
-const requiredDocuments: Document[] = [
-  {
-    type: 'certificate_of_good_conduct',
+// Define which documents are required vs optional
+// Required: ID/Passport + Proof of Residence
+// Optional: Certificate of Good Conduct
+const allDocumentDefinitions: Record<string, { label: string; description: string; isRequired: boolean; expiresAt?: string }> = {
+  'proof_of_residence': {
+    label: 'Proof of Residence',
+    description: 'REQUIRED: Your location grid from your trainer profile.',
+    isRequired: true
+  },
+  'certificate_of_good_conduct': {
     label: 'Certificate of Good Conduct',
     description: 'OPTIONAL: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance.',
-    status: 'pending',
+    isRequired: false,
     expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
   }
-]
+}
 
 interface VerificationDocumentsFormProps {
   onComplete?: () => void
@@ -123,20 +132,95 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       let docs = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
 
       if (Array.isArray(docs)) {
-        const loadedDocs: Document[] = requiredDocuments
-          .map(reqDoc => {
-            const uploaded = docs.find(d => d.document_type === reqDoc.type)
-            console.log('[VerificationDocuments] Document:', reqDoc.type, '| Uploaded:', uploaded)
-            return {
-              ...reqDoc,
-              status: uploaded?.status || 'pending',
-              fileUrl: uploaded?.file_url,
-              rejectionReason: uploaded?.rejection_reason,
-              uploadedAt: uploaded?.uploaded_at,
-              expiresAt: uploaded?.expires_at,
-              idNumber: uploaded?.id_number
-            }
+        const loadedDocs: Document[] = []
+
+        // Load proof of residence and certificate of good conduct (non-ID documents)
+        Object.entries(allDocumentDefinitions).forEach(([docType, config]) => {
+          const uploaded = docs.find(d => d.document_type === docType)
+          console.log('[VerificationDocuments] Document:', docType, '| Uploaded:', uploaded)
+          loadedDocs.push({
+            type: docType as 'proof_of_residence' | 'certificate_of_good_conduct',
+            label: config.label,
+            description: config.description,
+            isRequired: config.isRequired,
+            status: uploaded?.status || 'pending',
+            fileUrl: uploaded?.file_url,
+            rejectionReason: uploaded?.rejection_reason,
+            uploadedAt: uploaded?.uploaded_at,
+            expiresAt: uploaded?.expires_at || config.expiresAt,
+            idNumber: uploaded?.id_number
           })
+        })
+
+        // Also load ID documents to understand full document status
+        // National ID requires both front and back, or Passport
+        const nationalIdFront = docs.find(d => d.document_type === 'national_id' && d.id_side === 'front')
+        const nationalIdBack = docs.find(d => d.document_type === 'national_id' && d.id_side === 'back')
+        const passport = docs.find(d => d.document_type === 'passport')
+
+        // Add national ID front and back to the document list (only if they exist or are pending)
+        if (nationalIdFront || nationalIdBack || (!passport && !nationalIdFront)) {
+          if (!nationalIdFront) {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Front',
+              description: 'REQUIRED: Upload the front side of your national ID',
+              isRequired: true,
+              status: 'pending',
+              side: 'front'
+            })
+          } else {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Front',
+              description: 'REQUIRED: Upload the front side of your national ID',
+              isRequired: true,
+              status: nationalIdFront.status,
+              fileUrl: nationalIdFront.file_url,
+              rejectionReason: nationalIdFront.rejection_reason,
+              uploadedAt: nationalIdFront.uploaded_at,
+              side: 'front'
+            })
+          }
+
+          if (!nationalIdBack) {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Back',
+              description: 'REQUIRED: Upload the back side of your national ID',
+              isRequired: true,
+              status: 'pending',
+              side: 'back'
+            })
+          } else {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Back',
+              description: 'REQUIRED: Upload the back side of your national ID',
+              isRequired: true,
+              status: nationalIdBack.status,
+              fileUrl: nationalIdBack.file_url,
+              rejectionReason: nationalIdBack.rejection_reason,
+              uploadedAt: nationalIdBack.uploaded_at,
+              side: 'back'
+            })
+          }
+        }
+
+        // Add passport if it exists
+        if (passport) {
+          loadedDocs.unshift({
+            type: 'passport',
+            label: 'Passport',
+            description: 'REQUIRED: Upload your passport (photo page)',
+            isRequired: true,
+            status: passport.status,
+            fileUrl: passport.file_url,
+            rejectionReason: passport.rejection_reason,
+            uploadedAt: passport.uploaded_at
+          })
+        }
+
         console.log('[VerificationDocuments] Final loaded documents:', loadedDocs)
         setDocuments(loadedDocs)
       } else {
@@ -275,26 +359,24 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
     }
   }
 
-  // All documents are approved only if required docs are approved, not including optional good conduct
-  // The key: good conduct is optional, so don't count it in "all approved" determination
-  const allApproved = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct') // Exclude optional good conduct
-    .every(d => d.status === 'approved')
+  // Get only the required documents for completion checks
+  const requiredDocs = documents.filter(d => d.isRequired !== false)
+  const optionalDocs = documents.filter(d => d.isRequired === false)
 
-  // Check if any document is still under review (excluding optional good conduct)
-  const anySubmitted = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .some(d => d.status !== 'pending')
+  // All required documents are approved
+  const allRequiredApproved = requiredDocs.length > 0 && requiredDocs.every(d => d.status === 'approved')
 
-  // Check if REQUIRED documents have been uploaded (excluding optional good conduct)
-  const requiredDocumentsUploaded = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.fileUrl)
+  // Check if any required document is still under review
+  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending')
+
+  // Check if ALL required documents have been uploaded
+  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl)
 
   // Ready to submit: all required documents are uploaded and no required documents are rejected
-  const readyToSubmit = documents
-    .filter(d => d.type !== 'certificate_of_good_conduct')
-    .every(d => d.fileUrl && d.status !== 'rejected')
+  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl && d.status !== 'rejected')
+
+  // For display: which required documents are still pending
+  const pendingRequiredDocs = requiredDocs.filter(d => d.status === 'pending')
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -345,20 +427,20 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Status Alert */}
-          {allApproved && (
+          {allRequiredApproved && (
             <Alert className="bg-green-50 border-green-200">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                All documents have been approved! You can now accept bookings.
+                All required documents have been approved! You can now accept bookings.
               </AlertDescription>
             </Alert>
           )}
 
-          {!allApproved && anySubmitted && (
+          {!allRequiredApproved && anyRequiredSubmitted && (
             <Alert className="bg-blue-50 border-blue-200">
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                <strong>Proof of Residence</strong> is being reviewed by our admin team. This usually takes 24-48 hours.
+                Your documents are being reviewed by our admin team. This usually takes 24-48 hours.
               </AlertDescription>
             </Alert>
           )}
@@ -374,27 +456,29 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </div>
           </div>
 
-          {/* Progress Bar - Additional Documents */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm font-semibold">Optional Documentation Progress</Label>
-              <span className="text-sm text-gray-600">
-                {documents.filter(d => d.status !== 'pending').length} of {documents.length}
-              </span>
+          {/* Progress Bar - Show only optional documents progress */}
+          {optionalDocs.length > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label className="text-sm font-semibold">Optional Documentation Progress</Label>
+                <span className="text-sm text-gray-600">
+                  {optionalDocs.filter(d => d.status !== 'pending').length} of {optionalDocs.length}
+                </span>
+              </div>
+              <Progress
+                value={optionalDocs.length > 0
+                  ? (optionalDocs.filter(d => d.status !== 'pending').length / optionalDocs.length) * 100
+                  : 0
+                }
+                className="h-2"
+              />
             </div>
-            <Progress
-              value={documents.length > 0
-                ? (documents.filter(d => d.status !== 'pending').length / documents.length) * 100
-                : 0
-              }
-              className="h-2"
-            />
-          </div>
+          )}
 
-          {/* Documents List */}
+          {/* Documents List - Show non-ID documents (Proof of Residence, Good Conduct) */}
           <div className="space-y-4">
-            {documents.map((doc) => (
-              <Card key={doc.type} className={`border ${doc.status === 'approved' ? 'border-green-200 bg-green-50' : doc.status === 'rejected' ? 'border-red-200 bg-red-50' : ''}`}>
+            {documents.filter(d => d.type !== 'national_id' && d.type !== 'passport').map((doc) => (
+              <Card key={`${doc.type}-${doc.side || ''}`} className={`border ${doc.status === 'approved' ? 'border-green-200 bg-green-50' : doc.status === 'rejected' ? 'border-red-200 bg-red-50' : ''}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -403,6 +487,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                         <Badge variant={doc.status === 'approved' ? 'default' : doc.status === 'rejected' ? 'destructive' : 'secondary'}>
                           {doc.status === 'pending' ? 'Pending' : doc.status === 'approved' ? 'Approved' : 'Rejected'}
                         </Badge>
+                        {doc.isRequired === false && (
+                          <Badge variant="outline" className="text-amber-700 border-amber-300">
+                            Optional
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-gray-600">{doc.description}</p>
                     </div>
@@ -616,14 +705,24 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           </div>
 
           {/* Submit Button - Show only when all REQUIRED documents are actually uploaded */}
-          {!allApproved && (
+          {!allRequiredApproved && (
             <>
               <Alert className="bg-amber-50 border-amber-200">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-amber-800">
-                  <strong>Note:</strong> Proof of Residence is required. Certificate of Good Conduct is optional but recommended to enhance your profile.
+                  <strong>Required documents:</strong> ID/Passport and Proof of Residence.
+                  <br />
+                  <strong>Optional:</strong> Certificate of Good Conduct (recommended to enhance your profile).
                 </AlertDescription>
               </Alert>
+              {pendingRequiredDocs.length > 0 && (
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    <strong>Still needed:</strong> {pendingRequiredDocs.map(d => d.label).join(', ')}
+                  </AlertDescription>
+                </Alert>
+              )}
               <Button
                 onClick={handleSubmitForApproval}
                 disabled={loading || !readyToSubmit}
@@ -635,7 +734,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     Submitting...
                   </>
                 ) : !readyToSubmit ? (
-                  'Upload Required Documents to Continue'
+                  `Upload ${pendingRequiredDocs.length > 0 ? pendingRequiredDocs.map(d => d.label).join(', ') : 'Required Documents'}`
                 ) : (
                   'Submit Documents for Approval'
                 )}
@@ -643,10 +742,10 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             </>
           )}
 
-          {allApproved && (
+          {allRequiredApproved && (
             <div className="p-4 bg-green-50 rounded-lg text-center">
               <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <p className="text-green-800 font-semibold">All documents verified!</p>
+              <p className="text-green-800 font-semibold">All required documents verified!</p>
               <p className="text-sm text-green-700">You are now approved to start accepting bookings.</p>
             </div>
           )}

@@ -50,7 +50,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
       </div>
 
       {/* Mobile collapsible menu */}
-      <div id="admin-mobile-menu" className={cn('md:hidden overflow-hidden transition-all duration-300', open ? 'max-h-96' : 'max-h-0')}>
+      <div id="admin-mobile-menu" className={cn('md:hidden transition-all duration-300', open ? 'max-h-[calc(100vh-100px)] overflow-y-auto' : 'max-h-0 overflow-hidden')}>
         <div className="flex flex-col gap-1 p-3 border-b border-border bg-card">
           {ADMIN_SIDEBAR_ITEMS.map(item => {
             const active = currentPage === item.key
@@ -70,8 +70,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
             )
           })}
 
-          <div className="mt-3">
-            <Button variant="ghost" size="sm" onClick={() => { setOpen(false); onSignOut && onSignOut() }}>
+          <div className="mt-3 pt-3 border-t border-border">
+            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setOpen(false); onSignOut && onSignOut() }}>
               Sign Out
             </Button>
           </div>
