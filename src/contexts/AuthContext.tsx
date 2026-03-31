@@ -57,7 +57,17 @@ async function performLogin(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.error(`Login attempt ${attempt}: HTTP ${response.status}`);
+        let errorBody = '';
+        try {
+          errorBody = await response.clone().text();
+        } catch {}
+        console.error(`Login attempt ${attempt}: HTTP ${response.status}`, errorBody);
+
+        // 401 specifically indicates authentication failure
+        if (response.status === 401) {
+          throw new Error('Invalid email or PIN. Please check your credentials and try again.');
+        }
+
         if (attempt < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           continue;
@@ -189,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const autoLoginEnabled = localStorage.getItem('auto_login_enabled') === 'true';
       if (autoLoginEnabled && !storedUser) {
         try {
-          await performLogin('admin@skatryk.co.ke', 'Test1234', (user, userProfileType, token) => {
+          await performLogin('admin@skatryk.co.ke', '1234', (user, userProfileType, token) => {
             setUser(user);
             setUserType(userProfileType as 'client' | 'trainer' | 'admin');
             localStorage.setItem('app-user', JSON.stringify(user));
