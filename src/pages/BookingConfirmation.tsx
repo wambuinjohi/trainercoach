@@ -31,6 +31,8 @@ interface BookingConfirmationState {
   disciplineName?: string
   location?: string
   notes?: string
+  paymentStatus?: 'pending' | 'processing' | 'completed' | 'failed'
+  checkoutRequestId?: string
 }
 
 export default function BookingConfirmation() {
@@ -38,13 +40,14 @@ export default function BookingConfirmation() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const locationState = location.state as BookingConfirmationState | null
   const [bookingData, setBookingData] = useState<any>(null)
   const [trainerProfile, setTrainerProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
   const [trainerConfirmationStatus, setTrainerConfirmationStatus] = useState<'pending' | 'confirmed' | 'declined' | null>(null)
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null)
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(locationState?.paymentStatus ?? null)
   const [alternativeTrainers, setAlternativeTrainers] = useState<any[]>([])
   const [loadingAlternatives, setLoadingAlternatives] = useState(false)
   const [pollingActive, setPollingActive] = useState(true)
@@ -52,7 +55,6 @@ export default function BookingConfirmation() {
   const [retryLoading, setRetryLoading] = useState(false)
 
   // Get booking details from location state or fetch from API
-  const locationState = location.state as BookingConfirmationState | null
 
   // Function to fetch alternative trainers by same criteria
   const fetchAlternativeTrainers = async (declinedTrainerId: string, discipline?: string) => {
@@ -140,7 +142,7 @@ export default function BookingConfirmation() {
           title: 'Payment retry initiated',
           description: 'Check your phone and enter your M-Pesa PIN.',
         })
-        // Payment status will be updated by polling
+        setPaymentStatus('processing')
         setPaymentPollingActive(true)
       }
     } catch (err) {
@@ -166,6 +168,10 @@ export default function BookingConfirmation() {
         return
       }
 
+      if (locationState?.paymentStatus) {
+        setPaymentStatus(locationState.paymentStatus)
+      }
+
       try {
         setLoading(true)
         // Fetch booking details from API using dedicated booking_get action
@@ -179,7 +185,7 @@ export default function BookingConfirmation() {
           setBookingData(response)
 
           // Track payment status
-          const paymentStat = response.payment_status || 'pending'
+          const paymentStat = response.payment_status ?? locationState?.paymentStatus ?? 'pending'
           setPaymentStatus(paymentStat as any)
 
           // Stop polling if payment is completed or failed

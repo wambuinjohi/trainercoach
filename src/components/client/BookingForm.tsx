@@ -699,6 +699,26 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           ...paymentBaseRecord,
           method: 'mpesa',
         }
+
+        const bookingConfirmationState = {
+          bookingId: bookingIds[0],
+          bookingIds: bookingIds,
+          categoryBookings: categoryBookings,
+          trainerName: trainer.name || 'Trainer',
+          date: bookingMode === 'multi' ? selectedSessions[0]?.date || date : date,
+          time: bookingMode === 'multi' ? selectedSessions[0]?.start_time || time : time,
+          sessions: bookingMode === 'multi' ? selectedSessions : [],
+          totalAmount: clientTotal,
+          disciplineName: trainer.disciplineName,
+          location: clientLocation.label,
+          notes,
+          paymentStatus: 'processing' as const,
+          checkoutRequestId: paymentResult.checkoutRequestId,
+        }
+
+        navigate(`/booking-confirmation/${bookingIds[0]}`, { state: bookingConfirmationState })
+        onDone?.()
+        return
       } else {
         const mockResult = await completeMockPayment(paymentBaseRecord, bookingIds[0])
         if (!mockResult.success) {
@@ -731,6 +751,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
       // Navigate to booking confirmation page with all booking details
       const bookingConfirmationState = {
+        bookingId: bookingIds[0],
         bookingIds: bookingIds,
         categoryBookings: categoryBookings,
         trainerName: trainer.name || 'Trainer',
@@ -741,6 +762,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         disciplineName: trainer.disciplineName,
         location: clientLocation.label,
         notes,
+        paymentStatus: 'completed' as const,
       }
 
       navigate(`/booking-confirmation/${bookingIds[0]}`, { state: bookingConfirmationState })
