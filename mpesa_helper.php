@@ -969,8 +969,10 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
     $vatAmount = 0;
     $trainerNetAmount = $amount;
 
+    $bookingDate = null;
+    $bookingTime = null;
     if ($bookingId) {
-        $bookingStmt = $conn->prepare("SELECT trainer_id, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount FROM bookings WHERE id = ? LIMIT 1");
+        $bookingStmt = $conn->prepare("SELECT trainer_id, session_date, session_time, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount FROM bookings WHERE id = ? LIMIT 1");
         if ($bookingStmt) {
             $bookingStmt->bind_param("s", $bookingId);
             $bookingStmt->execute();
@@ -978,6 +980,8 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
             if ($bookingResult && $bookingResult->num_rows > 0) {
                 $booking = $bookingResult->fetch_assoc();
                 $trainerId = $trainerId ?? $booking['trainer_id'];
+                $bookingDate = $booking['session_date'] ?? null;
+                $bookingTime = $booking['session_time'] ?? null;
                 $baseServiceAmount = floatval($booking['base_service_amount'] ?? $amount);
                 $transportFee = floatval($booking['transport_fee'] ?? 0);
                 $platformFee = floatval($booking['platform_fee'] ?? 0);
@@ -1013,7 +1017,59 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
 
         if ($res && $bookingId) {
              // Update booking payment status to completed and set booking status to confirmed
-             $conn->query("UPDATE bookings SET payment_status = 'completed', status = 'confirmed' WHERE id = '$bookingId' AND (status = 'pending' OR status = 'confirmed')");
+             $bookingUpdateStmt = $conn->prepare("UPDATE bookings SET payment_status = 'completed', status = 'confirmed', updated_at = NOW() WHERE id = ?");
+             if ($bookingUpdateStmt) {
+                 $bookingUpdateStmt->bind_param("s", $bookingId);
+                 $bookingUpdated = $bookingUpdateStmt->execute();
+                 $bookingUpdateStmt->close();
+                 if (!$bookingUpdated) {
+                     error_log("[MPESA RECORD ERROR] Failed to update booking as confirmed for booking $bookingId");
+                     return false;
+                 }
+             } else {
+                 error_log("[MPESA RECORD ERROR] Failed to prepare booking confirmation update for booking $bookingId");
+                 return false;
+             }
+
+             try {
+                 $clientStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                 $trainerStmt = $conn->prepare("SELECT full_name FROM user_profiles WHERE user_id = ? LIMIT 1");
+
+                 if ($clientStmt && $trainerStmt) {
+                     $clientStmt->bind_param("s", $clientId);
+                     $clientStmt->execute();
+                     $clientResult = $clientStmt->get_result();
+
+                     $trainerStmt->bind_param("s", $trainerId);
+                     $trainerStmt->execute();
+                     $trainerResult = $trainerStmt->get_result();
+
+                     $clientPhone = null;
+                     $trainerName = "Your Trainer";
+
+                     if ($clientResult && $clientRow = $clientResult->fetch_assoc()) {
+                         $clientPhone = $clientRow['phone'];
+                     }
+
+                     if ($trainerResult && $trainerRow = $trainerResult->fetch_assoc()) {
+                         $trainerName = $trainerRow['full_name'];
+                     }
+
+                     $clientStmt->close();
+                     $trainerStmt->close();
+
+                     if ($clientPhone) {
+                         sendBookingSms($clientId, $clientPhone, [
+                             'id' => $bookingId,
+                             'trainer_name' => $trainerName,
+                             'date' => $bookingDate ?? 'Soon',
+                             'time' => $bookingTime ?? 'Soon'
+                         ]);
+                     }
+                 }
+             } catch (Exception $e) {
+                 error_log("[MPESA SMS ERROR] Failed to send booking confirmation SMS: " . $e->getMessage());
+             }
 
              // Auto-initiate B2C payout directly to trainer's M-Pesa account
              // This sends trainer earnings immediately without wallet intermediate step

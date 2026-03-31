@@ -325,9 +325,8 @@ export async function retryPayment(
 }
 
 /**
- * Full payment flow for a booking
- * Handles: initiation → polling → completion
- * Returns whether payment was successful
+ * Start a booking payment by initiating the STK push.
+ * Completion is handled by the backend once M-Pesa confirms the payment.
  */
 export async function processBookingPayment(
   params: PaymentInitiationParams & {
@@ -339,12 +338,10 @@ export async function processBookingPayment(
   checkoutRequestId?: string
   error?: string
 }> {
-  const { paymentRecord, bookingId, ...stkParams } = params
+  const { paymentRecord, ...stkParams } = params
 
-  // Initiate STK push
   const initResult = await initiatePayment(stkParams)
   if (!initResult.success) {
-    // Record failed payment attempt
     await recordFailedPayment({
       ...paymentRecord,
       status: 'failed',
@@ -353,39 +350,8 @@ export async function processBookingPayment(
     return { success: false, error: initResult.error }
   }
 
-  const checkoutRequestId = initResult.checkoutRequestId
-  if (!checkoutRequestId) {
-    return { success: false, error: 'No checkout request ID received' }
-  }
-
-  // Poll for result
-  const queryResult = await pollPaymentStatus(checkoutRequestId)
-  if (!queryResult.success) {
-    // Record failed payment
-    await recordFailedPayment({
-      ...paymentRecord,
-      status: 'failed',
-      method: 'mpesa',
-    })
-    return { success: false, error: queryResult.error || queryResult.resultDescription }
-  }
-
-  // Complete the payment
-  const completeResult = await completePayment(
-    {
-      ...paymentRecord,
-      status: 'completed',
-      method: 'mpesa',
-    },
-    bookingId
-  )
-
-  if (!completeResult.success) {
-    return { success: false, error: completeResult.error }
-  }
-
   return {
     success: true,
-    checkoutRequestId,
+    checkoutRequestId: initResult.checkoutRequestId,
   }
 }

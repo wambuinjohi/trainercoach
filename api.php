@@ -5578,69 +5578,32 @@ switch ($action) {
         if ($stmt->execute()) {
             $stmt->close();
 
-            // Send booking confirmation SMS (non-blocking)
+            // Send internal trainer notification (non-blocking)
             try {
-                $clientStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
-                $trainerStmt = $conn->prepare("SELECT full_name FROM user_profiles WHERE user_id = ? LIMIT 1");
+                $trainerPhoneStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                if ($trainerPhoneStmt) {
+                    $trainerPhoneStmt->bind_param("s", $trainerId);
+                    $trainerPhoneStmt->execute();
+                    $trainerPhoneResult = $trainerPhoneStmt->get_result();
+                    $trainerPhone = null;
 
-                if ($clientStmt && $trainerStmt) {
-                    $clientStmt->bind_param("s", $clientId);
-                    $clientStmt->execute();
-                    $clientResult = $clientStmt->get_result();
-
-                    $trainerStmt->bind_param("s", $trainerId);
-                    $trainerStmt->execute();
-                    $trainerResult = $trainerStmt->get_result();
-
-                    $clientPhone = null;
-                    $trainerName = "Your Trainer";
-
-                    if ($clientResult && $clientRow = $clientResult->fetch_assoc()) {
-                        $clientPhone = $clientRow['phone'];
+                    if ($trainerPhoneResult && $trainerPhoneRow = $trainerPhoneResult->fetch_assoc()) {
+                        $trainerPhone = $trainerPhoneRow['phone'] ?? null;
                     }
 
-                    if ($trainerResult && $trainerRow = $trainerResult->fetch_assoc()) {
-                        $trainerName = $trainerRow['full_name'];
-                    }
+                    $trainerPhoneStmt->close();
 
-                    $clientStmt->close();
-                    $trainerStmt->close();
-
-                    if ($clientPhone) {
-                        sendBookingSms($clientId, $clientPhone, [
-                            'id' => $bookingId,
-                            'trainer_name' => $trainerName,
-                            'date' => $sessionDate,
-                            'time' => $sessionTime
-                        ]);
-                    }
-
-                    $trainerPhoneStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
-                    if ($trainerPhoneStmt) {
-                        $trainerPhoneStmt->bind_param("s", $trainerId);
-                        $trainerPhoneStmt->execute();
-                        $trainerPhoneResult = $trainerPhoneStmt->get_result();
-                        $trainerPhone = null;
-
-                        if ($trainerPhoneResult && $trainerPhoneRow = $trainerPhoneResult->fetch_assoc()) {
-                            $trainerPhone = $trainerPhoneRow['phone'] ?? null;
-                        }
-
-                        $trainerPhoneStmt->close();
-
-                        if ($trainerPhone) {
-                            // Send trainer notification about the booking
-                            $smsCredentials = getSmsCredentials();
-                            if ($smsCredentials && !empty($smsCredentials['enabled'])) {
-                                $message = "A new booking request has been created for {$sessionDate} at {$sessionTime}. Please review it in your trainer dashboard.";
-                                $result = sendSmsViaOnfonmedia($trainerPhone, $message, $smsCredentials);
-                                logSmsEvent($trainerId, $trainerPhone, $message, null, 'booking', $bookingId, $result['success'] ? 'sent' : 'failed', $result['provider_response'] ?? null);
-                            }
+                    if ($trainerPhone) {
+                        $smsCredentials = getSmsCredentials();
+                        if ($smsCredentials && !empty($smsCredentials['enabled'])) {
+                            $message = "A new booking request has been created for {$sessionDate} at {$sessionTime}. Please review it in your trainer dashboard.";
+                            $result = sendSmsViaOnfonmedia($trainerPhone, $message, $smsCredentials);
+                            logSmsEvent($trainerId, $trainerPhone, $message, null, 'booking', $bookingId, $result['success'] ? 'sent' : 'failed', $result['provider_response'] ?? null);
                         }
                     }
                 }
             } catch (Exception $e) {
-                error_log("[BOOKING SMS ERROR] Failed to send booking SMS: " . $e->getMessage());
+                error_log("[BOOKING SMS ERROR] Failed to send trainer notification: " . $e->getMessage());
             }
 
             $eventData = [
@@ -8061,23 +8024,46 @@ switch ($action) {
         $queryResult = querySTKPushStatus($mpesaCreds, $checkoutRequestId);
         error_log("[API STK QUERY] Query result: success=" . ($queryResult['success'] ? 'true' : 'false') . ", result_code=" . ($queryResult['result_code'] ?? 'N/A'));
 
-        if ($queryResult['success'] && $queryResult['result_code'] === '0') {
-            // Record payment if not already recorded (via helper)
-            recordMpesaPayment($conn, $session, $queryResult['result_code'], $queryResult['result_description']);
+        $sessionStatus = $session['status'] ?? 'pending';
+        $resultCode = $queryResult['success'] ? (string)($queryResult['result_code'] ?? '') : null;
+        $resultDescription = $queryResult['success'] ? ($queryResult['result_description'] ?? null) : ($session['result_description'] ?? null);
 
-            // Also update session status in DB if needed
-            if ($session['status'] !== 'success') {
-                $conn->query("UPDATE stk_push_sessions SET status = 'success', result_code = '0', updated_at = NOW() WHERE checkout_request_id = '$checkoutRequestId'");
+        if ($queryResult['success']) {
+            if ($resultCode === '0') {
+                $recorded = recordMpesaPayment($conn, $session, $queryResult['result_code'], $queryResult['result_description']);
+                if ($recorded) {
+                    $sessionStatus = 'success';
+                } else {
+                    $sessionStatus = 'failed';
+                    if (!empty($session['booking_id'])) {
+                        $bookingId = $session['booking_id'];
+                        $conn->query("UPDATE bookings SET payment_status = 'failed', updated_at = NOW() WHERE id = '$bookingId'");
+                    }
+                }
+
+                $conn->query("UPDATE stk_push_sessions SET status = '$sessionStatus', result_code = '0', result_description = " . ($resultDescription !== null ? "'" . $conn->real_escape_string($resultDescription) . "'" : "NULL") . ", updated_at = NOW() WHERE checkout_request_id = '$checkoutRequestId'");
+            } elseif ($resultCode === '1032' || $resultCode === '1037') {
+                $sessionStatus = $resultCode === '1037' ? 'timeout' : 'failed';
+                if (!empty($session['booking_id'])) {
+                    $bookingId = $session['booking_id'];
+                    $conn->query("UPDATE bookings SET payment_status = 'failed', updated_at = NOW() WHERE id = '$bookingId'");
+                }
+                $conn->query("UPDATE stk_push_sessions SET status = '$sessionStatus', result_code = '" . $conn->real_escape_string($resultCode) . "', result_description = " . ($resultDescription !== null ? "'" . $conn->real_escape_string($resultDescription) . "'" : "NULL") . ", updated_at = NOW() WHERE checkout_request_id = '$checkoutRequestId'");
             }
+        } else {
+            error_log("[API STK QUERY] Query failed, returning cached data");
+            logPaymentEvent('stk_push_query_failed', [
+                'checkout_request_id' => $checkoutRequestId,
+                'error' => $queryResult['error']
+            ]);
         }
 
-        // Build response with full status information
         $responseData = [
             "session_id" => $session['id'],
             "checkout_request_id" => $session['checkout_request_id'],
-            "status" => $queryResult['success'] && $queryResult['result_code'] === '0' ? 'success' : ($session['status'] ?? 'pending'),
-            "result_code" => $queryResult['success'] ? $queryResult['result_code'] : $session['result_code'],
-            "result_description" => $queryResult['success'] ? $queryResult['result_description'] : $session['result_description'],
+            "status" => $sessionStatus,
+            "result_code" => $queryResult['success'] ? $resultCode : $session['result_code'],
+            "result_description" => $queryResult['success'] ? $resultDescription : $session['result_description'],
             "amount" => $session['amount'],
             "phone" => $session['phone_number'],
             "retry_count" => intval($session['retry_count'] ?? 0),
@@ -8086,8 +8072,7 @@ switch ($action) {
             "cached" => !$queryResult['success']
         ];
 
-        // Get booking status if booking_id exists
-        if ($session['booking_id']) {
+        if (!empty($session['booking_id'])) {
             $bookingStmt = $conn->prepare("SELECT status, payment_status FROM bookings WHERE id = ? LIMIT 1");
             if ($bookingStmt) {
                 $bookingStmt->bind_param("s", $session['booking_id']);
@@ -8102,11 +8087,6 @@ switch ($action) {
         }
 
         if (!$queryResult['success']) {
-            error_log("[API STK QUERY] Query failed, returning cached data");
-            logPaymentEvent('stk_push_query_failed', [
-                'checkout_request_id' => $checkoutRequestId,
-                'error' => $queryResult['error']
-            ]);
             respond("success", "STK push status retrieved (cached).", $responseData);
         }
 
@@ -8130,6 +8110,37 @@ switch ($action) {
             $status = 'success';
         } elseif ($resultCode === '1032' || $resultCode === 1032) {
             $status = 'timeout';
+        } elseif ($resultCode === '1037' || $resultCode === 1037) {
+            $status = 'failed';
+        }
+
+        $sessionStmt = $conn->prepare("SELECT * FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1");
+        if (!$sessionStmt) {
+            respond("error", "Table does not exist yet. Initialize payments first.", null, 500);
+        }
+
+        $sessionStmt->bind_param("s", $checkoutRequestId);
+        $sessionStmt->execute();
+        $sessionResult = $sessionStmt->get_result();
+        $sessionStmt->close();
+
+        if ($sessionResult->num_rows === 0) {
+            respond("error", "Session not found.", null, 404);
+        }
+
+        $session = $sessionResult->fetch_assoc();
+        $bookingId = $session['booking_id'] ?? null;
+
+        if ($status === 'success') {
+            $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDescription);
+            if (!$recorded) {
+                $status = 'failed';
+                if ($bookingId) {
+                    $conn->query("UPDATE bookings SET payment_status = 'failed', updated_at = NOW() WHERE id = '$bookingId'");
+                }
+            }
+        } elseif ($bookingId) {
+            $conn->query("UPDATE bookings SET payment_status = 'failed', updated_at = NOW() WHERE id = '$bookingId'");
         }
 
         $stmt = $conn->prepare("
@@ -8142,32 +8153,6 @@ switch ($action) {
 
         if ($stmt->execute()) {
             $stmt->close();
-
-            // Get the booking_id to update booking payment status
-            $sessionStmt = $conn->prepare("
-                SELECT booking_id FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1
-            ");
-            if ($sessionStmt) {
-                $sessionStmt->bind_param("s", $checkoutRequestId);
-                $sessionStmt->execute();
-                $sessionResult = $sessionStmt->get_result();
-                if ($sessionResult && $sessionRow = $sessionResult->fetch_assoc()) {
-                    $bookingId = $sessionRow['booking_id'];
-                    if ($bookingId) {
-                        // Update booking payment status based on STK push result
-                        if ($status === 'success') {
-                            // Payment successful - set payment_status to completed
-                            $conn->query("UPDATE bookings SET payment_status = 'completed', status = 'confirmed' WHERE id = '$bookingId'");
-                            error_log("[API STK CALLBACK] Booking payment completed: booking_id=" . $bookingId);
-                        } else {
-                            // Payment failed or timeout - set payment_status to failed
-                            $conn->query("UPDATE bookings SET payment_status = 'failed' WHERE id = '$bookingId'");
-                            error_log("[API STK CALLBACK] Booking payment failed: booking_id=" . $bookingId . ", status=" . $status);
-                        }
-                    }
-                }
-                $sessionStmt->close();
-            }
 
             logEvent('stk_push_completed', [
                 'checkout_request_id' => $checkoutRequestId,

@@ -31,9 +31,9 @@ test.describe('Booking flow', () => {
     // Confirm
     await page.click('text=Confirm & Pay');
 
-    // Expect a success notification or redirect
-    await page.waitForTimeout(1000);
-    // At least ensure no uncaught errors
-    expect(true).toBe(true);
+    // The flow should leave the booking form and land on the confirmation page
+    await page.waitForURL(/booking-confirmation\//, { timeout: 10000 }).catch(() => {})
+    await page.waitForSelector('text=Booking Confirmation', { timeout: 10000 }).catch(() => {})
+    expect(page.url()).toContain('booking-confirmation')
   })
 });
