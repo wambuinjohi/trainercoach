@@ -90,6 +90,7 @@ import { enrichTrainersWithDistance } from '@/lib/distance-utils'
 import { filterTrainersByServiceRadius } from '@/lib/location-utils'
 import { apiRequest, withAuth } from '@/lib/api'
 import { reverseGeocode } from '@/lib/location'
+import { isTrainerAvailableNow } from '@/lib/availability-utils'
 
 export const ClientDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
@@ -838,8 +839,8 @@ export const ClientDashboard: React.FC = () => {
                         {idx === 0 && userLocation && selectedCategory && (
                           <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
                         )}
-                        <Badge variant={trainer.available ? "default" : "secondary"} className="flex-shrink-0">
-                          {trainer.available ? 'Available' : 'Busy'}
+                        <Badge variant={isTrainerAvailableNow(trainer) ? "default" : "secondary"} className="flex-shrink-0">
+                          {isTrainerAvailableNow(trainer) ? 'Available Now' : 'Not Available'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">{trainer.discipline || 'Training'}</p>
