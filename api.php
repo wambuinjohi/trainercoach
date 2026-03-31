@@ -5758,7 +5758,7 @@ switch ($action) {
         $types = "";
 
         // List of allowed fields to update
-        $allowedFields = ['status', 'session_phase', 'notes', 'client_location_label', 'client_location_lat', 'client_location_lng'];
+        $allowedFields = ['status', 'session_phase', 'notes', 'cancellation_reason', 'client_location_label', 'client_location_lat', 'client_location_lng'];
 
         foreach ($allowedFields as $field) {
             if (isset($input[$field])) {
