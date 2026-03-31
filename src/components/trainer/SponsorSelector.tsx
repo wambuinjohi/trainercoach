@@ -41,6 +41,10 @@ export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [selectedSponsor, setSelectedSponsor] = useState<Trainer | null>(null)
+  const [sponsorIdManualEntry, setSponsorIdManualEntry] = useState('')
+  const [validatingSponsorId, setValidatingSponsorId] = useState(false)
+  const [sponsorValidationError, setSponsorValidationError] = useState<string | null>(null)
+  const [showManualEntry, setShowManualEntry] = useState(false)
 
   useEffect(() => {
     if (currentSponsorId && currentSponsorName) {
@@ -120,6 +124,60 @@ export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
     }
   }
 
+  const validateAndSelectSponsorById = async () => {
+    if (!sponsorIdManualEntry.trim()) {
+      setSponsorValidationError('Please enter a Sponsor ID')
+      return
+    }
+
+    setValidatingSponsorId(true)
+    setSponsorValidationError(null)
+
+    try {
+      // Try to fetch the trainer profile by ID
+      const response = await apiService.getUserProfile(sponsorIdManualEntry.trim())
+      const profileList = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+
+      if (profileList.length === 0) {
+        setSponsorValidationError('Sponsor ID not found. Please check and try again.')
+        return
+      }
+
+      const sponsorProfile = profileList[0]
+
+      // Verify the user is a trainer and is approved
+      if (sponsorProfile.user_type !== 'trainer') {
+        setSponsorValidationError('This ID does not belong to a trainer.')
+        return
+      }
+
+      if (!sponsorProfile.is_approved) {
+        setSponsorValidationError('This trainer has not been approved yet. Please select an approved trainer.')
+        return
+      }
+
+      // Valid sponsor found
+      const sponsorName = sponsorProfile.full_name || sponsorProfile.email || sponsorProfile.user_id
+      setSelectedSponsor({
+        user_id: sponsorProfile.user_id,
+        full_name: sponsorName,
+        email: sponsorProfile.email,
+      })
+      onSponsorSelected(sponsorProfile.user_id, sponsorName)
+      setSponsorIdManualEntry('')
+      setShowManualEntry(false)
+      toast({
+        title: 'Success',
+        description: `${sponsorName} validated and selected as your sponsor.`,
+      })
+    } catch (error) {
+      console.error('Failed to validate sponsor ID:', error)
+      setSponsorValidationError('Could not validate sponsor ID. Please try again.')
+    } finally {
+      setValidatingSponsorId(false)
+    }
+  }
+
   return (
     <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
       <CardHeader>
@@ -167,88 +225,162 @@ export const SponsorSelector: React.FC<SponsorSelectorProps> = ({
 
         {!selectedSponsor && (
           <div className="space-y-3">
-            <div>
-              <Label htmlFor="sponsor-search" className="text-sm font-medium">
-                Search for a Sponsor
-              </Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  id="sponsor-search"
-                  placeholder="Enter trainer name, email, or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={loading}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={searchSponsors}
-                  disabled={loading || !searchQuery.trim()}
-                  variant="outline"
-                  size="sm"
-                  className="px-3"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {hasSearched && (
-              <div className="space-y-2">
-                {searchResults.length === 0 ? (
-                  <div className="p-3 text-center text-muted-foreground text-sm">
-                    {loading ? 'Searching...' : 'No trainers found. Try a different search.'}
+            {/* Search Tab */}
+            {!showManualEntry && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="sponsor-search" className="text-sm font-medium">
+                    Search for a Sponsor
+                  </Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      id="sponsor-search"
+                      placeholder="Enter trainer name, email, or phone..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      disabled={loading}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={searchSponsors}
+                      disabled={loading || !searchQuery.trim()}
+                      variant="outline"
+                      size="sm"
+                      className="px-3"
+                    >
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {searchResults.map((trainer) => (
-                      <div
-                        key={trainer.user_id}
-                        className="p-3 border border-border rounded-lg hover:bg-white dark:hover:bg-slate-900 cursor-pointer transition"
-                        onClick={() => handleSelectSponsor(trainer)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">
-                              {trainer.full_name || trainer.email}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {trainer.email}
-                            </p>
-                            {trainer.phone_number && (
-                              <p className="text-xs text-muted-foreground">
-                                {trainer.phone_number}
-                              </p>
+                </div>
+
+                {hasSearched && (
+                  <div className="space-y-2">
+                    {searchResults.length === 0 ? (
+                      <div className="p-3 text-center text-muted-foreground text-sm">
+                        {loading ? 'Searching...' : 'No trainers found. Try a different search.'}
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {searchResults.map((trainer) => (
+                          <div
+                            key={trainer.user_id}
+                            className="p-3 border border-border rounded-lg hover:bg-white dark:hover:bg-slate-900 cursor-pointer transition"
+                            onClick={() => handleSelectSponsor(trainer)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className="font-medium text-foreground">
+                                  {trainer.full_name || trainer.email}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {trainer.email}
+                                </p>
+                                {trainer.phone_number && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {trainer.phone_number}
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant="outline" className="ml-2">
+                                Verified
+                              </Badge>
+                            </div>
+
+                            {trainer.hourly_rate && (
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Rate: KES {trainer.hourly_rate}/hour
+                              </div>
+                            )}
+
+                            {Array.isArray(trainer.disciplines) && trainer.disciplines.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {(trainer.disciplines as string[]).slice(0, 3).map((discipline, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {discipline}
+                                  </Badge>
+                                ))}
+                              </div>
                             )}
                           </div>
-                          <Badge variant="outline" className="ml-2">
-                            Verified
-                          </Badge>
-                        </div>
-
-                        {trainer.hourly_rate && (
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Rate: KES {trainer.hourly_rate}/hour
-                          </div>
-                        )}
-
-                        {Array.isArray(trainer.disciplines) && trainer.disciplines.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {(trainer.disciplines as string[]).slice(0, 3).map((discipline, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {discipline}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowManualEntry(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Or enter Sponsor ID manually →
+                </button>
+              </div>
+            )}
+
+            {/* Manual Entry Tab */}
+            {showManualEntry && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="sponsor-id-manual" className="text-sm font-medium">
+                    Enter Sponsor ID
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enter the Sponsor trainer's user ID for validation
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      id="sponsor-id-manual"
+                      placeholder="Enter sponsor user ID..."
+                      value={sponsorIdManualEntry}
+                      onChange={(e) => {
+                        setSponsorIdManualEntry(e.target.value)
+                        setSponsorValidationError(null)
+                      }}
+                      disabled={validatingSponsorId}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={validateAndSelectSponsorById}
+                      disabled={validatingSponsorId || !sponsorIdManualEntry.trim()}
+                      variant="outline"
+                      size="sm"
+                      className="px-3"
+                    >
+                      {validatingSponsorId ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {sponsorValidationError && (
+                  <Alert className="bg-red-50 border-red-200">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800">
+                      {sponsorValidationError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowManualEntry(false)
+                    setSponsorIdManualEntry('')
+                    setSponsorValidationError(null)
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  ← Back to search
+                </button>
               </div>
             )}
 

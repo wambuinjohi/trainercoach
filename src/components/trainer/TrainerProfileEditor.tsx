@@ -473,11 +473,32 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
         console.log('[Profile Save] No location set - proceeding without GPS coordinates (optional)')
       }
 
-      // Validate discipline certificate or sponsor - must have at least one
-      if (!hasDisciplineCertificate && !sponsorId) {
+      // Validate registration path is selected
+      if (!registrationPath || registrationPath === '') {
         toast({
-          title: 'Discipline certificate or sponsor required',
-          description: 'Please either upload a discipline certificate or select a sponsor trainer.',
+          title: 'Registration path required',
+          description: 'Please select either "Direct" or "Sponsored" registration path.',
+          variant: 'destructive'
+        })
+        setLoading(false)
+        return
+      }
+
+      // Validate path-specific requirements
+      if (registrationPath === 'direct' && !hasDisciplineCertificate) {
+        toast({
+          title: 'Discipline certificate required',
+          description: 'Please upload your discipline certificate for direct registration.',
+          variant: 'destructive'
+        })
+        setLoading(false)
+        return
+      }
+
+      if (registrationPath === 'sponsored' && !sponsorId) {
+        toast({
+          title: 'Sponsor required',
+          description: 'Please select a sponsor trainer for sponsored registration.',
           variant: 'destructive'
         })
         setLoading(false)
