@@ -178,16 +178,31 @@ export default function BookingsPage() {
   }
 
   const cancelBooking = (booking: any) => {
+    const cancellationReason = window.prompt('Enter cancellation reason')?.trim()
+
+    if (!cancellationReason) {
+      toast({
+        title: 'Cancellation reason required',
+        description: 'Please provide a reason before cancelling the booking',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setConfirmModal({
       open: true,
       title: 'Cancel Booking',
-      description: `Are you sure you want to cancel this booking? This action cannot be undone.`,
+      description: `Are you sure you want to cancel this booking? Reason: "${cancellationReason}". This action cannot be undone.`,
       isDestructive: true,
       action: async () => {
         try {
           setConfirmLoading(true)
-          await apiService.updateBooking(booking.id, { status: 'cancelled' })
-          setBookings(bookings.map(b => (b.id === booking.id ? { ...b, status: 'cancelled' } : b)))
+          await apiService.updateBooking(booking.id, {
+            status: 'cancelled',
+            cancellation_reason: cancellationReason,
+            cancelled_at: new Date().toISOString(),
+          })
+          setBookings(bookings.map(b => (b.id === booking.id ? { ...b, status: 'cancelled', cancellation_reason: cancellationReason } : b)))
           toast({ title: 'Success', description: 'Booking cancelled' })
           setConfirmModal({ ...confirmModal, open: false })
         } catch (err: any) {
@@ -375,7 +390,12 @@ export default function BookingsPage() {
                             </Button>
                           )}
                           {booking.status === 'cancelled' && (
-                            <span className="text-xs text-muted-foreground">Cancelled</span>
+                            <div className="text-xs text-muted-foreground">
+                              <div>Cancelled</div>
+                              {booking.cancellation_reason && (
+                                <div className="max-w-[220px] break-words">Reason: {booking.cancellation_reason}</div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
