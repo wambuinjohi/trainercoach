@@ -1126,6 +1126,7 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
       {/* DISCIPLINE & SPONSORSHIP SECTION */}
       <DisciplineAndSponsorSection
         onDisciplineCertificateStatusChange={(hasApproved) => setHasDisciplineCertificate(hasApproved)}
+        onRegistrationPathChange={(path) => setRegistrationPath(path)}
         registrationPath={registrationPath}
         currentSponsorId={sponsorId}
         currentSponsorName={sponsorName}
