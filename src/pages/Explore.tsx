@@ -125,7 +125,7 @@ const TrainerCard: React.FC<{
       <div className="flex flex-col md:flex-row gap-4 p-4 md:p-5 relative">
         {/* Left: Profile Image - Circular */}
         <div className="flex-shrink-0">
-          <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center mx-auto md:mx-0">
+          <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center mx-auto md:mx-0 flex-shrink-0">
             {/* Trainer Image or Fallback Avatar */}
             {t.image_url && !imageError ? (
               <>
@@ -133,24 +133,27 @@ const TrainerCard: React.FC<{
                   src={t.image_url}
                   alt={t.name}
                   onLoad={() => setImageLoaded(true)}
-                  onError={() => setImageError(true)}
+                  onError={() => {
+                    console.warn(`Failed to load image for trainer ${t.id}:`, t.image_url)
+                    setImageError(true)
+                  }}
                   className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                   loading="lazy"
                 />
                 {!imageLoaded && (
                   <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
-                    <div className="text-slate-400 text-4xl">👤</div>
+                    <div className="text-slate-400 text-4xl">📸</div>
                   </div>
                 )}
               </>
             ) : (
-              <div className={`w-full h-full ${getAvatarColor(t.id)} flex items-center justify-center`}>
+              <div className={`w-full h-full ${getAvatarColor(t.id)} flex items-center justify-center flex-shrink-0`}>
                 <span className="text-white text-3xl font-semibold">{getInitials(t.name)}</span>
               </div>
             )}
 
             {isNearest && (
-              <Badge className="absolute bottom-2 right-2 bg-green-500 text-white text-xs">Nearest</Badge>
+              <Badge className="absolute bottom-2 right-2 bg-green-500 text-white text-xs font-semibold">Nearest</Badge>
             )}
           </div>
         </div>
@@ -298,6 +301,14 @@ const Explore: React.FC = () => {
         // Fetch available trainers
         const trainersData = await apiService.getAvailableTrainers()
         if (trainersData?.data) {
+          console.log('[Explore] Fetched trainers:', trainersData.data.map((t: any) => ({
+            id: t.user_id,
+            name: t.full_name,
+            profile_image: t.profile_image,
+            image_url: t.image_url,
+            profile_image_url: t.profile_image_url
+          })))
+
           // Fetch categories for each trainer
           const trainersWithCategories = await Promise.all(
             trainersData.data.map(async (trainer: Trainer) => {
@@ -322,7 +333,7 @@ const Explore: React.FC = () => {
                   location_lng: trainer.location_lng || null,
                   categoryIds,
                   discipline,
-                  image_url: trainer.profile_image_url || trainer.image_url || null,
+                  image_url: trainer.profile_image || trainer.profile_image_url || trainer.image_url || null,
                   bio: trainer.bio || null,
                   experience_level: trainer.experience_level || null,
                   total_reviews: trainer.total_reviews || 0,
@@ -342,7 +353,7 @@ const Explore: React.FC = () => {
                   location_lng: trainer.location_lng || null,
                   categoryIds: [],
                   discipline: '',
-                  image_url: trainer.profile_image_url || trainer.image_url || null,
+                  image_url: trainer.profile_image || trainer.profile_image_url || trainer.image_url || null,
                   bio: trainer.bio || null,
                   experience_level: trainer.experience_level || null,
                   total_reviews: trainer.total_reviews || 0,
