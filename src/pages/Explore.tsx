@@ -153,7 +153,7 @@ const TrainerCard: React.FC<{
             )}
 
             {isNearest && (
-              <Badge className="absolute bottom-2 right-2 bg-green-500 text-white text-xs font-semibold">Nearest</Badge>
+              <Badge className="absolute bottom-2 right-2 bg-green-500 dark:bg-green-600 text-white text-xs font-semibold">Nearest</Badge>
             )}
           </div>
         </div>
@@ -164,7 +164,7 @@ const TrainerCard: React.FC<{
           <div>
             {/* Specialty Badge */}
             {categoryNames.length > 0 && (
-              <Badge className="mb-2 bg-blue-600 text-white text-xs inline-block">
+              <Badge className="mb-2 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block">
                 {categoryNames[0]}
               </Badge>
             )}
@@ -234,7 +234,7 @@ const TrainerCard: React.FC<{
         {/* Right: Action Button - Mobile stacked, Desktop flex */}
         <div className="flex md:flex-col items-center md:items-end justify-between md:justify-between gap-3 mt-4 md:mt-0">
           <div className="text-xs text-muted-foreground hidden md:block">{isNearest && 'Nearest'}</div>
-          <Button className="bg-green-500 hover:bg-green-600 text-white w-full md:w-auto flex-1 md:flex-none">
+          <Button className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full md:w-auto flex-1 md:flex-none">
             Book Now
           </Button>
         </div>

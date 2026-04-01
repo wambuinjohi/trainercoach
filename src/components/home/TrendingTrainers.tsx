@@ -47,7 +47,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
     return (
       <section className="py-20 lg:py-32">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Trending in Nairobi</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">Trending in Nairobi</h2>
           <div className="grid sm:grid-cols-2 gap-6">
             {[1, 2].map(i => (
               <div key={i} className="bg-slate-200 dark:bg-slate-700 rounded-lg h-96 animate-pulse" />
@@ -105,7 +105,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
 
                     {/* Verified Badge */}
                     {trainer.verified && (
-                      <div className="absolute top-3 right-3 bg-green-500 rounded-full p-1.5 shadow-md">
+                      <div className="absolute top-3 right-3 bg-green-500 dark:bg-green-600 rounded-full p-1.5 shadow-md">
                         <CheckCircle className="w-5 h-5 text-white fill-current" />
                       </div>
                     )}
@@ -115,7 +115,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                   <CardContent className="flex-1 p-5 flex flex-col">
                     {/* Category Badge */}
                     {categoryNames.length > 0 && (
-                      <Badge className="mb-3 bg-blue-600 text-white text-xs inline-block w-fit">
+                      <Badge className="mb-3 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block w-fit">
                         {categoryNames[0]}
                       </Badge>
                     )}
@@ -154,7 +154,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                     <div className="flex-1" />
 
                     {/* Book Now Button */}
-                    <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+                    <Button className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white">
                       Book Now
                     </Button>
                   </CardContent>
