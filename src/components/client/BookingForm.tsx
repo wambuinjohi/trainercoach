@@ -720,19 +720,31 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
         if (!paymentResult.success) {
           const errorMessage = paymentResult.error || 'Payment not completed'
-          if (errorMessage.includes('not configured')) {
-            toast({
-              title: 'M-Pesa not available',
-              description: 'M-Pesa is not currently configured. Please use the Mock payment method for testing.',
-              variant: 'destructive'
-            })
-          } else {
-            toast({
-              title: 'Payment not completed',
-              description: errorMessage,
-              variant: 'destructive'
-            })
+          toast({
+            title: 'Booking created, payment pending',
+            description: errorMessage.includes('not configured')
+              ? 'Your booking was created, but M-Pesa is currently unavailable. You can return to this booking and complete payment later.'
+              : `${errorMessage}. You can continue payment from the booking confirmation page.`,
+            variant: 'destructive'
+          })
+
+          const bookingConfirmationState = {
+            bookingId: bookingIds[0],
+            bookingIds: bookingIds,
+            categoryBookings: categoryBookings,
+            trainerName: trainer.name || 'Trainer',
+            date: bookingMode === 'multi' ? selectedSessions[0]?.date || date : date,
+            time: bookingMode === 'multi' ? selectedSessions[0]?.start_time || time : time,
+            sessions: bookingMode === 'multi' ? selectedSessions : [],
+            totalAmount: clientTotal,
+            disciplineName: trainer.disciplineName,
+            location: clientLocation.label,
+            notes,
+            paymentStatus: 'failed' as const,
           }
+
+          navigate(`/booking-confirmation/${bookingIds[0]}`, { state: bookingConfirmationState })
+          onDone?.()
           return
         }
 
