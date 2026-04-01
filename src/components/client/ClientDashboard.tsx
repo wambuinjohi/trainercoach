@@ -82,7 +82,7 @@ function formatHourlyRate(rate: number | null | undefined): string {
 import { SearchBar } from './SearchBar'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useSearchHistory } from '@/hooks/use-search-history'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import * as apiService from '@/lib/api-service'
@@ -95,6 +95,7 @@ import { isTrainerAvailableNow } from '@/lib/availability-utils'
 export const ClientDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
 
   // State declarations
@@ -143,6 +144,18 @@ export const ClientDashboard: React.FC = () => {
   const lastEnrichedLocation = useRef<{ lat: number; lng: number } | null>(null)
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
+
+  // Sync URL path to activeTab state
+  useEffect(() => {
+    const pathname = location.pathname
+    if (pathname.includes('/explore')) {
+      setActiveTab('explore')
+    } else if (pathname.includes('/sessions')) {
+      setActiveTab('schedule')
+    } else if (pathname.includes('/home') || pathname === '/client') {
+      setActiveTab('home')
+    }
+  }, [location.pathname])
 
   // Sync geolocation hook result to userLocation state
   useEffect(() => {
@@ -535,7 +548,7 @@ export const ClientDashboard: React.FC = () => {
       return
     }
     setSelectedCategory(category)
-    setActiveTab('explore')
+    navigate('/client/explore')
   }
 
   const handleLogout = async () => {
@@ -621,7 +634,7 @@ export const ClientDashboard: React.FC = () => {
           }
           if (query) {
             addSearch(query)
-            setActiveTab('explore')
+            navigate('/client/explore')
           }
         }}
         suggestions={suggestions}
@@ -753,7 +766,7 @@ export const ClientDashboard: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2 mt-0.5 flex-shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2 mt-0.5 flex-shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="min-w-0 text-xl font-bold leading-tight text-foreground sm:text-2xl">
@@ -1119,19 +1132,19 @@ export const ClientDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold text-foreground">My Sessions</h1>
         </div>
 
-        {bookings.length === 0 ? (
+        {true ? (
           <Card className="bg-card border-border">
             <CardContent className="p-6 text-center">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">No sessions yet</p>
               <p className="text-sm text-muted-foreground mt-1">Book a session to get started</p>
-              <Button className="mt-4" size="sm" onClick={() => setActiveTab('explore')}>Explore Trainers</Button>
+              <Button className="mt-4" size="sm" onClick={() => navigate('/client/explore')}>Explore Trainers</Button>
             </CardContent>
           </Card>
         ) : (
@@ -1287,9 +1300,9 @@ export const ClientDashboard: React.FC = () => {
       {!modalOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
           <div className="container max-w-md mx-auto grid grid-cols-3 gap-1 py-2">
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('schedule')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/sessions')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
           </div>
         </div>
       )}

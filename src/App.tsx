@@ -121,6 +121,9 @@ const AppRoutes = () => (
       <Route path="/admin/*" element={<AdminLayout><AdminRoutes /></AdminLayout>} />
       <Route path="/trainer" element={<TrainerDashboard />} />
       <Route path="/client" element={<ClientDashboard />} />
+      <Route path="/client/home" element={<ClientDashboard />} />
+      <Route path="/client/explore" element={<ClientDashboard />} />
+      <Route path="/client/sessions" element={<ClientDashboard />} />
       <Route path="/signin" element={<AuthForm onSuccess={(type) => {
         if (type === 'admin') window.location.href = "/admin";
         else if (type === 'trainer') window.location.href = "/trainer";
