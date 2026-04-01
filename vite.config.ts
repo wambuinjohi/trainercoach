@@ -350,16 +350,35 @@ function devApiPlugin() {
               // Proxy to real API to get trainer's category pricing from database
               try {
                 const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-                const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
+
+                console.log(`[Dev API] trainer_category_pricing_get for trainer_id=${body.trainer_id}`);
+
+                // Use fetch with timeout via Promise.race
+                const fetchPromise = fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', ...authHeader },
                   body: JSON.stringify({ action: 'trainer_category_pricing_get', trainer_id: body.trainer_id })
                 });
+
+                const timeoutPromise = new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('API request timeout after 10s')), 10000)
+                );
+
+                const pricingResponse = await Promise.race([fetchPromise, timeoutPromise]);
+
+                if (!pricingResponse.ok) {
+                  console.warn(`[Dev API] trainer_category_pricing_get API returned status ${pricingResponse.status}`);
+                  throw new Error(`API returned ${pricingResponse.status}`);
+                }
+
                 const pricingData = await pricingResponse.json();
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify(pricingData));
               } catch (e) {
-                console.error('Failed to fetch trainer category pricing:', e);
+                console.error('[Dev API] Failed to fetch trainer category pricing:', {
+                  error: e instanceof Error ? e.message : String(e),
+                  trainer_id: body.trainer_id
+                });
                 // Return empty data array as fallback when real API is unreachable
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify({
