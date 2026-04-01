@@ -574,7 +574,7 @@ export const DisciplineAndSponsorSection: React.FC<DisciplineAndSponsorSectionPr
               )}
 
               {/* Sponsor ID Input (show only if not yet validated) */}
-              {!validatedSponsor || !sponsorValidationSuccess && (
+              {(!validatedSponsor || !sponsorValidationSuccess) && (
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="sponsor-national-id" className="text-sm font-medium">
