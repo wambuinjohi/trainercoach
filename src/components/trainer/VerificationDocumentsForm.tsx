@@ -363,20 +363,28 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const requiredDocs = documents.filter(d => d.isRequired !== false)
   const optionalDocs = documents.filter(d => d.isRequired === false)
 
+  const isDocumentSatisfied = (doc: Document) => {
+    if (doc.status === 'rejected') return false
+    if (doc.type === 'proof_of_residence') {
+      return Boolean(doc.fileUrl || locationSet)
+    }
+    return Boolean(doc.fileUrl)
+  }
+
   // All required documents are approved
   const allRequiredApproved = requiredDocs.length > 0 && requiredDocs.every(d => d.status === 'approved')
 
   // Check if any required document is still under review
-  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending')
+  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending' || (d.type === 'proof_of_residence' && locationSet))
 
-  // Check if ALL required documents have been uploaded
-  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl)
+  // Check if ALL required documents have been uploaded or otherwise satisfied
+  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
 
-  // Ready to submit: all required documents are uploaded and no required documents are rejected
-  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl && d.status !== 'rejected')
+  // Ready to submit: all required documents are satisfied and no required documents are rejected
+  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
 
   // For display: which required documents are still pending
-  const pendingRequiredDocs = requiredDocs.filter(d => d.status === 'pending')
+  const pendingRequiredDocs = requiredDocs.filter(d => !isDocumentSatisfied(d))
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -408,7 +416,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <IdDocumentUploadSection />
+          <IdDocumentUploadSection onUploadSuccess={loadDocuments} />
         </CardContent>
       </Card>
 
