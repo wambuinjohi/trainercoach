@@ -44,7 +44,7 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
 
     if (experienceLevel.toLowerCase().includes('pro')) {
       return (
-        <Badge className="bg-purple-600 text-white inline-flex items-center gap-1">
+        <Badge className="bg-purple-600 dark:bg-purple-700 text-white inline-flex items-center gap-1">
           <Award className="h-3 w-3" />
           Pro Trainer
         </Badge>
@@ -53,7 +53,7 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
 
     if (experienceLevel.toLowerCase().includes('certified')) {
       return (
-        <Badge className="bg-blue-600 text-white inline-flex items-center gap-1">
+        <Badge className="bg-blue-600 dark:bg-blue-700 text-white inline-flex items-center gap-1">
           <Trophy className="h-3 w-3" />
           Certified Coach
         </Badge>
@@ -62,14 +62,14 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
 
     if (experienceLevel.toLowerCase().includes('new')) {
       return (
-        <Badge className="bg-green-600 text-white inline-flex items-center gap-1">
+        <Badge className="bg-green-600 dark:bg-green-700 text-white inline-flex items-center gap-1">
           New
         </Badge>
       )
     }
 
     return (
-      <Badge className="bg-slate-600 text-white" variant="secondary">
+      <Badge className="bg-slate-600 dark:bg-slate-700 text-white" variant="secondary">
         {experienceLevel}
       </Badge>
     )
@@ -77,9 +77,9 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
 
   if (isLoading) {
     return (
-      <section className="py-20 lg:py-32">
+      <section className="py-20 lg:py-32 bg-muted/30 dark:bg-slate-900/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Top Coaches This Week</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">Top Coaches This Week</h2>
           <div className="grid sm:grid-cols-2 gap-6">
             {[1, 2].map(i => (
               <div key={i} className="bg-slate-200 dark:bg-slate-700 rounded-lg h-48 animate-pulse" />

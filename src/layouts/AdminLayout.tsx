@@ -1,5 +1,5 @@
 import React from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner'
@@ -11,6 +11,7 @@ interface AdminLayoutProps {
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user, userType, signOut, loading } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   if (loading) {
     return (
@@ -32,6 +33,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const handleSignOut = async () => {
     await signOut()
+    navigate('/')
   }
 
   return (
