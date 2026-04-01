@@ -436,6 +436,28 @@ const Explore: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 opacity-95" />
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage:
+              'url("https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&h=400&fit=crop")',
+          }}
+        />
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="text-center space-y-6">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">
+              Find Your Perfect Trainer
+            </h1>
+            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto">
+              Browse certified trainers, compare rates, and book sessions that fit your schedule
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Sticky Header with Search */}
       <div className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <Header />
