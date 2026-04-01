@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/Header'
 import AuthLogo from '@/components/auth/AuthLogo'
+import TrendingTrainers from '@/components/home/TrendingTrainers'
+import TopCoaches from '@/components/home/TopCoaches'
 import {
   CheckCircle2,
   MapPin,
@@ -26,40 +28,121 @@ interface Category {
   description?: string
 }
 
+interface Trainer {
+  id: string
+  name: string
+  hourlyRate: number
+  rating: number
+  image_url?: string
+  bio?: string
+  experience_level?: string
+  total_reviews?: number
+  categoryIds?: number[]
+  verified?: boolean
+}
+
 const Home: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([])
+  const [trainers, setTrainers] = useState<Trainer[]>([])
+  const [trendingTrainers, setTrendingTrainers] = useState<Trainer[]>([])
+  const [topCoaches, setTopCoaches] = useState<Trainer[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [trainersLoading, setTrainersLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
-        console.log('[Home] Loading categories...')
-        const response = await apiService.getCategories()
-        console.log('[Home] Categories response:', response)
+        console.log('[Home] Loading categories and trainers...')
+
+        // Load categories
+        const categoriesResponse = await apiService.getCategories()
+        console.log('[Home] Categories response:', categoriesResponse)
 
         // Handle different response formats from API or mock data
         let categories: Category[] = []
-        if (Array.isArray(response)) {
-          // Response is directly an array
-          categories = response
-        } else if (response?.data && Array.isArray(response.data)) {
-          // Response is an object with data property containing array
-          categories = response.data
+        if (Array.isArray(categoriesResponse)) {
+          categories = categoriesResponse
+        } else if (categoriesResponse?.data && Array.isArray(categoriesResponse.data)) {
+          categories = categoriesResponse.data
         }
 
         if (categories.length > 0) {
           setCategories(categories)
         }
+
+        // Load trainers
+        console.log('[Home] Loading trainers...')
+        const trainersResponse = await apiService.getAvailableTrainers()
+        console.log('[Home] Trainers response:', trainersResponse)
+
+        let trainersData: Trainer[] = []
+        if (Array.isArray(trainersResponse)) {
+          trainersData = trainersResponse
+        } else if (trainersResponse?.data && Array.isArray(trainersResponse.data)) {
+          // Fetch category information for each trainer
+          const enrichedTrainers = await Promise.all(
+            trainersResponse.data.map(async (trainer: any) => {
+              try {
+                const trainerCategoriesData = await apiService.getTrainerCategories(trainer.user_id)
+                const categoryIds = trainerCategoriesData?.data?.map((cat: any) => cat.category_id || cat.cat_id) || []
+
+                return {
+                  id: trainer.user_id,
+                  name: trainer.full_name || 'Trainer',
+                  hourlyRate: trainer.hourly_rate || 0,
+                  rating: trainer.rating || 0,
+                  image_url: trainer.profile_image || trainer.profile_image_url || trainer.image_url || null,
+                  bio: trainer.bio || null,
+                  experience_level: trainer.experience_level || null,
+                  total_reviews: trainer.total_reviews || 0,
+                  categoryIds,
+                  verified: trainer.verified || false,
+                }
+              } catch (err) {
+                console.warn('Failed to fetch categories for trainer', trainer.user_id)
+                return {
+                  id: trainer.user_id,
+                  name: trainer.full_name || 'Trainer',
+                  hourlyRate: trainer.hourly_rate || 0,
+                  rating: trainer.rating || 0,
+                  image_url: trainer.profile_image || trainer.profile_image_url || trainer.image_url || null,
+                  bio: trainer.bio || null,
+                  experience_level: trainer.experience_level || null,
+                  total_reviews: trainer.total_reviews || 0,
+                  categoryIds: [],
+                  verified: trainer.verified || false,
+                }
+              }
+            })
+          )
+          trainersData = enrichedTrainers
+        }
+
+        if (trainersData.length > 0) {
+          setTrainers(trainersData)
+
+          // Sort for Trending section: by rating (highest first)
+          const trending = [...trainersData]
+            .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+            .slice(0, 2)
+          setTrendingTrainers(trending)
+
+          // Sort for Top Coaches section: by review count (most reviews first)
+          const topCoachesList = [...trainersData]
+            .sort((a, b) => (b.total_reviews || 0) - (a.total_reviews || 0))
+            .slice(0, 2)
+          setTopCoaches(topCoachesList)
+        }
       } catch (err) {
-        console.error('[Home] Failed to load categories:', err)
-        setLoadError(err instanceof Error ? err.message : 'Failed to load categories')
-        // Don't fail the app if categories fail to load - it's not critical
+        console.error('[Home] Failed to load data:', err)
+        setLoadError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         setCategoriesLoading(false)
+        setTrainersLoading(false)
       }
     }
-    loadCategories()
+    loadData()
   }, [])
 
   const features = [
@@ -217,6 +300,13 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Trending Trainers Section */}
+      <TrendingTrainers
+        trainers={trendingTrainers}
+        categories={categories}
+        isLoading={trainersLoading}
+      />
+
       {/* Features Section */}
       <section className="py-20 lg:py-32 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -269,26 +359,20 @@ const Home: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {categories.map((category) => (
+            <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
+              {categories.slice(0, 4).map((category) => (
                 <Link key={category.id} to={`/explore?category=${category.id}`}>
-                  <Card className="h-full hover:shadow-glow transition-all duration-300 hover:-translate-y-1 cursor-pointer bg-card">
-                    <CardContent className="p-6 flex flex-col items-center text-center space-y-4 h-full justify-between">
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-3xl">
-                          {category.icon || '🏋️'}
-                        </div>
+                  <Card className="h-full hover:shadow-glow transition-all duration-300 hover:-translate-y-1 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden">
+                    <div className="relative h-40 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                      <div className="text-6xl">
+                        {category.icon || '🏋️'}
                       </div>
-                      <div className="space-y-2 flex-1">
-                        <h3 className="text-lg font-semibold text-foreground">{category.name}</h3>
-                        {category.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-trainer-primary text-sm font-medium">
-                        View trainers
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
+                    </div>
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-lg font-semibold text-foreground mb-1">{category.name}</h3>
+                      {category.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">{category.description}</p>
+                      )}
                     </CardContent>
                   </Card>
                 </Link>
@@ -297,6 +381,13 @@ const Home: React.FC = () => {
           )}
         </div>
       </section>
+
+      {/* Top Coaches Section */}
+      <TopCoaches
+        trainers={topCoaches}
+        categories={categories}
+        isLoading={trainersLoading}
+      />
 
       {/* Testimonials Section */}
       <section className="py-20 lg:py-32">
