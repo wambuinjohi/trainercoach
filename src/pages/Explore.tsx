@@ -95,7 +95,7 @@ interface Trainer {
   service_radius?: number
 }
 
-// Improved Trainer Card component (Airbnb-inspired)
+// Improved Trainer Card component - List style with image on left
 const TrainerCard: React.FC<{
   t: TrainerWithCategories & { image_url?: string }
   categories: any[]
@@ -122,100 +122,120 @@ const TrainerCard: React.FC<{
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 border-0 bg-white dark:bg-slate-800">
-      <div className="aspect-video bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center relative overflow-hidden">
-        {/* Trainer Image or Fallback Avatar */}
-        {t.image_url && !imageError ? (
-          <>
-            <img
-              src={t.image_url}
-              alt={t.name}
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              loading="lazy"
-            />
-            {!imageLoaded && (
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
-                <div className="text-slate-400 text-4xl">👤</div>
+      <div className="flex flex-col md:flex-row gap-4 p-4 md:p-5 relative">
+        {/* Left: Profile Image - Circular */}
+        <div className="flex-shrink-0">
+          <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center mx-auto md:mx-0">
+            {/* Trainer Image or Fallback Avatar */}
+            {t.image_url && !imageError ? (
+              <>
+                <img
+                  src={t.image_url}
+                  alt={t.name}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  loading="lazy"
+                />
+                {!imageLoaded && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
+                    <div className="text-slate-400 text-4xl">👤</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className={`w-full h-full ${getAvatarColor(t.id)} flex items-center justify-center`}>
+                <span className="text-white text-3xl font-semibold">{getInitials(t.name)}</span>
               </div>
             )}
-          </>
-        ) : (
-          <div className={`w-full h-full ${getAvatarColor(t.id)} flex items-center justify-center`}>
-            <span className="text-white text-2xl font-semibold">{getInitials(t.name)}</span>
-          </div>
-        )}
 
-        {isNearest && (
-          <Badge className="absolute top-3 right-3 bg-green-500 text-white">Nearest</Badge>
-        )}
-        {!isTrainerAvailableNow(t) && (
-          <Badge className="absolute top-3 left-3 bg-slate-500 text-white">Not Available Now</Badge>
-        )}
-      </div>
-      
-      <CardContent className="p-4">
-        {/* Trainer Name and Rating */}
-        <div className="mb-2">
-          <h3 className="font-semibold text-lg text-foreground mb-1">{t.name || 'Trainer'}</h3>
-          {t.rating > 0 && (
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-medium">{t.rating.toFixed(1)}</span>
-              <span className="text-xs text-muted-foreground">(12 reviews)</span>
-            </div>
-          )}
-        </div>
-
-        {/* Location and Distance */}
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
-          <MapPin className="h-3.5 w-3.5" />
-          <span>{t.location_label || 'Unknown'}</span>
-          {t.distance !== '—' && (
-            <span className="ml-auto font-semibold text-foreground">{t.distance}</span>
-          )}
-        </div>
-
-        {/* Categories/Disciplines */}
-        {categoryNames.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {categoryNames.slice(0, 2).map((name, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {name}
-              </Badge>
-            ))}
-            {categoryNames.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{categoryNames.length - 2}
-              </Badge>
+            {isNearest && (
+              <Badge className="absolute bottom-2 right-2 bg-green-500 text-white text-xs">Nearest</Badge>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Bio Snippet */}
-        {t.bio && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-            {t.bio}
-          </p>
-        )}
-
-        {/* Experience Level (if available) */}
-        {t.experience_level && (
-          <div className="flex items-center gap-2 mb-3 text-xs">
-            <span className="inline-block px-2 py-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 rounded">
-              {t.experience_level}
-            </span>
-          </div>
-        )}
-
-        {/* Price */}
-        <div className="flex items-baseline justify-between">
+        {/* Right: Content */}
+        <div className="flex-1 flex flex-col justify-between">
+          {/* Top Section: Badge, Name, Title, Rating */}
           <div>
-            <span className="text-xl font-semibold">Ksh {t.hourlyRate ?? '—'}</span>
-            <span className="text-sm text-muted-foreground">/hour</span>
+            {/* Specialty Badge */}
+            {categoryNames.length > 0 && (
+              <Badge className="mb-2 bg-blue-600 text-white text-xs inline-block">
+                {categoryNames[0]}
+              </Badge>
+            )}
+
+            {/* Trainer Name and Title */}
+            <h3 className="font-semibold text-base md:text-lg text-foreground mb-0.5">{t.name || 'Trainer'}</h3>
+            <p className="text-xs md:text-sm text-muted-foreground mb-2">
+              {t.bio ? t.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
+            </p>
+
+            {/* Rating */}
+            {t.rating > 0 && (
+              <div className="flex items-center gap-1 mb-2">
+                <div className="flex items-center">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-3 w-3 md:h-3.5 md:w-3.5 ${
+                        i < Math.round(t.rating)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'fill-slate-300 text-slate-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs md:text-sm font-medium">{t.rating.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">({t.total_reviews || 0})</span>
+              </div>
+            )}
+          </div>
+
+          {/* Middle Section: Experience, Availability, Location, Price */}
+          <div className="space-y-1.5 text-xs md:text-sm mt-3">
+            {/* Experience */}
+            {t.experience_level && (
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+                <span className="text-muted-foreground">{t.experience_level}</span>
+              </div>
+            )}
+
+            {/* Availability (placeholder - can be enhanced with real data) */}
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+              <span className="text-muted-foreground line-clamp-1">Available: Mon, Wed, Fri · 08:00am - 4:00pm</span>
+            </div>
+
+            {/* Location */}
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+              <span className="text-muted-foreground">
+                {t.location_label || 'Unknown'}
+                {t.distance !== '—' && (
+                  <span className="ml-2 font-semibold text-foreground">{t.distance}</span>
+                )}
+              </span>
+            </div>
+
+            {/* Price */}
+            <div className="flex items-center gap-2">
+              <span className="text-base md:text-lg font-semibold text-foreground">Ksh {t.hourlyRate ?? '—'}</span>
+              <span className="text-xs text-muted-foreground">per hour</span>
+            </div>
           </div>
         </div>
-      </CardContent>
+
+        {/* Right: Action Button - Mobile stacked, Desktop flex */}
+        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-between gap-3 mt-4 md:mt-0">
+          <div className="text-xs text-muted-foreground hidden md:block">{isNearest && 'Nearest'}</div>
+          <Button className="bg-green-500 hover:bg-green-600 text-white w-full md:w-auto flex-1 md:flex-none">
+            Book Now
+          </Button>
+        </div>
+      </div>
     </Card>
   )
 }
@@ -233,6 +253,7 @@ const Explore: React.FC = () => {
   const [filters, setFilters] = useState<any>({})
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationName, setLocationName] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'location' | 'price' | 'availability'>('location')
 
   const { recentSearches, popularSearches, addSearch } = useSearchHistory({ trainers })
 
@@ -356,10 +377,31 @@ const Explore: React.FC = () => {
       userLocationAvailable: userLocation !== null,
     }
 
-    const enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
-    const result = filterTrainers(enrichedTrainers, filterCriteria)
+    let enrichedTrainers = enrichTrainersWithDistance(trainers, userLocation)
+    let result = filterTrainers(enrichedTrainers, filterCriteria)
+
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'location') {
+        // Sort by distance (nearest first)
+        const distA = a.distanceKm ?? Infinity
+        const distB = b.distanceKm ?? Infinity
+        return distA - distB
+      } else if (sortBy === 'price') {
+        // Sort by price (lowest first)
+        return (a.hourlyRate ?? Infinity) - (b.hourlyRate ?? Infinity)
+      } else if (sortBy === 'availability') {
+        // Sort by availability (available first, then by rating)
+        const availA = isTrainerAvailableNow(a) ? 0 : 1
+        const availB = isTrainerAvailableNow(b) ? 0 : 1
+        if (availA !== availB) return availA - availB
+        return (b.rating ?? 0) - (a.rating ?? 0)
+      }
+      return 0
+    })
+
     setFilteredTrainers(result)
-  }, [trainers, filters, searchQuery, userLocation])
+  }, [trainers, filters, searchQuery, userLocation, sortBy])
 
   const requestLocation = async () => {
     await requestGeoLocation()
@@ -463,6 +505,29 @@ const Explore: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Sort Options */}
+            <div className="flex gap-2 items-center mt-4">
+              <span className="text-xs font-medium text-muted-foreground uppercase">Sort by:</span>
+              <div className="flex gap-2">
+                {(['location', 'price', 'availability'] as const).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setSortBy(option)}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-all flex items-center gap-1 capitalize ${
+                      sortBy === option
+                        ? 'bg-slate-900 dark:bg-slate-700 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {option === 'location' && <MapPin className="h-3.5 w-3.5" />}
+                    {option === 'price' && <span>💰</span>}
+                    {option === 'availability' && <Activity className="h-3.5 w-3.5" />}
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Active Filters Display */}
             {hasActiveFilters && (
@@ -603,9 +668,9 @@ const Explore: React.FC = () => {
               <p className="text-sm text-muted-foreground mb-6 font-medium">
                 {filteredTrainers.length} trainer{filteredTrainers.length !== 1 ? 's' : ''} available
               </p>
-              
-              {/* Trainer Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              {/* Trainer List */}
+              <div className="space-y-4">
                 {filteredTrainers.map((t, idx) => (
                   <TrainerCard
                     key={t.id}
