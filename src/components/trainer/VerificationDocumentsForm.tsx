@@ -554,7 +554,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
                   {/* Show pending status when no document uploaded yet */}
-                  {!doc.fileUrl && doc.status === 'pending' && (
+                  {!doc.fileUrl && doc.status === 'pending' && doc.isRequired !== false && (
                     <div className="mb-3 border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
                       <p className="text-xs font-medium text-amber-700 mb-2">⏳ Waiting for Upload</p>
                       <p className="text-xs text-amber-600">No document uploaded yet. Please add {doc.label.toLowerCase()} below.</p>
