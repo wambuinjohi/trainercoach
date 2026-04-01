@@ -141,25 +141,25 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
               <p className="text-sm text-muted-foreground mt-1">for {selectedCategory}</p>
             )}
           </CardHeader>
-          <CardContent className="p-4 sm:p-6 max-h-[80vh] overflow-auto">
+          <CardContent className="max-h-[80vh] overflow-auto p-4 pb-24 sm:p-6 sm:pb-6">
             <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center text-3xl overflow-hidden">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center text-3xl overflow-hidden flex-shrink-0">
                   {profile?.profile_image ? <img src={profile.profile_image} alt="Profile" className="w-full h-full object-cover" /> : trainer.image}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Star className="h-4 w-4 text-yellow-400" />
-                    <span className="font-semibold">{trainer.rating} ({trainer.reviews} reviews)</span>
+                    <span className="font-semibold break-words">{trainer.rating} ({trainer.reviews} reviews)</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{trainer.distance}</span>
+                  <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="break-words">{trainer.distance}</span>
                   </div>
                 </div>
-                <div className="ml-auto text-right">
-                  <div className="font-semibold">Ksh {formatHourlyRate(profile?.hourly_rate || trainer.hourlyRate)}/hour</div>
-                  <Badge variant={isTrainerAvailableNow(profile || trainer) ? 'default' : 'secondary'}>{isTrainerAvailableNow(profile || trainer) ? 'Available Now' : 'Not Available'}</Badge>
+                <div className="flex w-full flex-col items-start gap-2 sm:ml-auto sm:w-auto sm:items-end sm:text-right">
+                  <div className="break-words font-semibold">Ksh {formatHourlyRate(profile?.hourly_rate || trainer.hourlyRate)}/hour</div>
+                  <Badge variant={isTrainerAvailableNow(profile || trainer) ? 'default' : 'secondary'} className="w-fit">{isTrainerAvailableNow(profile || trainer) ? 'Available Now' : 'Not Available'}</Badge>
                 </div>
               </div>
 
@@ -197,7 +197,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                 ) : Array.isArray(profile?.hourly_rate_by_radius) && profile.hourly_rate_by_radius.length > 0 ? (
                   <div className="text-sm text-muted-foreground">
                     {profile.hourly_rate_by_radius.map((tier:any, i:number) => (
-                      <div key={i} className="flex justify-between">
+                      <div key={i} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                         <span>Within {tier.radius_km} km</span>
                         <span className="font-semibold">Ksh {formatHourlyRate(tier.rate)}</span>
                       </div>
@@ -227,7 +227,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                         {groupPricing.tiers && groupPricing.tiers.length > 0 && (
                           <div className="space-y-1 text-sm text-muted-foreground">
                             {groupPricing.tiers.map((tier: any, tierIdx: number) => (
-                              <div key={tierIdx} className="flex justify-between">
+                              <div key={tierIdx} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                 <span>{tier.group_size_name}</span>
                                 <span className="font-medium">{formatGroupPricingDisplay(tier.rate, groupPricing.pricing_model)}</span>
                               </div>
@@ -245,11 +245,11 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                   <h4 className="font-semibold mb-2">Packages</h4>
                   <div className="space-y-2 text-sm">
                     {profile.pricing_packages.map((pkg: any, i: number) => (
-                      <div key={i} className="flex justify-between border-b border-border pb-2">
-                        <div>
-                          <div className="font-medium">{pkg.name}</div>
+                      <div key={i} className="flex flex-col gap-2 border-b border-border pb-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="font-medium break-words">{pkg.name}</div>
                           {pkg.sessions && <div className="text-xs text-muted-foreground">{pkg.sessions} sessions</div>}
-                          {pkg.description && <div className="text-xs text-muted-foreground">{pkg.description}</div>}
+                          {pkg.description && <div className="text-xs text-muted-foreground break-words">{pkg.description}</div>}
                         </div>
                         <div className="font-semibold text-foreground">Ksh {Number(pkg.price)}</div>
                       </div>
@@ -278,9 +278,9 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
                       }
 
                       return Object.entries(availability).map(([day, slots]: any) => (
-                        <div key={day} className="flex justify-between">
+                        <div key={day} className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                           <span className="text-muted-foreground capitalize">{day}</span>
-                          <span className="text-foreground">{Array.isArray(slots) && slots.length ? slots.join(', ') : '—'}</span>
+                          <span className="break-words text-foreground sm:text-right">{Array.isArray(slots) && slots.length ? slots.join(', ') : '—'}</span>
                         </div>
                       ))
                     })()}
@@ -292,7 +292,7 @@ export const TrainerDetails: React.FC<{ trainer: any, onClose: () => void, selec
               )}
 
               <div className="hidden sm:flex flex-col gap-1">
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button onClick={openBooking} className="bg-gradient-primary text-white"><Calendar className="h-4 w-4 mr-2" />Book Now</Button>
                   <Button variant="ghost" onClick={onClose}>Close</Button>
                 </div>
