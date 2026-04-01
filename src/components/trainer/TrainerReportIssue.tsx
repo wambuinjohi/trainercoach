@@ -141,7 +141,7 @@ export const TrainerReportIssue: React.FC<{ onDone?: (ref?: string) => void }> =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
-      <div className="relative w-full max-w-lg my-auto">
+      <div className="relative w-full max-w-sm sm:max-w-md md:max-w-lg my-auto">
         <Card className="bg-background">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Report an Issue</CardTitle>

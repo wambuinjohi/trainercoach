@@ -331,7 +331,7 @@ const AvailabilityEditor: React.FC<AvailabilityEditorProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => onClose?.()} />
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
+      <div className="relative w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
         <Card>
           <CardHeader>
             <CardTitle>Availability & Schedule</CardTitle>
@@ -359,13 +359,15 @@ const AvailabilityEditor: React.FC<AvailabilityEditorProps> = ({ onClose }) => {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => copyDayToTargets('monday', ['tuesday', 'wednesday', 'thursday', 'friday'])}>
-                    Copy Monday to weekdays
+                  <Button variant="outline" size="sm" onClick={() => copyDayToTargets('monday', ['tuesday', 'wednesday', 'thursday', 'friday'])} className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Copy Monday to weekdays</span>
+                    <span className="sm:hidden">Mon → Weekdays</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => copyDayToTargets('saturday', ['sunday'])}>
-                    Copy Saturday to Sunday
+                  <Button variant="outline" size="sm" onClick={() => copyDayToTargets('saturday', ['sunday'])} className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Copy Saturday to Sunday</span>
+                    <span className="sm:hidden">Sat → Sun</span>
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={clearAll}>
+                  <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs sm:text-sm">
                     Clear all
                   </Button>
                 </div>
