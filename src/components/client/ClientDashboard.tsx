@@ -750,27 +750,27 @@ export const ClientDashboard: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2 mt-0.5 flex-shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="min-w-0 text-xl font-bold leading-tight text-foreground sm:text-2xl">
               {selectedCategory ? `${selectedCategory} Trainers` : 'All Available Trainers'}
             </h1>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}><Sliders className="h-4 w-4 mr-2" />Filters</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(true)} className="w-full sm:w-auto"><Sliders className="h-4 w-4 mr-2" />Filters</Button>
         </div>
 
         {/* Location Display and Change Button */}
-        <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span className="text-blue-700 dark:text-blue-300">
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2 dark:border-blue-800 dark:bg-blue-950/20 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+            <span className="break-words text-blue-700 dark:text-blue-300">
               {selectedLocationMode === 'home' ? '🏠 Using Home' : '📍 Using Current'}
             </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedLocationMode(null)} className="h-auto py-1 px-2 text-xs">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedLocationMode(null)} className="h-auto w-full py-1 px-2 text-xs sm:w-auto">
             Change
           </Button>
         </div>
@@ -825,7 +825,7 @@ export const ClientDashboard: React.FC = () => {
               >
                 <CardContent className="p-4 space-y-3">
                   {/* Header with name, badges */}
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
                       {trainer.profile_image ? (
                         <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
@@ -833,9 +833,9 @@ export const ClientDashboard: React.FC = () => {
                         '👤'
                       )}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-foreground">{trainer.name}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <h3 className="break-words font-semibold text-foreground">{trainer.name}</h3>
                         {idx === 0 && userLocation && selectedCategory && (
                           <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
                         )}
@@ -843,9 +843,9 @@ export const ClientDashboard: React.FC = () => {
                           {isTrainerAvailableNow(trainer) ? 'Available Now' : 'Not Available'}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">{trainer.discipline || 'Training'}</p>
+                      <p className="text-xs text-muted-foreground break-words">{trainer.discipline || 'Training'}</p>
                       {trainer.bio && (
-                        <p className="text-xs text-muted-foreground mt-1">{trainer.bio}</p>
+                        <p className="mt-1 break-words text-xs text-muted-foreground">{trainer.bio}</p>
                       )}
                     </div>
                   </div>
@@ -868,14 +868,14 @@ export const ClientDashboard: React.FC = () => {
 
                   {/* Rating, Location, Distance */}
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         <span>{trainer.rating.toFixed(1)} ({trainer.reviews})</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        <span className="truncate">{trainer.location_label}</span>
+                      <div className="flex min-w-0 items-center gap-1 sm:flex-1">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="break-words">{trainer.location_label}</span>
                       </div>
                       {trainer.distance !== '—' && (
                         <span className="font-semibold text-foreground">{trainer.distance}</span>
@@ -912,8 +912,8 @@ export const ClientDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <Button size="sm" className="bg-gradient-primary text-white" onClick={() => setSelectedTrainerForBooking(trainer)}>
+                  <div className="flex items-center justify-stretch gap-2 pt-2 sm:justify-end">
+                    <Button size="sm" className="w-full bg-gradient-primary text-white sm:w-auto" onClick={() => setSelectedTrainerForBooking(trainer)}>
                       Book Now
                     </Button>
                   </div>
@@ -958,10 +958,10 @@ export const ClientDashboard: React.FC = () => {
       return (
       <Card key={booking.id} className="bg-card border-border">
         <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground">{booking.trainer_name || booking.trainer_id || 'Trainer'}</h3>
-              <p className="text-sm text-muted-foreground">{booking.notes || 'Session'}</p>
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="break-words font-semibold text-foreground">{booking.trainer_name || booking.trainer_id || 'Trainer'}</h3>
+              <p className="break-words text-sm text-muted-foreground">{booking.notes || 'Session'}</p>
             </div>
             <Badge variant={
               booking.status === 'confirmed' ? 'default' :
@@ -969,7 +969,7 @@ export const ClientDashboard: React.FC = () => {
               booking.status === 'completed' ? 'outline' :
               booking.status === 'cancelled' ? 'destructive' :
               'secondary'
-            }>
+            } className="w-fit">
               {booking.status === 'in_session' && booking.session_phase === 'awaiting_completion'
                 ? 'Awaiting completion'
                 : booking.status?.replace('_', ' ').charAt(0).toUpperCase() + booking.status?.slice(1).replace('_', ' ') || 'Pending'}
@@ -977,7 +977,7 @@ export const ClientDashboard: React.FC = () => {
           </div>
 
           {booking.is_group_training && (
-            <div className="flex gap-2 mb-3">
+            <div className="mb-3 flex flex-wrap gap-2">
               <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                 <Users className="h-3 w-3 mr-1" />
                 Group Training
@@ -1022,7 +1022,7 @@ export const ClientDashboard: React.FC = () => {
           {showActions && (
             <div className="space-y-2">
               {booking.status === 'completed' && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   {!reviewsByBooking[booking.id] && (
                     <Button size="sm" className="flex-1 bg-gradient-primary text-white" onClick={() => setReviewBooking(booking)}>
                       <Star className="h-3 w-3 mr-1" />
@@ -1037,7 +1037,7 @@ export const ClientDashboard: React.FC = () => {
               )}
               {(booking.status === 'pending' || booking.status === 'confirmed') && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -1055,7 +1055,7 @@ export const ClientDashboard: React.FC = () => {
                       Trainer
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -1261,10 +1261,10 @@ export const ClientDashboard: React.FC = () => {
 
       {!modalOpen && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
-          <div className="container max-w-md mx-auto flex justify-around py-2">
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className={activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('explore')} className={activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab('schedule')} className={activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
+          <div className="container max-w-md mx-auto grid grid-cols-3 gap-1 py-2">
+            <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => setActiveTab('explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => setActiveTab('schedule')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
           </div>
         </div>
       )}
