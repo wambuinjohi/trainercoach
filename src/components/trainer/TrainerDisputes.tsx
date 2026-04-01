@@ -235,7 +235,7 @@ export const TrainerDisputes: React.FC<TrainerDisputesProps> = ({ onClose }) => 
 
       {activeDispute && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 overflow-y-auto">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-sm sm:max-w-md md:max-w-lg max-h-[90vh] overflow-y-auto">
             <CardHeader className="sticky top-0 bg-background">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg sm:text-xl">Dispute Details</CardTitle>

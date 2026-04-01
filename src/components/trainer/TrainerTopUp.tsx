@@ -82,7 +82,7 @@ export const TrainerTopUp: React.FC<{ onClose?: () => void }> = ({ onClose }) =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => onClose?.()} />
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md">
         <Card>
           <CardHeader>
             <CardTitle>Top Up Wallet</CardTitle>

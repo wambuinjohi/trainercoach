@@ -103,7 +103,7 @@ export const TrainerOnboardingStep2: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-3xl mx-auto">
         {/* Progress indicator */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Trainer Profile</h1>

@@ -218,7 +218,7 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => onClose?.()} />
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
+      <div className="relative w-full max-w-sm sm:max-w-md md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
         <Card>
           <CardHeader>
             <CardTitle>Pricing & Service Categories</CardTitle>
@@ -368,7 +368,7 @@ const ServicesManager = ({ onClose }: ServicesManagerProps) => {
       {/* Group Training Manager Modal */}
       {groupTrainingModalOpen && selectedCategoryForGroupTraining && userId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
+          <div className="relative w-full max-w-sm sm:max-w-md md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={event => event.stopPropagation()}>
             <GroupTrainingManager
               trainerId={userId}
               categoryId={selectedCategoryForGroupTraining.id}
