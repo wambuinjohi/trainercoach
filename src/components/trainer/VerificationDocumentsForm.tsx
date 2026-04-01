@@ -344,7 +344,9 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         // If backend says not all submitted, don't proceed yet - user must upload required docs
         toast({
           title: 'Documents Required',
-          description: 'Please upload all required documents before proceeding.',
+          description: pendingRequiredDocs.length > 0
+            ? `Please upload ${pendingRequiredDocs.map(d => d.label).join(', ')} before proceeding.`
+            : 'Please upload all required documents before proceeding.',
           variant: 'destructive'
         })
       }
