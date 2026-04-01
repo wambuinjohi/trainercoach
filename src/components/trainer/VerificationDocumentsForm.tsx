@@ -332,6 +332,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       // Check backend as secondary validation for truly required documents
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
 
+      const documentLabels: Record<string, string> = {
+        national_id: 'National ID',
+        passport: 'Passport',
+        proof_of_residence: 'Proof of Residence',
+        certificate_of_good_conduct: 'Certificate of Good Conduct'
+      }
+
+      const backendRequiredDocs = Array.isArray(checkResponse?.data?.required_docs)
+        ? checkResponse.data.required_docs
+        : []
+      const backendSubmittedDocs = Array.isArray(checkResponse?.data?.submitted_docs)
+        ? checkResponse.data.submitted_docs
+        : []
+      const missingBackendDocs = backendRequiredDocs.filter((doc: string) => !backendSubmittedDocs.includes(doc))
+      const missingBackendLabels = missingBackendDocs.map((doc: string) => documentLabels[doc] || doc)
+
       // Only call onComplete() if backend confirms all REQUIRED documents are submitted
       // Note: Certificate of Good Conduct is optional and should NOT block completion
       if (checkResponse?.data?.all_submitted) {
@@ -344,9 +360,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         // If backend says not all submitted, don't proceed yet - user must upload required docs
         toast({
           title: 'Documents Required',
-          description: pendingRequiredDocs.length > 0
-            ? `Please upload ${pendingRequiredDocs.map(d => d.label).join(', ')} before proceeding.`
-            : 'Please upload all required documents before proceeding.',
+          description: missingBackendLabels.length > 0
+            ? `Please upload ${missingBackendLabels.join(', ')} before proceeding.`
+            : pendingRequiredDocs.length > 0
+              ? `Please upload ${pendingRequiredDocs.map(d => d.label).join(', ')} before proceeding.`
+              : 'Please upload all required documents before proceeding.',
           variant: 'destructive'
         })
       }
