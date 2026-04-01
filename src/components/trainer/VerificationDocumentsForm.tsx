@@ -341,12 +341,16 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       const backendSubmittedDocs = Array.isArray(checkResponse?.data?.submitted_docs)
         ? checkResponse.data.submitted_docs
         : []
-      const missingBackendDocs = backendRequiredDocs.filter((doc: string) => !backendSubmittedDocs.includes(doc))
+
+      // Filter out proof_of_residence from missing docs since location was captured during signup
+      const missingBackendDocs = backendRequiredDocs
+        .filter((doc: string) => !backendSubmittedDocs.includes(doc) && doc !== 'proof_of_residence')
       const missingBackendLabels = missingBackendDocs.map((doc: string) => documentLabels[doc] || doc)
 
       // Only call onComplete() if backend confirms all REQUIRED documents are submitted
       // Note: Certificate of Good Conduct is optional and should NOT block completion
-      if (checkResponse?.data?.all_submitted) {
+      // Also: Proof of Residence is not required since location was captured during signup
+      if (checkResponse?.data?.all_submitted || missingBackendDocs.length === 0) {
         toast({
           title: 'Success',
           description: 'Your documents have been submitted for review. You will be notified once approved.'
