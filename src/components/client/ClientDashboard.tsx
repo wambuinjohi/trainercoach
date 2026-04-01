@@ -82,7 +82,7 @@ function formatHourlyRate(rate: number | null | undefined): string {
 import { SearchBar } from './SearchBar'
 import { toast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useSearchHistory } from '@/hooks/use-search-history'
 import { useGeolocation } from '@/hooks/use-geolocation'
 import * as apiService from '@/lib/api-service'
@@ -94,6 +94,7 @@ import { isTrainerAvailableNow } from '@/lib/availability-utils'
 
 export const ClientDashboard: React.FC = () => {
   const { user, userType, signOut, loading } = useAuth()
+  const navigate = useNavigate()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
 
   // State declarations
@@ -955,6 +956,9 @@ export const ClientDashboard: React.FC = () => {
         return []
       })()
       const primarySession = bookingSessions[0]
+      const paymentStatus = booking.payment_status || 'pending'
+      const canContinuePayment = (booking.status === 'pending' || booking.status === 'confirmed') && paymentStatus !== 'completed'
+
       return (
       <Card key={booking.id} className="bg-card border-border">
         <CardContent className="p-4">
@@ -1037,6 +1041,27 @@ export const ClientDashboard: React.FC = () => {
               )}
               {(booking.status === 'pending' || booking.status === 'confirmed') && (
                 <>
+                  {canContinuePayment && (
+                    <Button
+                      size="sm"
+                      className="w-full bg-gradient-primary text-white"
+                      onClick={() => navigate(`/booking-confirmation/${booking.id}`, {
+                        state: {
+                          bookingId: booking.id,
+                          trainerName: booking.trainer_name || booking.trainer_id || 'Trainer',
+                          date: booking.session_date,
+                          time: booking.session_time,
+                          sessions: booking.sessions,
+                          totalAmount: Number(booking.total_amount || booking.base_service_amount || 0),
+                          notes: booking.notes,
+                          paymentStatus,
+                        }
+                      })}
+                    >
+                      <DollarSign className="h-3 w-3 mr-1" />
+                      {paymentStatus === 'failed' ? 'Retry Payment' : paymentStatus === 'processing' ? 'View Payment' : 'Continue Payment'}
+                    </Button>
+                  )}
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       size="sm"
