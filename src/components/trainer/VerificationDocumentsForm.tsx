@@ -53,7 +53,7 @@ interface VerificationDocumentsFormProps {
 export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete, refreshTrigger }) => {
   const { user } = useAuth()
   const userId = user?.id
-  const [documents, setDocuments] = useState<Document[]>(requiredDocuments)
+  const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(false)
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null)
   const [idNumber, setIdNumber] = useState('')
