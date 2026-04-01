@@ -26,6 +26,7 @@ interface IdDocument {
 interface IdDocumentUploadSectionProps {
   onIdTypeChange?: (idType: 'national_id' | 'passport') => void
   onPassportNumberChange?: (number: string) => void
+  onUploadSuccess?: () => void
   initialIdType?: 'national_id' | 'passport'
   initialPassportNumber?: string
 }
@@ -33,6 +34,7 @@ interface IdDocumentUploadSectionProps {
 export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = ({
   onIdTypeChange,
   onPassportNumberChange,
+  onUploadSuccess,
   initialIdType = 'national_id',
   initialPassportNumber = ''
 }) => {
@@ -143,7 +145,7 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
   }
 
   const loadDocuments = async () => {
-    loadDocumentsWithType(idType)
+    await loadDocumentsWithType(idType)
   }
 
   const handleIdTypeChange = (newType: 'national_id' | 'passport') => {
@@ -229,7 +231,8 @@ export const IdDocumentUploadSection: React.FC<IdDocumentUploadSectionProps> = (
 
       if (response?.status === 'success') {
         toast({ title: 'Success', description: `${side ? side.charAt(0).toUpperCase() + side.slice(1) : 'Passport'} uploaded successfully` })
-        loadDocuments()
+        await loadDocuments()
+        onUploadSuccess?.()
       } else {
         throw new Error(response?.message || 'Upload failed')
       }

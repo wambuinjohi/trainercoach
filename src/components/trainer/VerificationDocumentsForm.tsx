@@ -332,6 +332,22 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
       // Check backend as secondary validation for truly required documents
       const checkResponse = await apiService.checkDocumentsSubmission(userId)
 
+      const documentLabels: Record<string, string> = {
+        national_id: 'National ID',
+        passport: 'Passport',
+        proof_of_residence: 'Proof of Residence',
+        certificate_of_good_conduct: 'Certificate of Good Conduct'
+      }
+
+      const backendRequiredDocs = Array.isArray(checkResponse?.data?.required_docs)
+        ? checkResponse.data.required_docs
+        : []
+      const backendSubmittedDocs = Array.isArray(checkResponse?.data?.submitted_docs)
+        ? checkResponse.data.submitted_docs
+        : []
+      const missingBackendDocs = backendRequiredDocs.filter((doc: string) => !backendSubmittedDocs.includes(doc))
+      const missingBackendLabels = missingBackendDocs.map((doc: string) => documentLabels[doc] || doc)
+
       // Only call onComplete() if backend confirms all REQUIRED documents are submitted
       // Note: Certificate of Good Conduct is optional and should NOT block completion
       if (checkResponse?.data?.all_submitted) {
@@ -344,7 +360,11 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         // If backend says not all submitted, don't proceed yet - user must upload required docs
         toast({
           title: 'Documents Required',
-          description: 'Please upload all required documents before proceeding.',
+          description: missingBackendLabels.length > 0
+            ? `Please upload ${missingBackendLabels.join(', ')} before proceeding.`
+            : pendingRequiredDocs.length > 0
+              ? `Please upload ${pendingRequiredDocs.map(d => d.label).join(', ')} before proceeding.`
+              : 'Please upload all required documents before proceeding.',
           variant: 'destructive'
         })
       }
@@ -363,20 +383,28 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
   const requiredDocs = documents.filter(d => d.isRequired !== false)
   const optionalDocs = documents.filter(d => d.isRequired === false)
 
+  const isDocumentSatisfied = (doc: Document) => {
+    if (doc.status === 'rejected') return false
+    if (doc.type === 'proof_of_residence') {
+      return Boolean(doc.fileUrl || locationSet)
+    }
+    return Boolean(doc.fileUrl)
+  }
+
   // All required documents are approved
   const allRequiredApproved = requiredDocs.length > 0 && requiredDocs.every(d => d.status === 'approved')
 
   // Check if any required document is still under review
-  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending')
+  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending' || (d.type === 'proof_of_residence' && locationSet))
 
-  // Check if ALL required documents have been uploaded
-  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl)
+  // Check if ALL required documents have been uploaded or otherwise satisfied
+  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
 
-  // Ready to submit: all required documents are uploaded and no required documents are rejected
-  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(d => d.fileUrl && d.status !== 'rejected')
+  // Ready to submit: all required documents are satisfied and no required documents are rejected
+  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
 
   // For display: which required documents are still pending
-  const pendingRequiredDocs = requiredDocs.filter(d => d.status === 'pending')
+  const pendingRequiredDocs = requiredDocs.filter(d => !isDocumentSatisfied(d))
 
   const formatTimeRemaining = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -408,7 +436,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <IdDocumentUploadSection />
+          <IdDocumentUploadSection onUploadSuccess={loadDocuments} />
         </CardContent>
       </Card>
 
@@ -544,7 +572,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                   )}
 
                   {/* Show pending status when no document uploaded yet */}
-                  {!doc.fileUrl && doc.status === 'pending' && (
+                  {!doc.fileUrl && doc.status === 'pending' && doc.isRequired !== false && (
                     <div className="mb-3 border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
                       <p className="text-xs font-medium text-amber-700 mb-2">⏳ Waiting for Upload</p>
                       <p className="text-xs text-amber-600">No document uploaded yet. Please add {doc.label.toLowerCase()} below.</p>
