@@ -1132,7 +1132,7 @@ export const ClientDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setActiveTab('home')} className="-ml-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold text-foreground">My Sessions</h1>
@@ -1144,7 +1144,7 @@ export const ClientDashboard: React.FC = () => {
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">No sessions yet</p>
               <p className="text-sm text-muted-foreground mt-1">Book a session to get started</p>
-              <Button className="mt-4" size="sm" onClick={() => setActiveTab('explore')}>Explore Trainers</Button>
+              <Button className="mt-4" size="sm" onClick={() => navigate('/client/explore')}>Explore Trainers</Button>
             </CardContent>
           </Card>
         ) : (
