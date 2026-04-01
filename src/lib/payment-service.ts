@@ -119,16 +119,33 @@ export async function initiatePayment(params: PaymentInitiationParams): Promise<
 
   try {
     const normalizedPhone = normalizePhoneNumber(phone)
+
+    // Generate unique IDs and timestamps for the STK request
+    const stkId = `stk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const checkoutRequestId = `CO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const merchantRequestId = `MR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const now = new Date().toISOString()
+
     const result = await apiRequest(
       'mpesa_stk_initiate',
       {
-        phone: normalizedPhone,
-        amount,
-        account_reference: accountReference,
-        transaction_description: description,
-        booking_id: bookingId || null,
+        stk_id: stkId,
         client_id: clientId || null,
         trainer_id: trainerId || null,
+        phone: normalizedPhone,
+        amount,
+        booking_id: bookingId || null,
+        request_id: requestId,
+        account_reference: accountReference,
+        transaction_description: description,
+        checkout_request_id: checkoutRequestId,
+        merchant_request_id: merchantRequestId,
+        status: 'initiated',
+        is_test: false,
+        is_retry: false,
+        created_at: now,
+        updated_at: now,
       },
       { headers: withAuth() }
     )
