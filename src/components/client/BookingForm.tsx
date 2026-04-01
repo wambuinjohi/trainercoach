@@ -264,6 +264,21 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   useEffect(() => {
     const loadCategoryPricing = async () => {
       if (!trainer?.id) return
+
+      // First, check if trainer already has categoryPricing data loaded
+      if (trainer.categoryPricing && Array.isArray(trainer.categoryPricing) && trainer.categoryPricing.length > 0) {
+        setCategoryPricing(trainer.categoryPricing)
+        if (selectedCategory) {
+          const selectedCat = trainer.categoryPricing.find((cat: any) => cat.name === selectedCategory)
+          if (selectedCat) {
+            setSelectedCategoryIds([String(selectedCat.id)])
+          }
+        } else {
+          setSelectedCategoryIds(trainer.categoryPricing.map((cat: any) => String(cat.id)))
+        }
+        return
+      }
+
       try {
         const response = await apiService.getTrainerCategoryPricing(trainer.id)
         // Handle both direct array response and wrapped response with .data property
@@ -280,13 +295,39 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             // Auto-select all categories by default
             setSelectedCategoryIds(pricingList.map((cat: any) => String(cat.id)))
           }
+        } else {
+          // If no pricing data returned, try to load trainer categories as fallback
+          console.warn('No category pricing returned, attempting to load trainer categories')
+          try {
+            const categoriesResponse = await apiService.getTrainerCategories(trainer.id)
+            const categoriesList = categoriesResponse?.data && Array.isArray(categoriesResponse.data) ? categoriesResponse.data : []
+            if (categoriesList.length > 0) {
+              // Create pricing objects from categories with a default rate
+              const categoriesWithDefaults = categoriesList.map((cat: any) => ({
+                ...cat,
+                hourly_rate: cat.hourly_rate || trainer.hourlyRate || 0
+              }))
+              setCategoryPricing(categoriesWithDefaults)
+              if (selectedCategory) {
+                const selectedCat = categoriesWithDefaults.find((cat: any) => cat.name === selectedCategory)
+                if (selectedCat) {
+                  setSelectedCategoryIds([String(selectedCat.id)])
+                }
+              } else {
+                setSelectedCategoryIds(categoriesWithDefaults.map((cat: any) => String(cat.id)))
+              }
+            }
+          } catch (fallbackErr) {
+            console.warn('Failed to load trainer categories fallback:', fallbackErr)
+          }
         }
       } catch (err) {
         console.warn('Failed to load category pricing:', err)
+        // Continue without category pricing - categories section won't display
       }
     }
     loadCategoryPricing()
-  }, [trainer?.id, selectedCategory])
+  }, [trainer?.id, trainer?.categoryPricing, trainer?.hourlyRate, selectedCategory])
 
   // Auto-advance to step 2 when conditions are met
   useEffect(() => {
