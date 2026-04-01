@@ -29,14 +29,10 @@ interface Document {
 }
 
 // Define which documents are required vs optional
-// Required: ID/Passport + Proof of Residence
+// Required: ID/Passport
 // Optional: Certificate of Good Conduct
+// Note: Proof of Residence is captured during signup location selection and is not re-verified here
 const allDocumentDefinitions: Record<string, { label: string; description: string; isRequired: boolean; expiresAt?: string }> = {
-  'proof_of_residence': {
-    label: 'Proof of Residence',
-    description: 'REQUIRED: Your location grid from your trainer profile.',
-    isRequired: true
-  },
   'certificate_of_good_conduct': {
     label: 'Certificate of Good Conduct',
     description: 'OPTIONAL: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance.',
@@ -385,9 +381,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
 
   const isDocumentSatisfied = (doc: Document) => {
     if (doc.status === 'rejected') return false
-    if (doc.type === 'proof_of_residence') {
-      return Boolean(doc.fileUrl || locationSet)
-    }
     return Boolean(doc.fileUrl)
   }
 
@@ -478,7 +471,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Requirements</p>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>✓ <strong>Required:</strong> Proof of Residence (GPS location from your profile)</li>
                 <li>○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
               </ul>
             </div>
@@ -682,43 +674,6 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
                     </div>
                   )}
 
-                  {/* Proof of Residence - Location Grid Info */}
-                  {doc.type === 'proof_of_residence' && !doc.fileUrl && !locationSet && (
-                    <Alert className="mb-3 bg-blue-50 border-blue-200">
-                      <AlertCircle className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-800">
-                        Your location grid from the trainer profile will be used as proof of residence. Set your location to automatically verify this document.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Proof of Residence - Location Set (Ready for submission) */}
-                  {doc.type === 'proof_of_residence' && locationSet && !doc.fileUrl && (
-                    <div className="border rounded-lg p-3 bg-blue-50 border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-5 w-5 text-blue-600" />
-                        <span className="font-medium text-blue-700">Location Set & Ready</span>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        Your location has been set. You can now submit your documents for review.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Proof of Residence - Uploaded and Pending or Approved */}
-                  {doc.type === 'proof_of_residence' && doc.fileUrl && (
-                    <div className="border rounded-lg p-3 bg-green-50 border-green-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <span className="font-medium text-green-700">{doc.status === 'approved' ? 'Location Verified' : 'Location Document Uploaded'}</span>
-                      </div>
-                      <p className="text-sm text-green-700">
-                        {doc.status === 'approved'
-                          ? 'Your proof of residence has been verified and approved.'
-                          : 'Your location document has been uploaded and is awaiting review.'}
-                      </p>
-                    </div>
-                  )}
 
                   {/* Uploaded Status - Only show if not pending (already uploaded and status is not pending) */}
                   {doc.fileUrl && doc.status !== 'pending' && (
@@ -738,7 +693,7 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
               <Alert className="bg-amber-50 border-amber-200">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-amber-800">
-                  <strong>Required documents:</strong> ID/Passport and Proof of Residence.
+                  <strong>Required documents:</strong> ID/Passport (National ID or Passport).
                   <br />
                   <strong>Optional:</strong> Certificate of Good Conduct (recommended to enhance your profile).
                 </AlertDescription>
