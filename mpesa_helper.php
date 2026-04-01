@@ -495,6 +495,8 @@ function initiateSTKPush($credentials, $phone, $amount, $account_reference, $cal
 
 // Query STK Push status
 function querySTKPushStatus($credentials, $checkout_request_id) {
+    global $conn;
+
     error_log("[STK QUERY] ========== STARTING STK QUERY ==========");
     error_log("[STK QUERY] CheckoutRequestID: $checkout_request_id");
 
@@ -515,10 +517,56 @@ function querySTKPushStatus($credentials, $checkout_request_id) {
             'error' => 'Failed to obtain M-Pesa access token'
         ];
     }
-    
+
     $environment = $credentials['environment'] ?? 'sandbox';
-    $shortcode = $credentials['shortcode'];
     $passkey = $credentials['passkey'];
+
+    // Retrieve payment_type from STK session to determine which shortcode to use
+    $paymentType = 'buygods'; // Default to buygods (CustomerBuyGoodsOnline)
+    $sessionQuery = "SELECT payment_type FROM stk_push_sessions WHERE checkout_request_id = ? LIMIT 1";
+    $sessionStmt = $conn->prepare($sessionQuery);
+    if ($sessionStmt) {
+        $sessionStmt->bind_param("s", $checkout_request_id);
+        $sessionStmt->execute();
+        $sessionResult = $sessionStmt->get_result();
+        if ($sessionResult && $sessionResult->num_rows > 0) {
+            $sessionRow = $sessionResult->fetch_assoc();
+            $paymentType = $sessionRow['payment_type'] ?? 'buygods';
+            error_log("[STK QUERY] Payment type retrieved from session: $paymentType");
+        } else {
+            error_log("[STK QUERY WARNING] No session found for checkout_request_id: $checkout_request_id, using default payment_type: buygods");
+        }
+        $sessionStmt->close();
+    } else {
+        error_log("[STK QUERY WARNING] Failed to prepare session query, using default payment_type: buygods");
+    }
+
+    // Normalize payment type
+    if (strpos($paymentType, 'BuyGoods') !== false || strpos($paymentType, 'buygods') !== false) {
+        $paymentType = 'buygods';
+    } else {
+        $paymentType = 'paybill';
+    }
+
+    error_log("[STK QUERY] Normalized payment type: $paymentType");
+
+    // Determine correct shortcode based on payment type
+    if ($paymentType === 'buygods') {
+        $shortcode = $credentials['buy_goods_shortcode'] ?? $credentials['shortcode'] ?? '';
+        error_log("[STK QUERY] Using Buy Goods shortcode: $shortcode");
+    } else {
+        $shortcode = $credentials['shortcode'] ?? '';
+        error_log("[STK QUERY] Using Paybill shortcode: $shortcode");
+    }
+
+    // Validate shortcode is not empty
+    if (empty($shortcode)) {
+        error_log("[STK QUERY ERROR] Shortcode is empty! Payment type: $paymentType, Buy Goods: " . ($credentials['buy_goods_shortcode'] ?? 'N/A') . ", Paybill: " . ($credentials['shortcode'] ?? 'N/A'));
+        return [
+            'success' => false,
+            'error' => 'M-Pesa shortcode not configured for this payment type'
+        ];
+    }
 
     $query_url = ($environment === 'production')
         ? 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query'

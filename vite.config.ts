@@ -350,16 +350,35 @@ function devApiPlugin() {
               // Proxy to real API to get trainer's category pricing from database
               try {
                 const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-                const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
+
+                console.log(`[Dev API] trainer_category_pricing_get for trainer_id=${body.trainer_id}`);
+
+                // Use fetch with timeout via Promise.race
+                const fetchPromise = fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', ...authHeader },
                   body: JSON.stringify({ action: 'trainer_category_pricing_get', trainer_id: body.trainer_id })
                 });
+
+                const timeoutPromise = new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('API request timeout after 10s')), 10000)
+                );
+
+                const pricingResponse = await Promise.race([fetchPromise, timeoutPromise]);
+
+                if (!pricingResponse.ok) {
+                  console.warn(`[Dev API] trainer_category_pricing_get API returned status ${pricingResponse.status}`);
+                  throw new Error(`API returned ${pricingResponse.status}`);
+                }
+
                 const pricingData = await pricingResponse.json();
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify(pricingData));
               } catch (e) {
-                console.error('Failed to fetch trainer category pricing:', e);
+                console.error('[Dev API] Failed to fetch trainer category pricing:', {
+                  error: e instanceof Error ? e.message : String(e),
+                  trainer_id: body.trainer_id
+                });
                 // Return empty data array as fallback when real API is unreachable
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify({
@@ -625,7 +644,9 @@ function devApiPlugin() {
             case "verification_documents_list":
               // Proxy to real API to get all pending documents for admin review
               try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
+                // Use Authorization header from request (set by withAuth() in api.ts)
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } :
+                                   body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
                 const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : {};
                 const docListResponse = await fetch('https://trainercoachconnect.com/api.php', {
                   method: 'POST',
@@ -636,11 +657,12 @@ function devApiPlugin() {
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
                 res.end(JSON.stringify(docListData));
               } catch (e) {
-                console.error('Failed to list verification documents, using empty response:', e);
+                console.error('Failed to list verification documents:', e);
+                res.statusCode = 500;
                 res.end(JSON.stringify({
-                  status: "success",
-                  message: "Verification documents listed",
-                  data: []
+                  status: "error",
+                  message: "Failed to list verification documents",
+                  data: null
                 }));
               }
               return;
@@ -750,11 +772,26 @@ function devApiPlugin() {
             case "insert":
             case "update":
             case "delete":
-              res.end(JSON.stringify({
-                status: "success",
-                message: "Database operation completed",
-                data: []
-              }));
+              // Proxy database operations to real API
+              try {
+                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
+                const dbResponse = await fetch('https://trainercoachconnect.com/api.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...authHeader },
+                  body: JSON.stringify(body)
+                });
+                const dbData = await dbResponse.json();
+                res.setHeader("Content-Type", "application/json; charset=utf-8");
+                res.end(JSON.stringify(dbData));
+              } catch (e) {
+                console.error(`Failed to proxy ${action} request to real API:`, e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  status: "error",
+                  message: `Failed to perform ${action} operation`,
+                  data: null
+                }));
+              }
               return;
 
             // M-Pesa STK Push Initiation (mock for development)

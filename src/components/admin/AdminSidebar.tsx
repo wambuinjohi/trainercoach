@@ -5,6 +5,7 @@ import { APP_LOGO_URL, APP_LOGO_DARK_URL, APP_LOGO_ALT } from '@/lib/branding'
 import { ADMIN_SIDEBAR_ITEMS } from '@/lib/admin-config'
 import { useTheme } from 'next-themes'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 
 type MenuItem = { key: string; label: string; icon: React.ComponentType<{ className?: string }> }
 
@@ -52,6 +53,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
       {/* Mobile collapsible menu */}
       <div id="admin-mobile-menu" className={cn('md:hidden transition-all duration-300', open ? 'max-h-[calc(100vh-100px)] overflow-y-auto' : 'max-h-0 overflow-hidden')}>
         <div className="flex flex-col gap-1 p-3 border-b border-border bg-card">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 mb-2"
+            onClick={() => { setOpen(false); onSignOut && onSignOut() }}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+          <div className="my-1 border-b border-border"></div>
+
           {ADMIN_SIDEBAR_ITEMS.map(item => {
             const active = currentPage === item.key
             const Icon = item.icon
@@ -80,14 +92,25 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 p-4 gap-3 bg-card border-r border-border">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white shadow-card ring-1 ring-border/60 transition-colors duration-300 dark:bg-white">
-            <img src={logoSrc} alt={APP_LOGO_ALT} className="h-20 w-auto object-contain" loading="lazy" />
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <div className="flex items-center gap-4">
+            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white shadow-card ring-1 ring-border/60 transition-colors duration-300 dark:bg-white">
+              <img src={logoSrc} alt={APP_LOGO_ALT} className="h-20 w-auto object-contain" loading="lazy" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold leading-tight">Admin</div>
+              <div className="text-sm text-muted-foreground">Dashboard</div>
+            </div>
           </div>
-          <div>
-            <div className="text-lg font-semibold leading-tight">Admin</div>
-            <div className="text-sm text-muted-foreground">Dashboard</div>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onSignOut && onSignOut()}
+            title="Logout"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
         <nav className="flex-1 flex flex-col gap-1">
           {ADMIN_SIDEBAR_ITEMS.map(item => {
