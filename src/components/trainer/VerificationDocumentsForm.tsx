@@ -358,13 +358,13 @@ export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps>
         onComplete?.()
       } else {
         // If backend says not all submitted, don't proceed yet - user must upload required docs
+        const description = missingBackendLabels.length > 0
+          ? `Please upload the following missing document(s): ${missingBackendLabels.join(', ')}`
+          : 'Please upload all required documents before proceeding.'
+
         toast({
           title: 'Documents Required',
-          description: missingBackendLabels.length > 0
-            ? `Please upload ${missingBackendLabels.join(', ')} before proceeding.`
-            : pendingRequiredDocs.length > 0
-              ? `Please upload ${pendingRequiredDocs.map(d => d.label).join(', ')} before proceeding.`
-              : 'Please upload all required documents before proceeding.',
+          description,
           variant: 'destructive'
         })
       }
