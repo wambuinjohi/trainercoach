@@ -5729,6 +5729,73 @@ switch ($action) {
         $booking = $result->fetch_assoc();
         $stmt->close();
 
+        $effectivePaymentStatus = $booking['payment_status'] ?? 'pending';
+        $latestPayment = null;
+        $latestSession = null;
+
+        $paymentStmt = $conn->prepare("\n            SELECT status, transaction_reference, created_at, updated_at\n            FROM payments\n            WHERE booking_id = ?\n            ORDER BY CASE WHEN status = 'completed' THEN 0 ELSE 1 END, created_at DESC\n            LIMIT 1\n        ");
+        if ($paymentStmt) {
+            $paymentStmt->bind_param("s", $bookingId);
+            $paymentStmt->execute();
+            $paymentResult = $paymentStmt->get_result();
+            if ($paymentResult && $paymentResult->num_rows > 0) {
+                $latestPayment = $paymentResult->fetch_assoc();
+            }
+            $paymentStmt->close();
+        }
+
+        $sessionStmt = $conn->prepare("\n            SELECT status, result_code, result_description, retry_count, next_retry_at, should_retry, checkout_request_id, created_at, updated_at\n            FROM stk_push_sessions\n            WHERE booking_id = ?\n            ORDER BY created_at DESC\n            LIMIT 1\n        ");
+        if ($sessionStmt) {
+            $sessionStmt->bind_param("s", $bookingId);
+            $sessionStmt->execute();
+            $sessionResult = $sessionStmt->get_result();
+            if ($sessionResult && $sessionResult->num_rows > 0) {
+                $latestSession = $sessionResult->fetch_assoc();
+            }
+            $sessionStmt->close();
+        }
+
+        if ($latestPayment && ($latestPayment['status'] ?? null) === 'completed') {
+            $effectivePaymentStatus = 'completed';
+        } elseif ($latestSession) {
+            $sessionStatus = $latestSession['status'] ?? null;
+
+            if ($sessionStatus === 'success') {
+                $effectivePaymentStatus = 'completed';
+            } elseif ($sessionStatus === 'initiated' || $sessionStatus === 'pending') {
+                $effectivePaymentStatus = 'processing';
+            } elseif (($sessionStatus === 'failed' || $sessionStatus === 'timeout') && $effectivePaymentStatus !== 'completed') {
+                $effectivePaymentStatus = 'failed';
+            }
+        } elseif ($latestPayment && ($latestPayment['status'] ?? null) === 'failed' && $effectivePaymentStatus !== 'completed') {
+            $effectivePaymentStatus = 'failed';
+        }
+
+        if (($booking['payment_status'] ?? null) !== $effectivePaymentStatus) {
+            $updateStmt = $conn->prepare("UPDATE bookings SET payment_status = ?, updated_at = NOW() WHERE id = ?");
+            if ($updateStmt) {
+                $updateStmt->bind_param("ss", $effectivePaymentStatus, $bookingId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            }
+            $booking['payment_status'] = $effectivePaymentStatus;
+        }
+
+        if ($latestSession) {
+            $booking['retry_count'] = isset($latestSession['retry_count']) ? intval($latestSession['retry_count']) : null;
+            $booking['next_retry_at'] = $latestSession['next_retry_at'] ?? null;
+            $booking['should_retry'] = isset($latestSession['should_retry']) ? (bool)$latestSession['should_retry'] : null;
+            $booking['checkout_request_id'] = $latestSession['checkout_request_id'] ?? null;
+            $booking['stk_session_status'] = $latestSession['status'] ?? null;
+            $booking['payment_result_code'] = $latestSession['result_code'] ?? null;
+            $booking['payment_result_description'] = $latestSession['result_description'] ?? null;
+        }
+
+        if ($latestPayment) {
+            $booking['payment_record_status'] = $latestPayment['status'] ?? null;
+            $booking['payment_transaction_reference'] = $latestPayment['transaction_reference'] ?? null;
+        }
+
         respond("success", "Booking retrieved successfully.", $booking);
         break;
 
