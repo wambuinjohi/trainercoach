@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Star, MapPin, Search, Sliders, X,
   Dumbbell, Zap, Activity, Heart, Brain, Flame,
@@ -100,7 +100,8 @@ const TrainerCard: React.FC<{
   t: TrainerWithCategories & { image_url?: string }
   categories: any[]
   isNearest?: boolean
-}> = ({ t, categories, isNearest }) => {
+  onBookNow?: () => void
+}> = ({ t, categories, isNearest, onBookNow }) => {
   const [imageLoaded, setImageLoaded] = React.useState(false)
   const [imageError, setImageError] = React.useState(false)
 
@@ -234,7 +235,7 @@ const TrainerCard: React.FC<{
         {/* Right: Action Button - Mobile stacked, Desktop flex */}
         <div className="flex md:flex-col items-center md:items-end justify-between md:justify-between gap-3 mt-4 md:mt-0">
           <div className="text-xs text-muted-foreground hidden md:block">{isNearest && 'Nearest'}</div>
-          <Button className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full md:w-auto flex-1 md:flex-none">
+          <Button onClick={onBookNow} className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full md:w-auto flex-1 md:flex-none">
             Book Now
           </Button>
         </div>
@@ -245,6 +246,7 @@ const TrainerCard: React.FC<{
 
 // Main Explore page
 const Explore: React.FC = () => {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { location: geoLocation, requestLocation: requestGeoLocation, loading: geoLoading } = useGeolocation()
   const [trainers, setTrainers] = useState<TrainerWithCategories[]>([])
@@ -430,6 +432,11 @@ const Explore: React.FC = () => {
   const clearFilters = () => {
     setFilters({})
     setSearchQuery('')
+  }
+
+  const handleBookNow = () => {
+    // Navigate to signin - user must authenticate to book
+    navigate('/signin')
   }
 
   const hasActiveFilters = Object.values(filters).some(v => v !== undefined && v !== null && v !== '') || searchQuery
@@ -710,6 +717,7 @@ const Explore: React.FC = () => {
                     t={t}
                     categories={categories}
                     isNearest={idx === 0 && userLocation && filteredTrainers.length > 0}
+                    onBookNow={handleBookNow}
                   />
                 ))}
               </div>
