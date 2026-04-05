@@ -1251,7 +1251,7 @@ export const ClientDashboard: React.FC = () => {
       </div>
 
       {selectedTrainer && <TrainerDetails trainer={selectedTrainer} onClose={closeTrainer} selectedCategory={selectedCategory} />}
-      {selectedTrainerForBooking && <BookingModal trainer={selectedTrainerForBooking} onClose={() => setSelectedTrainerForBooking(null)} />}
+      {selectedTrainerForBooking && <BookingModal trainer={selectedTrainerForBooking} onClose={() => setSelectedTrainerForBooking(null)} selectedCategory={selectedCategory} />}
       {showEditProfile && <ClientProfileEditor onClose={() => setShowEditProfile(false)} />}
       {showPaymentMethods && <PaymentMethods onClose={() => setShowPaymentMethods(false)} />}
       {showNotifications && <NotificationsCenter onClose={() => setShowNotifications(false)} />}

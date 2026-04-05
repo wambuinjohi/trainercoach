@@ -47,7 +47,7 @@ export default function BookingConfirmation() {
   const [error, setError] = useState<string | null>(null)
   const [showChat, setShowChat] = useState(false)
   const [trainerConfirmationStatus, setTrainerConfirmationStatus] = useState<'pending' | 'confirmed' | 'declined' | null>(null)
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(locationState?.paymentStatus ?? null)
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null)
   const [alternativeTrainers, setAlternativeTrainers] = useState<any[]>([])
   const [loadingAlternatives, setLoadingAlternatives] = useState(false)
   const [pollingActive, setPollingActive] = useState(true)
@@ -168,10 +168,6 @@ export default function BookingConfirmation() {
         return
       }
 
-      if (locationState?.paymentStatus) {
-        setPaymentStatus(locationState.paymentStatus)
-      }
-
       try {
         setLoading(true)
         // Fetch booking details from API using dedicated booking_get action
@@ -184,12 +180,14 @@ export default function BookingConfirmation() {
         if (response && response.id) {
           setBookingData(response)
 
-          // Track payment status
+          // Always trust the backend status over locationState
+          // locationState might have stale payment_status from form submission
           const paymentStat = response.payment_status ?? locationState?.paymentStatus ?? 'pending'
           setPaymentStatus(paymentStat as any)
 
-          // Stop polling if payment is completed or failed
-          if (paymentStat === 'completed' || paymentStat === 'failed') {
+          // Only stop polling if payment is actually completed (success case)
+          // For failed status, keep polling in case it's a transient state
+          if (paymentStat === 'completed') {
             setPaymentPollingActive(false)
           }
 
@@ -281,7 +279,7 @@ export default function BookingConfirmation() {
 
   // Payment status polling effect
   useEffect(() => {
-    if (!bookingId || !paymentPollingActive || paymentStatus === 'completed' || paymentStatus === 'failed') return
+    if (!bookingId || !paymentPollingActive || paymentStatus === 'completed') return
 
     const paymentPollInterval = setInterval(async () => {
       try {
@@ -303,13 +301,6 @@ export default function BookingConfirmation() {
               toast({
                 title: 'Payment Successful!',
                 description: 'Your payment has been processed successfully.',
-              })
-            } else if (newPaymentStatus === 'failed') {
-              setPaymentPollingActive(false)
-              toast({
-                title: 'Payment Failed',
-                description: 'Your payment could not be processed. Please try again.',
-                variant: 'destructive'
               })
             }
           }
