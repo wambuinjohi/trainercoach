@@ -5762,7 +5762,7 @@ switch ($action) {
 
             if ($sessionStatus === 'success') {
                 $effectivePaymentStatus = 'completed';
-            } elseif ($sessionStatus === 'initiated' || $sessionStatus === 'pending') {
+            } elseif (($sessionStatus === 'initiated' || $sessionStatus === 'pending') && $effectivePaymentStatus !== 'completed') {
                 $effectivePaymentStatus = 'processing';
             } elseif (($sessionStatus === 'failed' || $sessionStatus === 'timeout') && $effectivePaymentStatus !== 'completed') {
                 $effectivePaymentStatus = 'failed';
