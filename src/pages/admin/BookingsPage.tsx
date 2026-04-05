@@ -72,10 +72,22 @@ export default function BookingsPage() {
     reason: '',
   })
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [refreshLoading, setRefreshLoading] = useState(false)
 
   useEffect(() => {
     loadBookingsPage(1)
   }, [])
+
+  // Auto-refresh payment statuses every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (bookings.length > 0) {
+        loadRelatedStatuses(bookings)
+      }
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [bookings])
 
   useEffect(() => {
     if (page > 1) {
@@ -309,6 +321,19 @@ export default function BookingsPage() {
     }).format(num)
   }
 
+  const handleRefreshPaymentStatus = async () => {
+    try {
+      setRefreshLoading(true)
+      await loadRelatedStatuses(bookings)
+      toast({ title: 'Success', description: 'Payment statuses refreshed' })
+    } catch (error) {
+      console.error('Failed to refresh payment statuses:', error)
+      toast({ title: 'Error', description: 'Failed to refresh payment statuses', variant: 'destructive' })
+    } finally {
+      setRefreshLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6">
@@ -321,7 +346,17 @@ export default function BookingsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Bookings Management</h1>
-        <Badge variant="secondary">{totalCount}</Badge>
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRefreshPaymentStatus}
+            disabled={refreshLoading}
+          >
+            {refreshLoading ? 'Refreshing...' : 'Refresh Payment Status'}
+          </Button>
+          <Badge variant="secondary">{totalCount}</Badge>
+        </div>
       </div>
 
       <Card className="bg-card border-border">

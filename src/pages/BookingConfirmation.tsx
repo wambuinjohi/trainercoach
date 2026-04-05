@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Chat } from '@/components/client/Chat'
 import * as apiService from '@/lib/api-service'
 import { toast } from '@/hooks/use-toast'
-import { retryPayment } from '@/lib/payment-service'
+import { retryPayment, completePayment } from '@/lib/payment-service'
 
 interface CategoryBooking {
   categoryId: string
@@ -298,6 +298,31 @@ export default function BookingConfirmation() {
 
             if (newPaymentStatus === 'completed') {
               setPaymentPollingActive(false)
+
+              // FRONTEND FALLBACK: If payment shows as completed in booking but may not be recorded in payments table,
+              // ensure it's recorded by calling completePayment() as a fallback.
+              // This handles the case where the backend M-Pesa callback didn't arrive or failed.
+              if (user?.id && response.trainer_id) {
+                const fallbackPaymentRecord = {
+                  booking_id: bookingId,
+                  client_id: user.id,
+                  trainer_id: response.trainer_id,
+                  amount: response.total_amount || displayData?.totalAmount || 0,
+                  base_service_amount: response.base_service_amount || 0,
+                  distance_fee: response.distance_fee || 0,
+                  transport_fee: response.transport_fee || 0,
+                  platform_fee: response.platform_fee_amount || response.platform_fee || 0,
+                  vat_amount: response.vat_amount || 0,
+                  trainer_net_amount: response.trainer_net_amount || 0,
+                  status: 'completed' as const,
+                  method: 'mpesa' as const,
+                  created_at: new Date().toISOString(),
+                }
+
+                console.log('[BookingConfirmation] Payment polling detected completion, ensuring payment is recorded via fallback')
+                await completePayment(fallbackPaymentRecord, bookingId)
+              }
+
               toast({
                 title: 'Payment Successful!',
                 description: 'Your payment has been processed successfully.',
@@ -311,7 +336,7 @@ export default function BookingConfirmation() {
     }, 3000) // Poll every 3 seconds for faster payment status updates
 
     return () => clearInterval(paymentPollInterval)
-  }, [bookingId, paymentPollingActive, paymentStatus])
+  }, [bookingId, paymentPollingActive, paymentStatus, user?.id, displayData?.totalAmount])
 
   const bookingSessions = (() => {
     const sessionsValue = displayData?.sessions
