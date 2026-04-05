@@ -48,6 +48,7 @@ export interface PaymentRecord {
   trainer_net_amount?: number
   status: 'pending' | 'completed' | 'failed'
   method: 'mpesa' | 'wallet' | 'bank_transfer' | 'mock'
+  transaction_reference?: string | null
   created_at: string
 }
 
@@ -275,6 +276,7 @@ export async function completePayment(
       amount: paymentRecord.amount,
       status: paymentRecord.status,
       method: paymentRecord.method,
+      transactionReference: paymentRecord.transaction_reference || 'MISSING - THIS NEEDS M-PESA RECEIPT',
     })
 
     // DUPLICATE PROTECTION: Check if payment already exists for this booking

@@ -303,6 +303,12 @@ export default function BookingConfirmation() {
               // ensure it's recorded by calling completePayment() as a fallback.
               // This handles the case where the backend M-Pesa callback didn't arrive or failed.
               if (user?.id && response.trainer_id) {
+                // Get transaction_reference from the STK session or payment record
+                let transactionReference = null
+                if (response.payment_transaction_reference) {
+                  transactionReference = response.payment_transaction_reference
+                }
+
                 const fallbackPaymentRecord = {
                   booking_id: bookingId,
                   client_id: user.id,
@@ -316,10 +322,14 @@ export default function BookingConfirmation() {
                   trainer_net_amount: response.trainer_net_amount || 0,
                   status: 'completed' as const,
                   method: 'mpesa' as const,
+                  transaction_reference: transactionReference || undefined,
                   created_at: new Date().toISOString(),
                 }
 
-                console.log('[BookingConfirmation] Payment polling detected completion, ensuring payment is recorded via fallback')
+                console.log('[BookingConfirmation] Payment polling detected completion, ensuring payment is recorded via fallback', {
+                  bookingId,
+                  transactionReference,
+                })
                 await completePayment(fallbackPaymentRecord, bookingId)
               }
 
