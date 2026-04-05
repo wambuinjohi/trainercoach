@@ -57,6 +57,7 @@ export const TrainerDashboard: React.FC = () => {
 
 
   const [bookings, setBookings] = useState<any[]>([])
+  const [clientDetails, setClientDetails] = useState<Record<string, any>>({})
   const [chatBooking, setChatBooking] = useState<any | null>(null)
   const [showPayouts, setShowPayouts] = useState(false)
   const [showTopUp, setShowTopUp] = useState(false)
@@ -298,6 +299,23 @@ export const TrainerDashboard: React.FC = () => {
       if (bookingsData?.data && Array.isArray(bookingsData.data)) {
         setBookings(bookingsData.data)
 
+        // Fetch client details for each booking
+        const clientDetailsMap: Record<string, any> = {}
+        for (const booking of bookingsData.data) {
+          if (booking.client_id && !clientDetailsMap[booking.client_id]) {
+            try {
+              const profile = await apiService.getClientProfile(booking.client_id)
+              const profileList = Array.isArray(profile) ? profile : (profile?.data && Array.isArray(profile.data) ? profile.data : [])
+              if (profileList.length > 0) {
+                clientDetailsMap[booking.client_id] = profileList[0]
+              }
+            } catch (err) {
+              console.warn(`Failed to load client profile for ${booking.client_id}`, err)
+            }
+          }
+        }
+        setClientDetails(clientDetailsMap)
+
         // Calculate month stats
         const now = new Date()
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -308,10 +326,12 @@ export const TrainerDashboard: React.FC = () => {
         setMonthRevenue(monthRevenue)
       } else {
         setBookings([])
+        setClientDetails({})
       }
     } catch (err) {
       console.warn('Failed to load trainer bookings', err)
       setBookings([])
+      setClientDetails({})
     }
   }
 
@@ -754,14 +774,31 @@ export const TrainerDashboard: React.FC = () => {
         return []
       })()
       const primarySession = bookingSessions[0]
+      const clientInfo = clientDetails[b.client_id] || {}
+      const clientName = clientInfo.full_name || b.client_name || 'Client'
+      const clientRating = clientInfo.average_rating || clientInfo.rating || 0
+      const clientLocation = clientInfo.area_of_residence || b.client_location_label || ''
+
       return (
       <Card key={b.id || b.user_id} className={`bg-card border-border ${isArchived ? 'opacity-60' : ''}`}>
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
-            <div>
+            <div className="flex-1">
               <div className={`font-semibold ${isArchived ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                {b.client_name || 'Client'}
+                {clientName}
               </div>
+              {clientRating > 0 && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <span className="text-sm text-muted-foreground">{clientRating.toFixed(1)}</span>
+                </div>
+              )}
+              {clientLocation && (
+                <div className="flex items-center gap-1 mt-1">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{clientLocation}</span>
+                </div>
+              )}
               {isArchived && (
                 <Badge variant="outline" className="mt-2 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-700 text-xs">
                   Archived
@@ -798,6 +835,17 @@ export const TrainerDashboard: React.FC = () => {
               {bookingSessions.length === 1
                 ? `Single session on ${primarySession?.date || b.session_date}`
                 : `${bookingSessions.length} sessions total • first on ${primarySession?.date || b.session_date}`}
+            </div>
+          )}
+          {b.duration_hours && (
+            <div className="text-xs text-muted-foreground mt-1">
+              <Clock className="h-3 w-3 inline mr-1" />
+              {b.duration_hours} hour{b.duration_hours > 1 ? 's' : ''} per session
+            </div>
+          )}
+          {b.notes && (
+            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded border-l-2 border-blue-500">
+              <strong>Notes:</strong> {b.notes}
             </div>
           )}
           {!isArchived && (

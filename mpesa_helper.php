@@ -1114,6 +1114,25 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
                              'time' => $bookingTime ?? 'Soon'
                          ]);
                      }
+
+                     // Send payment confirmation SMS to trainer
+                     $trainerPhoneStmt = $conn->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+                     if ($trainerPhoneStmt) {
+                         $trainerPhoneStmt->bind_param("s", $trainerId);
+                         $trainerPhoneStmt->execute();
+                         $trainerPhoneResult = $trainerPhoneStmt->get_result();
+                         if ($trainerPhoneResult && $trainerPhoneRow = $trainerPhoneResult->fetch_assoc()) {
+                             if (!empty($trainerPhoneRow['phone'])) {
+                                 $smsCredentials = getSmsCredentials();
+                                 if ($smsCredentials && !empty($smsCredentials['enabled'])) {
+                                     $paymentMessage = "Payment confirmed for booking #" . $bookingId . ". Amount: Ksh " . number_format($amount, 2) . ". Please review the booking in your dashboard.";
+                                     $smsResult = sendSmsViaOnfonmedia($trainerPhoneRow['phone'], $paymentMessage, $smsCredentials);
+                                     logSmsEvent($trainerId, $trainerPhoneRow['phone'], $paymentMessage, null, 'payment_confirmation', $bookingId, $smsResult['success'] ? 'sent' : 'failed', $smsResult['provider_response'] ?? null);
+                                 }
+                             }
+                         }
+                         $trainerPhoneStmt->close();
+                     }
                  }
              } catch (Exception $e) {
                  error_log("[MPESA SMS ERROR] Failed to send booking confirmation SMS: " . $e->getMessage());
