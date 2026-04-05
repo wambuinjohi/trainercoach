@@ -442,6 +442,13 @@ export async function getTrainerProfile(trainerId: string) {
   })
 }
 
+export async function getClientProfile(clientId: string) {
+  return apiRequest('select', {
+    table: 'user_profiles',
+    where: `user_id = '${clientId}'`,
+  })
+}
+
 // ============================================================================
 // AVAILABILITY SERVICES
 // ============================================================================
