@@ -274,7 +274,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             setSelectedCategoryIds([String(selectedCat.id)])
           }
         } else {
-          setSelectedCategoryIds(trainer.categoryPricing.map((cat: any) => String(cat.id)))
+          // Don't auto-select categories - let user choose
+          setSelectedCategoryIds([])
         }
         return
       }
@@ -292,8 +293,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               setSelectedCategoryIds([String(selectedCat.id)])
             }
           } else {
-            // Auto-select all categories by default
-            setSelectedCategoryIds(pricingList.map((cat: any) => String(cat.id)))
+            // Don't auto-select categories - let user choose
+            setSelectedCategoryIds([])
           }
         } else {
           // If no pricing data returned, try to load trainer categories as fallback
@@ -314,7 +315,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
                   setSelectedCategoryIds([String(selectedCat.id)])
                 }
               } else {
-                setSelectedCategoryIds(categoriesWithDefaults.map((cat: any) => String(cat.id)))
+                // Don't auto-select categories - let user choose
+                setSelectedCategoryIds([])
               }
             }
           } catch (fallbackErr) {

@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { BookingForm } from './BookingForm'
 import { apiRequest, withAuth } from '@/lib/api'
 
-export const BookingModal: React.FC<{ trainer: any, onClose: () => void }> = ({ trainer, onClose }) => {
+export const BookingModal: React.FC<{ trainer: any, onClose: () => void, selectedCategory?: string | null }> = ({ trainer, onClose, selectedCategory }) => {
   const [profile, setProfile] = useState<any>(null)
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export const BookingModal: React.FC<{ trainer: any, onClose: () => void }> = ({ 
             <BookingForm
               trainer={trainer}
               trainerProfile={profile}
+              selectedCategory={selectedCategory}
               onDone={() => {
                 onClose()
               }}
