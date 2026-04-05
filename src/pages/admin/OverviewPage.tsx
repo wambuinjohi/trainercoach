@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Users, UserCheck, AlertCircle, Calendar, DollarSign, TrendingUp, Megaphone, ArrowRight } from 'lucide-react'
@@ -92,110 +92,120 @@ export default function OverviewPage() {
     return 'neutral'
   }
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
+  const loadData = useCallback(async (showLoading = false) => {
+    try {
+      if (showLoading) {
         setLoading(true)
+      }
 
-        // Load announcement broadcast history from localStorage
-        const stored = localStorage.getItem('announcement_broadcast_history')
-        if (stored) {
-          try {
-            const history = JSON.parse(stored)
-            // Get the 2 most recent broadcasts
-            setRecentBroadcasts(history.slice(0, 2))
-          } catch (err) {
-            console.warn('Failed to parse broadcast history', err)
-          }
-        }
-
-        const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.all([
-          getDashboardOverview(),
-          getTrainerMetrics(),
-          getAnalyticsTimeSeries(),
-          getActivityFeed(4),
-          apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
-        ])
-
-        let documentsData = []
+      // Load announcement broadcast history from localStorage
+      const stored = localStorage.getItem('announcement_broadcast_history')
+      if (stored) {
         try {
-          documentsData = await apiService.listVerificationDocuments('pending')
-        } catch (docError) {
-          console.warn('Failed to load verification documents:', docError)
-          documentsData = []
+          const history = JSON.parse(stored)
+          // Get the 2 most recent broadcasts
+          setRecentBroadcasts(history.slice(0, 2))
+        } catch (err) {
+          console.warn('Failed to parse broadcast history', err)
         }
+      }
 
-        const documents = Array.isArray(documentsData) ? documentsData : (documentsData?.data && Array.isArray(documentsData.data) ? documentsData.data : [])
-        const activeDisputes = issuesData?.data?.filter((issue: any) => issue.status !== 'resolved')?.length || 0
-        const totalClients = dashboard.users?.totalClients || 0
-        const totalTrainers = trainerMetrics?.activeTrainers ?? dashboard.users?.totalTrainers ?? 0
-        const totalAdmins = dashboard.users?.totalAdmins || 0
-        const totalUsers = totalClients + (dashboard.users?.totalTrainers || 0) + totalAdmins
-        const totalBookings = dashboard.bookings?.total || 0
-        const totalRevenue = dashboard.revenue?.totalRevenue || 0
-        const pendingApprovals = dashboard.approvals?.totalPending || 0
-        const pendingDocuments = documents.filter((document: any) => document.status === 'pending').length
+      const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.all([
+        getDashboardOverview(),
+        getTrainerMetrics(),
+        getAnalyticsTimeSeries(),
+        getActivityFeed(4),
+        apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
+      ])
 
-        setStats({
-          totalUsers,
-          totalTrainers,
-          totalClients,
-          totalAdmins,
-          totalBookings,
-          totalRevenue,
-          pendingApprovals,
-          activeDisputes,
-          pendingDocuments,
-        })
+      let documentsData = []
+      try {
+        documentsData = await apiService.listVerificationDocuments('pending')
+      } catch (docError) {
+        console.warn('Failed to load verification documents:', docError)
+        documentsData = []
+      }
 
-        setAnalyticsPoints(analyticsTimeline)
+      const documents = Array.isArray(documentsData) ? documentsData : (documentsData?.data && Array.isArray(documentsData.data) ? documentsData.data : [])
+      const activeDisputes = issuesData?.data?.filter((issue: any) => issue.status !== 'resolved')?.length || 0
+      const totalClients = dashboard.users?.totalClients || 0
+      const totalTrainers = trainerMetrics?.activeTrainers ?? dashboard.users?.totalTrainers ?? 0
+      const totalAdmins = dashboard.users?.totalAdmins || 0
+      const totalUsers = totalClients + (dashboard.users?.totalTrainers || 0) + totalAdmins
+      const totalBookings = dashboard.bookings?.total || 0
+      const totalRevenue = dashboard.revenue?.totalRevenue || 0
+      const pendingApprovals = dashboard.approvals?.totalPending || 0
+      const pendingDocuments = documents.filter((document: any) => document.status === 'pending').length
 
-        const fallbackActivities: ActivityItem[] = [
-          {
-            id: 'fallback-bookings',
-            timestamp: new Date().toISOString(),
-            message: `${totalBookings} total bookings recorded`,
-            tone: 'positive',
-          },
-          {
-            id: 'fallback-documents',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            message: `${pendingDocuments} verification documents pending review`,
-            tone: 'alert',
-          },
-          {
-            id: 'fallback-approvals',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            message: `${pendingApprovals} trainer applications pending approval`,
-            tone: 'alert',
-          },
-          {
-            id: 'fallback-disputes',
-            timestamp: new Date(Date.now() - 7200000).toISOString(),
-            message: `${activeDisputes} active disputes`,
-            tone: 'alert',
-          },
-        ]
+      setStats({
+        totalUsers,
+        totalTrainers,
+        totalClients,
+        totalAdmins,
+        totalBookings,
+        totalRevenue,
+        pendingApprovals,
+        activeDisputes,
+        pendingDocuments,
+      })
 
-        setActivityFeed(
-          activityEvents && activityEvents.length > 0
-            ? activityEvents.map((event) => ({
-                id: event.id,
-                timestamp: event.timestamp,
-                message: formatActivityMessage(event),
-                tone: getActivityTone(event),
-              }))
-            : fallbackActivities
-        )
-      } catch (error) {
-        console.error('Failed to load overview data:', error)
-      } finally {
+      setAnalyticsPoints(analyticsTimeline)
+
+      const fallbackActivities: ActivityItem[] = [
+        {
+          id: 'fallback-bookings',
+          timestamp: new Date().toISOString(),
+          message: `${totalBookings} total bookings recorded`,
+          tone: 'positive',
+        },
+        {
+          id: 'fallback-documents',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          message: `${pendingDocuments} verification documents pending review`,
+          tone: 'alert',
+        },
+        {
+          id: 'fallback-approvals',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          message: `${pendingApprovals} trainer applications pending approval`,
+          tone: 'alert',
+        },
+        {
+          id: 'fallback-disputes',
+          timestamp: new Date(Date.now() - 7200000).toISOString(),
+          message: `${activeDisputes} active disputes`,
+          tone: 'alert',
+        },
+      ]
+
+      setActivityFeed(
+        activityEvents && activityEvents.length > 0
+          ? activityEvents.map((event) => ({
+              id: event.id,
+              timestamp: event.timestamp,
+              message: formatActivityMessage(event),
+              tone: getActivityTone(event),
+            }))
+          : fallbackActivities
+      )
+    } catch (error) {
+      console.error('Failed to load overview data:', error)
+    } finally {
+      if (showLoading) {
         setLoading(false)
       }
     }
-
-    loadData()
   }, [])
+
+  useEffect(() => {
+    loadData(true)
+
+    const refreshInterval = setInterval(() => {
+      loadData(false)
+    }, 30000)
+
+    return () => clearInterval(refreshInterval)
+  }, [loadData])
 
   const revenueSeries = useMemo(() => {
     if (!analyticsPoints.length) return []
