@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Header from '@/components/Header'
@@ -42,6 +42,7 @@ interface Trainer {
 }
 
 const Home: React.FC = () => {
+  const navigate = useNavigate()
   const [categories, setCategories] = useState<Category[]>([])
   const [trainers, setTrainers] = useState<Trainer[]>([])
   const [trendingTrainers, setTrendingTrainers] = useState<Trainer[]>([])
@@ -49,6 +50,11 @@ const Home: React.FC = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [trainersLoading, setTrainersLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+
+  const handleBookNow = (trainer: Trainer) => {
+    // Navigate to signin - user must authenticate to book
+    navigate('/signin')
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -305,6 +311,7 @@ const Home: React.FC = () => {
         trainers={trendingTrainers}
         categories={categories}
         isLoading={trainersLoading}
+        onBookNow={handleBookNow}
       />
 
       {/* Features Section */}
