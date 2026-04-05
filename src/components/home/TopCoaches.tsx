@@ -8,9 +8,10 @@ interface TopCoachesProps {
   trainers: any[]
   categories: any[]
   isLoading?: boolean
+  onBookNow?: (trainer: any) => void
 }
 
-export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, isLoading = false }) => {
+export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, isLoading = false, onBookNow }) => {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
 
   const handleImageError = (trainerId: string) => {

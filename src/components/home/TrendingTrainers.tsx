@@ -9,9 +9,10 @@ interface TrendingTrainersProps {
   trainers: any[]
   categories: any[]
   isLoading?: boolean
+  onBookNow?: (trainer: any) => void
 }
 
-export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, categories, isLoading = false }) => {
+export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, categories, isLoading = false, onBookNow }) => {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
 
   const handleImageError = (trainerId: string) => {
@@ -154,7 +155,10 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                     <div className="flex-1" />
 
                     {/* Book Now Button */}
-                    <Button className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white">
+                    <Button
+                      onClick={() => onBookNow?.(trainer)}
+                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white"
+                    >
                       Book Now
                     </Button>
                   </CardContent>
