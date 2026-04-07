@@ -89,7 +89,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
               >
                 <div className="flex flex-col h-full">
                   {/* Image or Fallback */}
-                  <div className="relative w-full h-64 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full h-40 sm:h-64 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
                         <span className="text-white text-5xl font-semibold">{getInitials(trainer.name)}</span>
@@ -113,32 +113,32 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                   </div>
 
                   {/* Content */}
-                  <CardContent className="flex-1 p-5 flex flex-col">
+                  <CardContent className="flex-1 p-3 sm:p-5 flex flex-col">
                     {/* Category Badge */}
                     {categoryNames.length > 0 && (
-                      <Badge className="mb-3 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block w-fit">
+                      <Badge className="mb-1.5 sm:mb-3 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block w-fit">
                         {categoryNames[0]}
                       </Badge>
                     )}
 
                     {/* Trainer Name */}
-                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-0.5 line-clamp-2">
                       {trainer.name}
                     </h3>
 
                     {/* Specialty */}
-                    <p className="text-sm text-muted-foreground mb-3">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
                       {trainer.bio ? trainer.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
                     </p>
 
                     {/* Rating */}
                     {trainer.rating > 0 && (
-                      <div className="flex items-center gap-1 mb-4">
+                      <div className="flex items-center gap-1 mb-2 sm:mb-4">
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-4 w-4 ${
+                              className={`h-3 w-3 sm:h-4 sm:w-4 ${
                                 i < Math.round(trainer.rating)
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'fill-slate-300 text-slate-300'
@@ -146,7 +146,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                             />
                           ))}
                         </div>
-                        <span className="text-sm font-medium ml-1">{trainer.rating.toFixed(1)}</span>
+                        <span className="text-xs sm:text-sm font-medium ml-1">{trainer.rating.toFixed(1)}</span>
                         <span className="text-xs text-muted-foreground">({trainer.total_reviews || 0})</span>
                       </div>
                     )}

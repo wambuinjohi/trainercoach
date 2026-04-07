@@ -123,10 +123,10 @@ const TrainerCard: React.FC<{
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 border-0 bg-white dark:bg-slate-800">
-      <div className="flex flex-col md:flex-row gap-4 p-4 md:p-5 relative">
+      <div className="flex flex-col md:flex-row gap-2 md:gap-4 p-3 md:p-5 relative">
         {/* Left: Profile Image - Circular */}
         <div className="flex-shrink-0">
-          <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center mx-auto md:mx-0 flex-shrink-0">
+          <div className="relative w-16 h-16 md:w-32 md:h-32 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center mx-auto md:mx-0 flex-shrink-0">
             {/* Trainer Image or Fallback Avatar */}
             {t.image_url && !imageError ? (
               <>
@@ -165,20 +165,20 @@ const TrainerCard: React.FC<{
           <div>
             {/* Specialty Badge */}
             {categoryNames.length > 0 && (
-              <Badge className="mb-2 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block">
+              <Badge className="mb-1 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block">
                 {categoryNames[0]}
               </Badge>
             )}
 
             {/* Trainer Name and Title */}
-            <h3 className="font-semibold text-base md:text-lg text-foreground mb-0.5">{t.name || 'Trainer'}</h3>
-            <p className="text-xs md:text-sm text-muted-foreground mb-2">
+            <h3 className="font-semibold text-sm md:text-lg text-foreground mb-0.5">{t.name || 'Trainer'}</h3>
+            <p className="text-xs text-muted-foreground mb-1.5">
               {t.bio ? t.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
             </p>
 
             {/* Rating */}
             {t.rating > 0 && (
-              <div className="flex items-center gap-1 mb-2">
+              <div className="flex items-center gap-1 mb-1.5">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -198,44 +198,44 @@ const TrainerCard: React.FC<{
           </div>
 
           {/* Middle Section: Experience, Availability, Location, Price */}
-          <div className="space-y-1.5 text-xs md:text-sm mt-3">
+          <div className="space-y-1 text-xs md:text-sm mt-1.5 md:mt-3">
             {/* Experience */}
             {t.experience_level && (
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
-                <span className="text-muted-foreground">{t.experience_level}</span>
+              <div className="flex items-center gap-1.5">
+                <Trophy className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+                <span className="text-muted-foreground text-xs md:text-sm">{t.experience_level}</span>
               </div>
             )}
 
             {/* Availability (placeholder - can be enhanced with real data) */}
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
-              <span className="text-muted-foreground line-clamp-1">Available: Mon, Wed, Fri · 08:00am - 4:00pm</span>
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+              <span className="text-muted-foreground line-clamp-1 text-xs md:text-sm">Available: Mon, Wed, Fri · 08:00am - 4:00pm</span>
             </div>
 
             {/* Location */}
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
-              <span className="text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0 text-slate-600 dark:text-slate-400" />
+              <span className="text-muted-foreground text-xs md:text-sm">
                 {t.location_label || 'Unknown'}
                 {t.distance !== '—' && (
-                  <span className="ml-2 font-semibold text-foreground">{t.distance}</span>
+                  <span className="ml-1 md:ml-2 font-semibold text-foreground">{t.distance}</span>
                 )}
               </span>
             </div>
 
             {/* Price */}
-            <div className="flex items-center gap-2">
-              <span className="text-base md:text-lg font-semibold text-foreground">Ksh {t.hourlyRate ?? '—'}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm md:text-lg font-semibold text-foreground">Ksh {t.hourlyRate ?? '—'}</span>
               <span className="text-xs text-muted-foreground">per hour</span>
             </div>
           </div>
         </div>
 
         {/* Right: Action Button - Mobile stacked, Desktop flex */}
-        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-between gap-3 mt-4 md:mt-0">
+        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-between gap-2 mt-1.5 md:mt-0">
           <div className="text-xs text-muted-foreground hidden md:block">{isNearest && 'Nearest'}</div>
-          <Button onClick={onBookNow} className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full md:w-auto flex-1 md:flex-none">
+          <Button onClick={onBookNow} className="bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full md:w-auto flex-1 md:flex-none text-sm md:text-base">
             Book Now
           </Button>
         </div>
