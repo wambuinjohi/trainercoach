@@ -837,10 +837,10 @@ export const ClientDashboard: React.FC = () => {
                 key={trainer.id}
                 className={`bg-card border-2 transition-all ${idx === 0 && userLocation ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-border'}`}
               >
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   {/* Header with name, badges */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-primary flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
                       {trainer.profile_image ? (
                         <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
                       ) : (
@@ -866,7 +866,7 @@ export const ClientDashboard: React.FC = () => {
 
                   {/* Service Categories */}
                   {trainerCategories.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
                       {displayCategories.map((category, catIdx) => (
                         <Badge key={catIdx} variant="outline" className="bg-muted/50">
                           {getCategoryIcon(category)} <span className="ml-1">{category.name}</span>
@@ -881,8 +881,8 @@ export const ClientDashboard: React.FC = () => {
                   )}
 
                   {/* Rating, Location, Distance */}
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                  <div className="space-y-0.5 text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         <span>{trainer.rating.toFixed(1)} ({trainer.reviews})</span>
@@ -898,8 +898,8 @@ export const ClientDashboard: React.FC = () => {
                   </div>
 
                   {/* Pricing and Availability Info */}
-                  <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-                    <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-1.5 pt-1.5 sm:pt-2 border-t border-border/50">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
                       {trainer.categoryPricing && trainer.categoryPricing.length > 0 ? (
                         trainer.categoryPricing.map((pricing: any, idx: number) => {
                           const categoryName = dbCategories.find((cat: any) => cat.id === pricing.category_id)?.name || `Category ${pricing.category_id}`
@@ -926,8 +926,8 @@ export const ClientDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center justify-stretch gap-2 pt-2 sm:justify-end">
-                    <Button size="sm" className="w-full bg-gradient-primary text-white sm:w-auto" onClick={() => setSelectedTrainerForBooking(trainer)}>
+                  <div className="flex items-center justify-stretch gap-1.5 pt-1.5 sm:pt-2 sm:justify-end">
+                    <Button size="sm" className="w-full bg-gradient-primary text-white sm:w-auto text-xs sm:text-sm" onClick={() => setSelectedTrainerForBooking(trainer)}>
                       Book Now
                     </Button>
                   </div>
