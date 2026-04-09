@@ -1083,7 +1083,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         )}
 
         {/* Group Training Section */}
-        {groupTrainingData && groupTrainingData.tiers && groupTrainingData.tiers.length > 0 && selectedCategoryIds.length > 1 && (
+        {groupTrainingData && groupTrainingData.tiers && groupTrainingData.tiers.length > 0 && (
           <div className="space-y-3 border border-border rounded-md p-3 bg-muted/5">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Book as group training</Label>
