@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- White background -->
+  <rect width="512" height="512" fill="white"/>
+  
+  <!-- Main text: TRAINER -->
+  <text x="256" y="290" font-size="160" font-weight="900" font-family="Arial, sans-serif" fill="#000000" text-anchor="middle" letter-spacing="-4">TRAINER</text>
+  
+  <!-- Green arrow accent for the A -->
+  <!-- This creates a visual mark in the letter A region -->
+  <g transform="translate(140, 200)">
+    <!-- Arrow stem -->
+    <line x1="0" y1="30" x2="0" y2="-20" stroke="#22c55e" stroke-width="18" stroke-linecap="round"/>
+    
+    <!-- Arrow head -->
+    <polygon points="0,-20 -15,5 15,5" fill="#22c55e"/>
+  </g>
+  
+  <!-- Tagline below -->
+  <text x="256" y="380" font-size="40" font-weight="600" font-family="Arial, sans-serif" fill="#22c55e" text-anchor="middle" letter-spacing="1">COACH</text>
+  <text x="256" y="425" font-size="40" font-weight="600" font-family="Arial, sans-serif" fill="#22c55e" text-anchor="middle" letter-spacing="1">CONNECT</text>
+</svg>

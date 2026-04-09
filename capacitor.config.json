@@ -1,0 +1,22 @@
+{
+  "appId": "co.skatryk.trainer",
+  "appName": "Skatryk Trainer",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false,
+    "allowNavigation": [
+      "trainercoachconnect.com",
+      "*.trainercoachconnect.com",
+      "*"
+    ]
+  },
+  "plugins": {
+    "Geolocation": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    }
+  }
+}

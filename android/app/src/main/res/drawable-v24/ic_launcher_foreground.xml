@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <group>
+        <!-- Purple gradient background -->
+        <path
+            android:fillType="evenOdd"
+            android:pathData="M0,0L108,0L108,108L0,108Z"
+            android:strokeColor="#00000000"
+            android:strokeWidth="1">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:endX="108"
+                    android:endY="108"
+                    android:startX="0"
+                    android:startY="0"
+                    android:type="linear">
+                    <item
+                        android:color="#667eea"
+                        android:offset="0.0" />
+                    <item
+                        android:color="#764ba2"
+                        android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- ST Text - Main branding -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="nonZero"
+            android:pathData="M25,35L25,50L45,50L45,53L25,53L25,68L50,68L50,71L21,71L21,32L50,32L50,35Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="nonZero"
+            android:pathData="M65,32L65,71L61,71L61,32Z" />
+    </group>
+</vector>

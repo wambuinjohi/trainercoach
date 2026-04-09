@@ -1,0 +1,39 @@
+# Fly.io Configuration for Trainer App
+# This configuration sets up the app for deployment on Fly.io
+
+app = "trainer-skatryk"
+primary_region = "ewr" # East Coast US region (change as needed)
+
+[build]
+  builder = "paketobuildpacks"
+  buildpacks = ["gcr.io/paketo-buildpacks/nodejs"]
+
+[env]
+  # Set the API URL to point to your PHP backend server
+  VITE_API_URL = "https://trainercoachconnect.com/api.php"
+  # NODE_ENV is automatically set to 'production' by Fly
+  # NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  processes = ["app"]
+
+[[services.ports]]
+  port = 80
+  handlers = ["http"]
+  force_https = true
+
+[[services.ports]]
+  port = 443
+  handlers = ["tls", "http"]
+
+[env.development]
+  # For local development, the app defaults to /api.php (relative path)
+  # which is handled by Vite dev plugins (see vite.config.ts)
+
+# Machines configuration
+[processes]
+  app = "npm run preview"

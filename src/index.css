@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Light theme (based on provided palette) */
+    --background: 0 0% 100%; /* #FFFFFF */
+    --foreground: 0 0% 13%; /* Deep Charcoal #212121 */
+
+    --card: 0 0% 98%; /* Cool Gray / card bg #F5F5F5 */
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Trainer Green - #00C853 -> ~145 100% 39% */
+    --primary: 145 100% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96%; /* Cool Gray #F5F5F5 */
+    --secondary-foreground: 0 0% 13%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+
+    /* Accent colors */
+    /* Switched from electric blue to a softer logo green for inner accents */
+    --accent: 145 60% 55%; /* muted logo green */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Use a subtle greenish border rather than blue */
+    --border: 145 20% 90%; /* very light green tint for borders on light theme */
+    --input: 145 10% 96%;
+    --ring: 145 80% 45%;
+
+    --radius: 1rem;
+
+    /* Custom trainer app colors */
+    --trainer-primary: 145 100% 39%; /* #00C853 */
+    --trainer-secondary: 210 100% 20%; /* Midnight blue CTA retained for contrast */
+    /* Make trainer accent a softer, desaturated green (reduced shade) */
+    --trainer-accent: 145 55% 60%; /* softer green for inner accents */
+    --trainer-dark: 0 0% 100%;
+    --trainer-card: 0 0% 98%;
+    --trainer-muted: 0 0% 96%;
+
+    /* Gradients - prefer primary green to inner blue */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--trainer-primary)), hsl(var(--trainer-accent)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--trainer-primary)), hsl(var(--trainer-accent)));
+    --gradient-card: linear-gradient(135deg, hsl(var(--trainer-card)), hsl(var(--trainer-muted)));
+
+    /* Shadows - use softer green glow */
+    --shadow-glow: 0 0 18px hsl(var(--trainer-accent) / 0.18);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.08);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 13%;
+    --sidebar-primary: 210 100% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 13%;
+    --sidebar-border: 210 10% 90%;
+    --sidebar-ring: 210 100% 20%;
+  }
+
+  .dark {
+    /* Dark theme (based on provided palette) */
+    --background: 0 0% 7%; /* Charcoal Black #121212 */
+    --foreground: 0 0% 88%; /* Soft White #E0E0E0 */
+
+    --card: 0 0% 17%; /* Slate Gray #2C2C2C approx 17% */
+    --card-foreground: 0 0% 88%;
+
+    --popover: 0 0% 17%;
+    --popover-foreground: 0 0% 88%;
+
+    --primary: 145 100% 39%; /* Trainer Green */
+    --primary-foreground: 0 0% 7%;
+
+    --secondary: 0 0% 17%;
+    --secondary-foreground: 0 0% 88%;
+
+    --muted: 0 0% 17%;
+    --muted-foreground: 0 0% 60%;
+
+    /* Dark theme accent adjusted toward logo green (muted) */
+    --accent: 145 50% 58%; /* muted green */
+    --accent-foreground: 0 0% 7%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Dark borders with subtle green tint */
+    --border: 145 8% 12%; /* very dark greenish border */
+    --input: 0 0% 17%;
+    --ring: 145 80% 45%;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 88%;
+    --sidebar-primary: 210 100% 20%;
+    --sidebar-primary-foreground: 0 0% 88%;
+    --sidebar-accent: 0 0% 17%;
+    --sidebar-accent-foreground: 0 0% 88%;
+    --sidebar-border: 145 8% 12%;
+    --sidebar-ring: 210 100% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

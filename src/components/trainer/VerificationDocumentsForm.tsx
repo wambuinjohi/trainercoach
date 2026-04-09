@@ -1,0 +1,743 @@
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Clock, CheckCircle2, AlertCircle, FileText, Upload, Loader2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import * as apiService from '@/lib/api-service'
+import { useAuth } from '@/contexts/AuthContext'
+import { IdDocumentUploadSection } from './IdDocumentUploadSection'
+
+interface Document {
+  type: 'national_id' | 'passport' | 'proof_of_residence' | 'certificate_of_good_conduct'
+  label: string
+  description: string
+  status: 'pending' | 'approved' | 'rejected'
+  fileUrl?: string
+  rejectionReason?: string
+  uploadedAt?: string
+  expiresAt?: string
+  idNumber?: string
+  preview?: string // Data URL for image preview
+  uploadProgress?: number // 0-100
+  isRequired?: boolean // Whether this document is required for completion
+  side?: 'front' | 'back' // For national_id only
+}
+
+// Define which documents are required vs optional
+// Required: ID/Passport
+// Optional: Certificate of Good Conduct
+// Note: Proof of Residence is captured during signup location selection and is not re-verified here
+const allDocumentDefinitions: Record<string, { label: string; description: string; isRequired: boolean; expiresAt?: string }> = {
+  'certificate_of_good_conduct': {
+    label: 'Certificate of Good Conduct',
+    description: 'OPTIONAL: Upload to enhance your profile credibility. If uploaded, must be valid and within 90 days of issuance.',
+    isRequired: false,
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+  }
+}
+
+interface VerificationDocumentsFormProps {
+  onComplete?: () => void
+  refreshTrigger?: number
+}
+
+export const VerificationDocumentsForm: React.FC<VerificationDocumentsFormProps> = ({ onComplete, refreshTrigger }) => {
+  const { user } = useAuth()
+  const userId = user?.id
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(false)
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null)
+  const [idNumber, setIdNumber] = useState('')
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [registrationPath, setRegistrationPath] = useState<'direct' | 'sponsored'>('direct')
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [locationSet, setLocationSet] = useState(false)
+
+  // Load registration path and existing documents on mount
+  useEffect(() => {
+    if (!userId) return
+    loadProfileAndDocuments()
+  }, [userId])
+
+  // Reload documents when refreshTrigger changes (e.g., after profile is saved)
+  useEffect(() => {
+    if (!userId || refreshTrigger === undefined) return
+    console.log('[VerificationDocuments] Refreshing documents due to trigger change:', refreshTrigger)
+    loadProfileAndDocuments()
+  }, [userId, refreshTrigger])
+
+  const loadProfileAndDocuments = async () => {
+    try {
+      // Load profile to get registration path and location
+      const profileResponse = await apiService.getUserProfile(userId)
+      // Handle both direct array response and wrapped response with .data property
+      const profileList = Array.isArray(profileResponse) ? profileResponse : (profileResponse?.data && Array.isArray(profileResponse.data) ? profileResponse.data : [])
+      if (profileList.length > 0) {
+        const profile = profileList[0]
+        setRegistrationPath(profile.registration_path || 'direct')
+        // Check if location has been set (GPS coordinates exist)
+        const hasLocation = profile.location_lat && profile.location_lng
+        setLocationSet(!!hasLocation)
+        console.log('[VerificationDocuments] Location set:', hasLocation, 'Lat:', profile.location_lat, 'Lng:', profile.location_lng)
+      }
+      // Load documents
+      loadDocuments()
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  // Timer for Good Conduct cert
+  useEffect(() => {
+    const goodConductDoc = documents.find(d => d.type === 'certificate_of_good_conduct')
+    if (goodConductDoc?.expiresAt && goodConductDoc.status === 'pending') {
+      const expiresTime = new Date(goodConductDoc.expiresAt).getTime()
+      const now = Date.now()
+      const remaining = Math.max(0, expiresTime - now)
+
+      setTimeRemaining(remaining > 0 ? remaining : null)
+
+      if (remaining > 0) {
+        const interval = setInterval(() => {
+          setTimeRemaining(prev => {
+            if (!prev || prev <= 0) {
+              clearInterval(interval)
+              return null
+            }
+            return prev - 1000
+          })
+        }, 1000)
+
+        return () => clearInterval(interval)
+      }
+    }
+  }, [documents])
+
+  const loadDocuments = async () => {
+    try {
+      console.log('[VerificationDocuments] Loading documents for userId:', userId)
+      const response = await apiService.getVerificationDocuments(userId!)
+      console.log('[VerificationDocuments] API Response:', response)
+
+      // Handle both direct array response and wrapped response with .data property
+      let docs = Array.isArray(response) ? response : (response?.data && Array.isArray(response.data) ? response.data : [])
+
+      if (Array.isArray(docs)) {
+        const loadedDocs: Document[] = []
+
+        // Load proof of residence and certificate of good conduct (non-ID documents)
+        Object.entries(allDocumentDefinitions).forEach(([docType, config]) => {
+          const uploaded = docs.find(d => d.document_type === docType)
+          console.log('[VerificationDocuments] Document:', docType, '| Uploaded:', uploaded)
+          loadedDocs.push({
+            type: docType as 'proof_of_residence' | 'certificate_of_good_conduct',
+            label: config.label,
+            description: config.description,
+            isRequired: config.isRequired,
+            status: uploaded?.status || 'pending',
+            fileUrl: uploaded?.file_url,
+            rejectionReason: uploaded?.rejection_reason,
+            uploadedAt: uploaded?.uploaded_at,
+            expiresAt: uploaded?.expires_at || config.expiresAt,
+            idNumber: uploaded?.id_number
+          })
+        })
+
+        // Also load ID documents to understand full document status
+        // National ID requires both front and back, or Passport
+        const nationalIdFront = docs.find(d => d.document_type === 'national_id' && d.id_side === 'front')
+        const nationalIdBack = docs.find(d => d.document_type === 'national_id' && d.id_side === 'back')
+        const passport = docs.find(d => d.document_type === 'passport')
+
+        // Add national ID front and back to the document list (only if they exist or are pending)
+        if (nationalIdFront || nationalIdBack || (!passport && !nationalIdFront)) {
+          if (!nationalIdFront) {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Front',
+              description: 'REQUIRED: Upload the front side of your national ID',
+              isRequired: true,
+              status: 'pending',
+              side: 'front'
+            })
+          } else {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Front',
+              description: 'REQUIRED: Upload the front side of your national ID',
+              isRequired: true,
+              status: nationalIdFront.status,
+              fileUrl: nationalIdFront.file_url,
+              rejectionReason: nationalIdFront.rejection_reason,
+              uploadedAt: nationalIdFront.uploaded_at,
+              side: 'front'
+            })
+          }
+
+          if (!nationalIdBack) {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Back',
+              description: 'REQUIRED: Upload the back side of your national ID',
+              isRequired: true,
+              status: 'pending',
+              side: 'back'
+            })
+          } else {
+            loadedDocs.unshift({
+              type: 'national_id',
+              label: 'National ID - Back',
+              description: 'REQUIRED: Upload the back side of your national ID',
+              isRequired: true,
+              status: nationalIdBack.status,
+              fileUrl: nationalIdBack.file_url,
+              rejectionReason: nationalIdBack.rejection_reason,
+              uploadedAt: nationalIdBack.uploaded_at,
+              side: 'back'
+            })
+          }
+        }
+
+        // Add passport if it exists
+        if (passport) {
+          loadedDocs.unshift({
+            type: 'passport',
+            label: 'Passport',
+            description: 'REQUIRED: Upload your passport (photo page)',
+            isRequired: true,
+            status: passport.status,
+            fileUrl: passport.file_url,
+            rejectionReason: passport.rejection_reason,
+            uploadedAt: passport.uploaded_at
+          })
+        }
+
+        console.log('[VerificationDocuments] Final loaded documents:', loadedDocs)
+        setDocuments(loadedDocs)
+      } else {
+        console.log('[VerificationDocuments] No document data in response')
+      }
+    } catch (error) {
+      console.warn('Failed to load verification documents:', error)
+    }
+  }
+
+  const handleFileUpload = async (docType: string, file: File) => {
+    if (!userId) {
+      toast({ title: 'Error', description: 'User not found', variant: 'destructive' })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Maximum file size is 5MB', variant: 'destructive' })
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Only JPG, PNG, and PDF files are allowed', variant: 'destructive' })
+      return
+    }
+
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setDocuments(prev =>
+          prev.map(d =>
+            d.type === docType ? { ...d, preview: e.target?.result as string } : d
+          )
+        )
+      }
+      reader.readAsDataURL(file)
+    } else {
+      // For PDFs, show file name as preview
+      setDocuments(prev =>
+        prev.map(d =>
+          d.type === docType ? { ...d, preview: `📄 ${file.name}` } : d
+        )
+      )
+    }
+
+    setUploadingDocType(docType)
+    setDocuments(prev =>
+      prev.map(d =>
+        d.type === docType ? { ...d, uploadProgress: 0 } : d
+      )
+    )
+
+    try {
+      console.log('[VerificationDocuments] Starting upload for docType:', docType)
+      console.log('[VerificationDocuments] File details:', { name: file.name, size: file.size, type: file.type })
+
+      const response = await apiService.uploadVerificationDocument(
+        userId,
+        docType,
+        file,
+        undefined,
+        (progress) => {
+          console.log('[VerificationDocuments] Upload progress:', progress, '%')
+          // Update upload progress
+          setDocuments(prev =>
+            prev.map(d =>
+              d.type === docType ? { ...d, uploadProgress: progress } : d
+            )
+          )
+        }
+      )
+
+      console.log('[VerificationDocuments] Upload response:', response)
+
+      if (response?.status === 'success') {
+        console.log('[VerificationDocuments] Upload successful, file_url:', response.file_url)
+        toast({ title: 'Success', description: `${requiredDocuments.find(d => d.type === docType)?.label} uploaded successfully` })
+        loadDocuments()
+      } else {
+        throw new Error(response?.message || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('[VerificationDocuments] Upload error:', error)
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Could not upload document',
+        variant: 'destructive'
+      })
+      // Clear preview on error
+      setDocuments(prev =>
+        prev.map(d =>
+          d.type === docType ? { ...d, preview: undefined, uploadProgress: undefined } : d
+        )
+      )
+    } finally {
+      setUploadingDocType(null)
+    }
+  }
+
+  const handleSubmitForApproval = async () => {
+    if (!userId) return
+
+    setLoading(true)
+    try {
+      // Check backend as secondary validation for truly required documents
+      const checkResponse = await apiService.checkDocumentsSubmission(userId)
+
+      const documentLabels: Record<string, string> = {
+        national_id: 'National ID',
+        passport: 'Passport',
+        proof_of_residence: 'Proof of Residence',
+        certificate_of_good_conduct: 'Certificate of Good Conduct'
+      }
+
+      const backendRequiredDocs = Array.isArray(checkResponse?.data?.required_docs)
+        ? checkResponse.data.required_docs
+        : []
+      const backendSubmittedDocs = Array.isArray(checkResponse?.data?.submitted_docs)
+        ? checkResponse.data.submitted_docs
+        : []
+
+      // Filter out proof_of_residence from missing docs since location was captured during signup
+      const missingBackendDocs = backendRequiredDocs
+        .filter((doc: string) => !backendSubmittedDocs.includes(doc) && doc !== 'proof_of_residence')
+      const missingBackendLabels = missingBackendDocs.map((doc: string) => documentLabels[doc] || doc)
+
+      // Only call onComplete() if backend confirms all REQUIRED documents are submitted
+      // Note: Certificate of Good Conduct is optional and should NOT block completion
+      // Also: Proof of Residence is not required since location was captured during signup
+      if (checkResponse?.data?.all_submitted || missingBackendDocs.length === 0) {
+        toast({
+          title: 'Success',
+          description: 'Your documents have been submitted for review. You will be notified once approved.'
+        })
+        onComplete?.()
+      } else {
+        // If backend says not all submitted, don't proceed yet - user must upload required docs
+        const description = missingBackendLabels.length > 0
+          ? `Please upload the following missing document(s): ${missingBackendLabels.join(', ')}`
+          : 'Please upload all required documents before proceeding.'
+
+        toast({
+          title: 'Documents Required',
+          description,
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Submission failed',
+        description: error instanceof Error ? error.message : 'Could not submit documents',
+        variant: 'destructive'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get only the required documents for completion checks
+  const requiredDocs = documents.filter(d => d.isRequired !== false)
+  const optionalDocs = documents.filter(d => d.isRequired === false)
+
+  const isDocumentSatisfied = (doc: Document) => {
+    if (doc.status === 'rejected') return false
+    return Boolean(doc.fileUrl)
+  }
+
+  // All required documents are approved
+  const allRequiredApproved = requiredDocs.length > 0 && requiredDocs.every(d => d.status === 'approved')
+
+  // Check if any required document is still under review
+  const anyRequiredSubmitted = requiredDocs.some(d => d.status !== 'pending' || (d.type === 'proof_of_residence' && locationSet))
+
+  // Check if ALL required documents have been uploaded or otherwise satisfied
+  const allRequiredDocumentsUploaded = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
+
+  // Ready to submit: all required documents are satisfied and no required documents are rejected
+  const readyToSubmit = requiredDocs.length > 0 && requiredDocs.every(isDocumentSatisfied)
+
+  // For display: which required documents are still pending
+  const pendingRequiredDocs = requiredDocs.filter(d => !isDocumentSatisfied(d))
+
+  const formatTimeRemaining = (ms: number) => {
+    const minutes = Math.floor(ms / 60000)
+    const seconds = Math.floor((ms % 60000) / 1000)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  // Show loading state while profile is being loaded
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-4 text-center text-muted-foreground">
+            Loading verification documents...
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ID/Passport Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            ID/Passport Verification
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <IdDocumentUploadSection onUploadSuccess={loadDocuments} />
+        </CardContent>
+      </Card>
+
+      {/* Additional Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Residence & Conduct Documentation
+            {registrationPath === 'sponsored' && (
+              <Badge variant="outline" className="ml-2">
+                Sponsored Path
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Status Alert */}
+          {allRequiredApproved && (
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                All required documents have been approved! You can now accept bookings.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!allRequiredApproved && anyRequiredSubmitted && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                Your documents are being reviewed by our admin team. This usually takes 24-48 hours.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Status Overview */}
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm font-semibold text-blue-900 mb-2">📋 Documentation Requirements</p>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>○ <strong>Optional:</strong> Certificate of Good Conduct (to enhance credibility)</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Progress Bar - Show only optional documents progress */}
+          {optionalDocs.length > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label className="text-sm font-semibold">Optional Documentation Progress</Label>
+                <span className="text-sm text-gray-600">
+                  {optionalDocs.filter(d => d.status !== 'pending').length} of {optionalDocs.length}
+                </span>
+              </div>
+              <Progress
+                value={optionalDocs.length > 0
+                  ? (optionalDocs.filter(d => d.status !== 'pending').length / optionalDocs.length) * 100
+                  : 0
+                }
+                className="h-2"
+              />
+            </div>
+          )}
+
+          {/* Documents List - Show non-ID documents (Proof of Residence, Good Conduct) */}
+          <div className="space-y-4">
+            {documents.filter(d => d.type !== 'national_id' && d.type !== 'passport').map((doc) => (
+              <Card key={`${doc.type}-${doc.side || ''}`} className={`border ${doc.status === 'approved' ? 'border-green-200 bg-green-50' : doc.status === 'rejected' ? 'border-red-200 bg-red-50' : ''}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold">{doc.label}</h4>
+                        <Badge variant={doc.status === 'approved' ? 'default' : doc.status === 'rejected' ? 'destructive' : 'secondary'}>
+                          {doc.status === 'pending' ? 'Pending' : doc.status === 'approved' ? 'Approved' : 'Rejected'}
+                        </Badge>
+                        {doc.isRequired === false && (
+                          <Badge variant="outline" className="text-amber-700 border-amber-300">
+                            Optional
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">{doc.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Show existing document preview - Always visible */}
+                  {doc.fileUrl && (
+                    <div className={`mb-3 border-2 rounded-lg p-4 ${
+                      doc.status === 'approved'
+                        ? 'border-green-200 bg-green-50'
+                        : doc.status === 'rejected'
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-blue-200 bg-blue-50'
+                    }`}>
+                      <p className={`text-xs font-medium mb-3 ${
+                        doc.status === 'approved'
+                          ? 'text-green-700'
+                          : doc.status === 'rejected'
+                          ? 'text-red-700'
+                          : 'text-blue-700'
+                      }`}>
+                        📄 {doc.status === 'approved' ? 'Approved Document' : doc.status === 'rejected' ? 'Document (Rejected)' : 'Current Document'}
+                      </p>
+                      {doc.fileUrl.startsWith('http') ? (
+                        <img src={doc.fileUrl} alt={doc.label} className="max-w-full max-h-72 rounded object-contain mx-auto" />
+                      ) : (
+                        <div className="flex items-center justify-center py-6">
+                          <span className="text-lg">📄 {doc.label}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-3">
+                        <CheckCircle2 className={`h-4 w-4 ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`} />
+                        <p className={`text-xs ${
+                          doc.status === 'approved'
+                            ? 'text-green-600'
+                            : doc.status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`}>
+                          {doc.status === 'pending' ? 'Awaiting review' : doc.status === 'approved' ? 'Approved' : 'Rejected'} - {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recently'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show pending status when no document uploaded yet */}
+                  {!doc.fileUrl && doc.status === 'pending' && doc.isRequired !== false && (
+                    <div className="mb-3 border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
+                      <p className="text-xs font-medium text-amber-700 mb-2">⏳ Waiting for Upload</p>
+                      <p className="text-xs text-amber-600">No document uploaded yet. Please add {doc.label.toLowerCase()} below.</p>
+                    </div>
+                  )}
+
+                  {/* Good Conduct Validity */}
+                  {doc.type === 'certificate_of_good_conduct' && doc.status === 'pending' && (
+                    <Alert className="mb-3 bg-blue-50 border-blue-200">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        Optional: If uploaded, certificate must be valid within 90 days of issuance
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Rejection Reason */}
+                  {doc.status === 'rejected' && doc.rejectionReason && (
+                    <Alert className="mb-3 bg-red-50 border-red-200">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        {doc.rejectionReason}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+
+                  {/* File Upload - Skip for already approved documents */}
+                  {doc.status !== 'approved' && (
+                    <div className="mb-3 space-y-3">
+
+                      {/* Preview Section for new upload being prepared */}
+                      {doc.preview && (
+                        <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                          <p className="text-xs font-medium text-green-700 mb-3">Preview - Ready to Upload</p>
+                          {doc.preview.startsWith('data:') ? (
+                            <img src={doc.preview} alt="Preview" className="max-w-full max-h-72 rounded object-contain mx-auto" />
+                          ) : (
+                            <div className="flex items-center justify-center py-6">
+                              <span className="text-lg">{doc.preview}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Upload Progress */}
+                      {uploadingDocType === doc.type && doc.uploadProgress !== undefined && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Uploading...</span>
+                            <span className="text-gray-600 font-medium">{doc.uploadProgress}%</span>
+                          </div>
+                          <Progress value={doc.uploadProgress} className="h-2" />
+                        </div>
+                      )}
+
+                      {/* Upload Area */}
+                      {!doc.preview || uploadingDocType === doc.type ? (
+                        <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition">
+                          <div className="flex flex-col items-center gap-2">
+                            {uploadingDocType === doc.type ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                                <span className="text-sm text-gray-600">Uploading...</span>
+                              </>
+                            ) : doc.fileUrl ? (
+                              <>
+                                <Upload className="h-5 w-5 text-gray-400" />
+                                <span className="text-sm text-gray-600">Click to replace with new file</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-5 w-5 text-gray-400" />
+                                <span className="text-sm text-gray-600">Click to upload or drag and drop</span>
+                              </>
+                            )}
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/jpeg,image/png,application/pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                handleFileUpload(doc.type, file)
+                              }
+                            }}
+                            disabled={uploadingDocType === doc.type}
+                          />
+                        </label>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setDocuments(prev =>
+                                prev.map(d =>
+                                  d.type === doc.type ? { ...d, preview: undefined, uploadProgress: undefined } : d
+                                )
+                              )
+                            }}
+                            className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                          >
+                            Change File
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
+                  {/* Uploaded Status - Only show if not pending (already uploaded and status is not pending) */}
+                  {doc.fileUrl && doc.status !== 'pending' && (
+                    <div className="flex items-center gap-2 text-sm text-green-700">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>File uploaded {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : ''}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Submit Button - Show only when all REQUIRED documents are actually uploaded */}
+          {!allRequiredApproved && (
+            <>
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Required documents:</strong> ID/Passport (National ID or Passport).
+                  <br />
+                  <strong>Optional:</strong> Certificate of Good Conduct (recommended to enhance your profile).
+                </AlertDescription>
+              </Alert>
+              {pendingRequiredDocs.length > 0 && (
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    <strong>Still needed:</strong> {pendingRequiredDocs.map(d => d.label).join(', ')}
+                  </AlertDescription>
+                </Alert>
+              )}
+              <Button
+                onClick={handleSubmitForApproval}
+                disabled={loading || !readyToSubmit}
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : !readyToSubmit ? (
+                  `Upload ${pendingRequiredDocs.length > 0 ? pendingRequiredDocs.map(d => d.label).join(', ') : 'Required Documents'}`
+                ) : (
+                  'Submit Documents for Approval'
+                )}
+              </Button>
+            </>
+          )}
+
+          {allRequiredApproved && (
+            <div className="p-4 bg-green-50 rounded-lg text-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <p className="text-green-800 font-semibold">All required documents verified!</p>
+              <p className="text-sm text-green-700">You are now approved to start accepting bookings.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
