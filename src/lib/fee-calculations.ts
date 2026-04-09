@@ -169,6 +169,8 @@ export function calculateDistance(
  * Calculate transport fee based on distance and radius tiers
  * Mirrors the backend calculateTransportFee logic
  *
+ * NOTE: No transport fee applies if client is within 5 km of the trainer
+ *
  * @param distanceKm - Distance in kilometers
  * @param radiusTiers - Array of radius tier objects with { radius_km: number, rate: number } or { radius: number, hourly_rate: number }
  * @returns Transport fee amount or 0 if cannot calculate
@@ -179,6 +181,11 @@ export function calculateTransportFee(
 ): number {
   // If no distance calculated, return 0
   if (distanceKm === null || distanceKm === undefined) {
+    return 0
+  }
+
+  // FREE ZONE: No transport fee if within 5 km radius
+  if (distanceKm <= 5) {
     return 0
   }
 
