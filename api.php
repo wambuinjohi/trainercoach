@@ -4136,9 +4136,11 @@ switch ($action) {
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $stmt = $conn->prepare("
-            SELECT tc.id, tc.trainer_id, tc.category_id, c.id as cat_id, c.name, c.icon, c.description, tc.created_at
+            SELECT tc.id, tc.trainer_id, tc.category_id, c.id as cat_id, c.name, c.icon, c.description,
+                   COALESCE(tcp.hourly_rate, 0) as hourly_rate, tc.created_at
             FROM trainer_categories tc
             LEFT JOIN categories c ON tc.category_id = c.id
+            LEFT JOIN trainer_category_pricing tcp ON tc.trainer_id = tcp.trainer_id AND tc.category_id = tcp.category_id
             WHERE tc.trainer_id = ?
             ORDER BY c.name ASC
         ");
