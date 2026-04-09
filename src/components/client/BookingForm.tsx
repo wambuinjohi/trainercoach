@@ -9,7 +9,7 @@ import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { loadSettings } from '@/lib/settings'
 import { toast } from '@/hooks/use-toast'
-import { calculateFeeBreakdown } from '@/lib/fee-calculations'
+import { calculateFeeBreakdown, calculateDistance, calculateTransportFee } from '@/lib/fee-calculations'
 import * as apiService from '@/lib/api-service'
 import { completeMockPayment, processBookingPayment } from '@/lib/payment-service'
 import { getGroupTierByName, formatGroupPricingDisplay, type GroupPricingConfig, type GroupTier } from '@/lib/group-pricing-utils'
@@ -621,12 +621,27 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
       // Calculate combined total
       const combinedBaseAmount = categoryBookings.reduce((sum, b) => sum + b.baseAmount, 0)
+
+      // Calculate transport fee based on distance and trainer's radius tiers
+      let combinedTransportFee = 0
+      if (clientLocation.lat != null && clientLocation.lng != null && trainer.location_lat && trainer.location_lng) {
+        const distanceKm = calculateDistance(
+          trainer.location_lat,
+          trainer.location_lng,
+          clientLocation.lat,
+          clientLocation.lng
+        )
+        if (distanceKm !== null && trainer.hourly_rate_by_radius && Array.isArray(trainer.hourly_rate_by_radius)) {
+          combinedTransportFee = calculateTransportFee(distanceKm, trainer.hourly_rate_by_radius)
+        }
+      }
+
       const combinedFeeBreakdown = calculateFeeBreakdown(combinedBaseAmount, {
         platformChargeClientPercent: settings.platformChargeClientPercent || 15,
         platformChargeTrainerPercent: settings.platformChargeTrainerPercent || 10,
         compensationFeePercent: settings.compensationFeePercent || 10,
         maintenanceFeePercent: settings.maintenanceFeePercent || 15,
-      }, 0)
+      }, combinedTransportFee)
 
       const clientTotal = combinedFeeBreakdown.clientTotal
 
@@ -683,7 +698,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         trainer_id: trainer.id,
         amount: clientTotal,
         base_service_amount: combinedBaseAmount,
-        transport_fee: 0,
+        transport_fee: combinedTransportFee,
         platform_fee: combinedFeeBreakdown.platformFeeAmount,
         vat_amount: combinedFeeBreakdown.vatAmount,
         trainer_net_amount: combinedFeeBreakdown.trainerNetAmount,
@@ -1214,9 +1229,9 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               </button>
             </div>
             <div className="flex justify-between text-xs"><span>VAT (16%)</span><span>Ksh {feeBreakdown.vatAmount}</span></div>
-            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Transport fee (distance-based)</span><span>Ksh 0 (server-calculated)</span></div>
+            <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Transport fee (distance-based)</span><span>Ksh 0 (calculated during payment)</span></div>
             <div className="flex justify-between mt-2"><span className="font-medium">Estimated Total (excl. transport)</span><span className="font-bold">Ksh {feeBreakdown.clientTotal}</span></div>
-            <div className="text-xs text-muted-foreground mt-1">*Transport fee will be added based on distance at checkout</div>
+            <div className="text-xs text-muted-foreground mt-1">*Transport fee will be calculated based on your saved location during payment</div>
 
             {/* Warning for invalid M-Pesa amounts */}
             {payMethod === 'mpesa' && (feeBreakdown.clientTotal < 5 || feeBreakdown.clientTotal > 150000) && (
