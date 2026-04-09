@@ -273,58 +273,58 @@ export default function OverviewPage() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-        <Card className="bg-card border-border">
-          <CardContent className="p-2 sm:p-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
-              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                <Users className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="bg-gradient-to-br from-blue-50/40 to-blue-50/20 dark:from-blue-950/20 dark:to-blue-950/10 border-blue-200/30 dark:border-blue-900/30 hover:shadow-md transition-all duration-300 hover:border-blue-200/50 dark:hover:border-blue-900/50">
+          <CardContent className="p-3 sm:p-5">
+            <div className="flex items-center gap-3 sm:gap-4 flex-col sm:flex-row">
+              <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-blue-500/20">
+                <Users className="h-5 sm:h-6 w-5 sm:w-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="text-center sm:text-left">
-                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalUsers.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Users</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardContent className="p-2 sm:p-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
-              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                <UserCheck className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
-              </div>
-              <div className="text-center sm:text-left">
-                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalTrainers}</p>
-                <p className="text-xs text-muted-foreground">Active Trainers</p>
+              <div className="text-center sm:text-left flex-1">
+                <p className="text-xl sm:text-3xl font-bold text-foreground">{stats.totalUsers.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Total Users</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-2 sm:p-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
-              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                <Calendar className="h-4 sm:h-5 w-4 sm:w-5 text-purple-500" />
+        <Card className="bg-gradient-to-br from-blue-50/40 to-blue-50/20 dark:from-blue-950/20 dark:to-blue-950/10 border-blue-200/30 dark:border-blue-900/30 hover:shadow-md transition-all duration-300 hover:border-blue-200/50 dark:hover:border-blue-900/50">
+          <CardContent className="p-3 sm:p-5">
+            <div className="flex items-center gap-3 sm:gap-4 flex-col sm:flex-row">
+              <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-blue-500/20">
+                <UserCheck className="h-5 sm:h-6 w-5 sm:w-6 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="text-center sm:text-left">
-                <p className="text-lg sm:text-2xl font-bold text-foreground">{stats.totalBookings.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Bookings</p>
+              <div className="text-center sm:text-left flex-1">
+                <p className="text-xl sm:text-3xl font-bold text-foreground">{stats.totalTrainers}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Active Trainers</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-2 sm:p-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-col sm:flex-row">
-              <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <DollarSign className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+        <Card className="bg-gradient-to-br from-purple-50/40 to-purple-50/20 dark:from-purple-950/20 dark:to-purple-950/10 border-purple-200/30 dark:border-purple-900/30 hover:shadow-md transition-all duration-300 hover:border-purple-200/50 dark:hover:border-purple-900/50">
+          <CardContent className="p-3 sm:p-5">
+            <div className="flex items-center gap-3 sm:gap-4 flex-col sm:flex-row">
+              <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-purple-500/20">
+                <Calendar className="h-5 sm:h-6 w-5 sm:w-6 text-purple-600 dark:text-purple-400" />
               </div>
-              <div className="text-center sm:text-left">
-                <p className="text-lg sm:text-2xl font-bold text-foreground">Ksh {stats.totalRevenue.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <div className="text-center sm:text-left flex-1">
+                <p className="text-xl sm:text-3xl font-bold text-foreground">{stats.totalBookings.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Total Bookings</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-emerald-50/40 to-emerald-50/20 dark:from-emerald-950/20 dark:to-emerald-950/10 border-emerald-200/30 dark:border-emerald-900/30 hover:shadow-md transition-all duration-300 hover:border-emerald-200/50 dark:hover:border-emerald-900/50">
+          <CardContent className="p-3 sm:p-5">
+            <div className="flex items-center gap-3 sm:gap-4 flex-col sm:flex-row">
+              <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-emerald-500/20">
+                <DollarSign className="h-5 sm:h-6 w-5 sm:w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="text-center sm:text-left flex-1">
+                <p className="text-xl sm:text-3xl font-bold text-foreground">Ksh {stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Total Revenue</p>
               </div>
             </div>
           </CardContent>
@@ -332,52 +332,58 @@ export default function OverviewPage() {
       </div>
 
       {/* Alert Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
-        <Card className="bg-yellow-500/5 border-yellow-500/20">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
-              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="bg-gradient-to-br from-amber-50/60 to-amber-50/30 dark:from-amber-950/20 dark:to-amber-950/10 border-amber-200/40 dark:border-amber-900/30 hover:shadow-md transition-all duration-300 hover:border-amber-200/60 dark:hover:border-amber-900/50">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-amber-500/20">
+                  <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm sm:text-base text-foreground">Pending Documents</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.pendingDocuments} documents need review</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">{stats.pendingDocuments} document{stats.pendingDocuments !== 1 ? 's' : ''} need{stats.pendingDocuments === 1 ? 's' : ''} review</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/document-review')} className="w-full sm:w-auto flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/document-review')} className="w-full sm:w-auto flex-shrink-0 border-amber-200/40 dark:border-amber-900/40 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 font-medium">
                 Review
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-yellow-500/5 border-yellow-500/20">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
-              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+        <Card className="bg-gradient-to-br from-orange-50/60 to-orange-50/30 dark:from-orange-950/20 dark:to-orange-950/10 border-orange-200/40 dark:border-orange-900/30 hover:shadow-md transition-all duration-300 hover:border-orange-200/60 dark:hover:border-orange-900/50">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-orange-500/20">
+                  <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm sm:text-base text-foreground">Pending Approvals</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.pendingApprovals} trainer applications need review</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">{stats.pendingApprovals} trainer application{stats.pendingApprovals !== 1 ? 's' : ''} need{stats.pendingApprovals === 1 ? 's' : ''} review</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/approvals')} className="w-full sm:w-auto flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/approvals')} className="w-full sm:w-auto flex-shrink-0 border-orange-200/40 dark:border-orange-900/40 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 text-orange-700 dark:text-orange-300 hover:text-orange-800 dark:hover:text-orange-200 font-medium">
                 Review
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-red-500/5 border-red-500/20">
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
-              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                <AlertCircle className="h-4 sm:h-5 w-4 sm:w-5 text-red-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+        <Card className="bg-gradient-to-br from-red-50/60 to-red-50/30 dark:from-red-950/20 dark:to-red-950/10 border-red-200/40 dark:border-red-900/30 hover:shadow-md transition-all duration-300 hover:border-red-200/60 dark:hover:border-red-900/50">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0 ring-1 ring-red-500/20">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm sm:text-base text-foreground">Active Disputes</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{stats.activeDisputes} cases require attention</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">{stats.activeDisputes} case{stats.activeDisputes !== 1 ? 's' : ''} require{stats.activeDisputes === 1 ? 's' : ''} attention</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/disputes')} className="w-full sm:w-auto flex-shrink-0">
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/disputes')} className="w-full sm:w-auto flex-shrink-0 border-red-200/40 dark:border-red-900/40 hover:bg-red-50/50 dark:hover:bg-red-950/30 text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 font-medium">
                 Handle
               </Button>
             </div>
@@ -386,33 +392,35 @@ export default function OverviewPage() {
       </div>
 
       {/* Announcement Preview */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-4 sm:h-5 w-4 sm:w-5 text-primary flex-shrink-0" />
-              <CardTitle className="text-foreground text-base sm:text-lg">Recent Announcements</CardTitle>
+      <Card className="bg-gradient-to-br from-card to-card/50 border-border/40 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-primary/10 flex items-center justify-center ring-1 ring-gradient-primary/20">
+                <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
+              </div>
+              <CardTitle className="text-foreground text-base sm:text-lg font-bold">Recent Announcements</CardTitle>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')} className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')} className="w-full sm:w-auto border-border/40 hover:bg-muted/50 font-medium">
               <span className="hidden sm:inline">Manage Announcements</span>
               <span className="sm:hidden">Manage</span>
-              <ArrowRight className="h-3 sm:h-4 w-3 sm:w-4 ml-2" />
+              <ArrowRight className="h-3.5 sm:h-4 w-3.5 sm:w-4 ml-2" />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {recentBroadcasts.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {recentBroadcasts.map((broadcast) => (
-                <div key={broadcast.id} className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <div key={broadcast.id} className="p-3 sm:p-4 rounded-lg border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-border/60 transition-all duration-200 cursor-pointer group">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">{broadcast.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{broadcast.message}</p>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span>{broadcast.recipientCount} {broadcast.recipientType === 'all' ? 'users' : broadcast.recipientType}</span>
+                      <p className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors truncate">{broadcast.title}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{broadcast.message}</p>
+                      <div className="flex items-center gap-2 sm:gap-3 mt-3 text-xs text-muted-foreground font-medium">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary">{broadcast.recipientCount} {broadcast.recipientType === 'all' ? 'users' : broadcast.recipientType}</span>
                         <span>•</span>
-                        <span>{new Date(broadcast.sentAt).toLocaleDateString()}</span>
+                        <span>{new Date(broadcast.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       </div>
                     </div>
                   </div>
@@ -420,10 +428,13 @@ export default function OverviewPage() {
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center">
-              <Megaphone className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-muted-foreground">No announcements sent yet</p>
-              <Button variant="ghost" size="sm" className="mt-3" onClick={() => navigate('/admin/announcements')}>
+            <div className="py-8 sm:py-12 text-center">
+              <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Megaphone className="h-7 w-7 text-muted-foreground opacity-50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">No announcements sent yet</p>
+              <p className="text-xs text-muted-foreground mb-4">Start engaging with your community by creating your first announcement</p>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/announcements')} className="border-border/40 hover:bg-muted/50 font-medium">
                 Create your first announcement
               </Button>
             </div>
@@ -433,14 +444,14 @@ export default function OverviewPage() {
 
       {/* Revenue Chart */}
       {revenueSeries.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground">Revenue & Bookings</CardTitle>
+        <Card className="bg-gradient-to-br from-card to-card/50 border-border/40 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4 sm:pb-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <CardTitle className="text-foreground text-base sm:text-lg font-bold">Revenue & Bookings</CardTitle>
               <select
                 value={range}
                 onChange={(e) => setRange(e.target.value as any)}
-                className="text-sm border border-border rounded px-2 py-1"
+                className="text-xs sm:text-sm border border-border/40 rounded-lg px-3 py-2 bg-card hover:bg-muted/30 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
               >
                 <option value="30d">Last 30 days</option>
                 <option value="90d">Last 90 days</option>
@@ -449,15 +460,27 @@ export default function OverviewPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={revenueSeries}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <ReTooltip />
-                <Legend />
-                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue (Ksh)" />
-                <Bar dataKey="bookings" fill="#8b5cf6" name="Bookings" />
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={revenueSeries} margin={{ top: 5, right: 15, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
+                <XAxis dataKey="month" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
+                <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
+                <ReTooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: 'var(--foreground)' }}
+                  cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: '16px' }}
+                  iconType="square"
+                />
+                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue (Ksh)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="bookings" fill="#8b5cf6" name="Bookings" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -465,26 +488,40 @@ export default function OverviewPage() {
       )}
 
       {/* Recent Activity */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Recent Activity</CardTitle>
+      <Card className="bg-gradient-to-br from-card to-card/50 border-border/40 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3 sm:pb-4">
+          <CardTitle className="text-foreground text-base sm:text-lg font-bold">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           {activityFeed.length ? (
-            <div className="space-y-4">
-              {activityFeed.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted">
-                  <div className={`w-2 h-2 rounded-full ${activityToneColors[item.tone]}`}></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{item.message}</p>
-                    <p className="text-xs text-muted-foreground">{formatActivityTimestamp(item.timestamp)}</p>
+            <div className="space-y-2 sm:space-y-3">
+              {activityFeed.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border border-border/40 bg-muted/15 hover:bg-muted/30 hover:border-border/60 transition-all duration-200 group"
+                >
+                  <div className="flex-shrink-0 pt-0.5 sm:pt-1">
+                    <div className={`w-3 h-3 rounded-full ${activityToneColors[item.tone]} ring-2 ring-offset-2 ring-${item.tone === 'alert' ? 'yellow' : item.tone === 'positive' ? 'green' : 'blue'}-200 dark:ring-offset-card`}></div>
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm sm:text-base font-medium text-foreground group-hover:text-primary transition-colors">{item.message}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1.5">{formatActivityTimestamp(item.timestamp)}</p>
+                  </div>
+                  {idx === 0 && (
+                    <div className="flex-shrink-0 mt-0.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">New</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              Recent activity will appear here when bookings, payouts, disputes, or promotions are updated.
+            <div className="py-8 sm:py-12 text-center">
+              <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="h-7 w-7 text-muted-foreground opacity-50" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">No activity yet</p>
+              <p className="text-xs text-muted-foreground">Recent activity will appear here when bookings, payouts, disputes, or promotions are updated</p>
             </div>
           )}
         </CardContent>
