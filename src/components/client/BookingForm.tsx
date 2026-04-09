@@ -89,22 +89,27 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
       return totalHourlyRate * totalDurationHours
     }
 
-    // For single session or group training
-    if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
-      const tier = getGroupTierByName(groupTrainingData, selectedGroupTierName)
-      if (tier) {
-        const tierRate = tier.rate
-        // Calculate based on pricing model
-        if (groupTrainingData.pricing_model === 'per_person') {
-          return tierRate * groupSize * Number(sessions || 1)
-        } else {
-          // fixed rate
-          return tierRate * Number(sessions || 1)
+    // For group training
+    if (isGroupTraining) {
+      // Only calculate if we have the necessary data
+      if (groupTrainingData && selectedGroupTierName) {
+        const tier = getGroupTierByName(groupTrainingData, selectedGroupTierName)
+        if (tier) {
+          const tierRate = tier.rate
+          // Calculate based on pricing model
+          if (groupTrainingData.pricing_model === 'per_person') {
+            return tierRate * groupSize * Number(sessions || 1)
+          } else {
+            // fixed rate
+            return tierRate * Number(sessions || 1)
+          }
         }
       }
+      // If group training data is not loaded yet, return 0 to indicate it's not ready
+      return 0
     }
 
-    // Sum rates for all selected categories
+    // For regular single-category bookings
     let totalHourlyRate = 0
     if (selectedCategoryIds.length > 0 && categoryPricing.length > 0) {
       totalHourlyRate = selectedCategoryIds.reduce((sum, catId) => {
@@ -547,15 +552,20 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
           const totalDurationHours = selectedSessions.reduce((sum, s) => sum + s.duration_hours, 0)
           const hourlyRate = selectedCategory ? Number(selectedCategory.hourly_rate || 0) : Number(trainer.hourlyRate || 0)
           categoryBaseAmount = hourlyRate * totalDurationHours
-        } else if (isGroupTraining && selectedGroupTierName && groupTrainingData) {
+        } else if (isGroupTraining) {
+          // For group training, ensure we have the required data
+          if (!groupTrainingData || !selectedGroupTierName) {
+            throw new Error('Group training pricing is not available. Please refresh and try again.')
+          }
           const tier = getGroupTierByName(groupTrainingData, selectedGroupTierName)
-          if (tier) {
-            const tierRate = tier.rate
-            if (groupTrainingData.pricing_model === 'per_person') {
-              categoryBaseAmount = tierRate * groupSize * Number(sessions || 1)
-            } else {
-              categoryBaseAmount = tierRate * Number(sessions || 1)
-            }
+          if (!tier) {
+            throw new Error('The selected group size tier is not available. Please select a different option.')
+          }
+          const tierRate = tier.rate
+          if (groupTrainingData.pricing_model === 'per_person') {
+            categoryBaseAmount = tierRate * groupSize * Number(sessions || 1)
+          } else {
+            categoryBaseAmount = tierRate * Number(sessions || 1)
           }
         } else {
           const hourlyRate = selectedCategory ? Number(selectedCategory.hourly_rate || 0) : Number(trainer.hourlyRate || 0)
