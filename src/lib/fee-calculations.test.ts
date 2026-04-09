@@ -1,4 +1,4 @@
-import { calculateFeeBreakdown } from './fee-calculations'
+import { calculateFeeBreakdown, calculateDistance, calculateTransportFee } from './fee-calculations'
 
 // Test cases for NEW SIMPLIFIED PRICING MODEL
 // Client pays: base + VAT (16%) + transport
@@ -209,5 +209,136 @@ describe('Fee Calculations - New Simplified Model', () => {
 
     // System gets: VAT + platform fee
     expect(systemGets).toBe(410)
+  })
+})
+
+// Test cases for transport fee calculation
+describe('Transport Fee Calculation', () => {
+  test('Calculate distance between two points (Haversine formula)', () => {
+    // Nairobi (approx) to Kibera (approx 5km away)
+    const distance = calculateDistance(-1.2921, 36.8219, -1.3164, 36.7662)
+
+    expect(distance).not.toBeNull()
+    expect(distance).toBeGreaterThan(4)
+    expect(distance).toBeLessThan(6)
+  })
+
+  test('Calculate distance - same coordinates should be 0', () => {
+    const distance = calculateDistance(-1.2921, 36.8219, -1.2921, 36.8219)
+
+    expect(distance).toBeCloseTo(0, 5)
+  })
+
+  test('Invalid coordinates should return null', () => {
+    // Invalid latitude (> 90)
+    const distance1 = calculateDistance(95, 36.8219, -1.2921, 36.8219)
+    expect(distance1).toBeNull()
+
+    // Invalid longitude (> 180)
+    const distance2 = calculateDistance(-1.2921, 190, -1.2921, 36.8219)
+    expect(distance2).toBeNull()
+  })
+
+  test('Transport fee calculation with no tiers should return 0', () => {
+    const fee = calculateTransportFee(5, [])
+    expect(fee).toBe(0)
+  })
+
+  test('Transport fee calculation with single tier', () => {
+    const tiers = [
+      { radius_km: 10, rate: 100 }
+    ]
+
+    // Distance within tier
+    const fee1 = calculateTransportFee(5, tiers)
+    expect(fee1).toBe(100)
+
+    // Distance at tier boundary
+    const fee2 = calculateTransportFee(10, tiers)
+    expect(fee2).toBe(100)
+
+    // Distance exceeds all tiers
+    const fee3 = calculateTransportFee(15, tiers)
+    expect(fee3).toBe(100) // Uses highest tier
+  })
+
+  test('Transport fee calculation with multiple tiers', () => {
+    const tiers = [
+      { radius_km: 3, rate: 50 },
+      { radius_km: 5, rate: 100 },
+      { radius_km: 10, rate: 150 }
+    ]
+
+    // Within first tier
+    const fee1 = calculateTransportFee(2, tiers)
+    expect(fee1).toBe(50)
+
+    // Within second tier
+    const fee2 = calculateTransportFee(4, tiers)
+    expect(fee2).toBe(100)
+
+    // Within third tier
+    const fee3 = calculateTransportFee(8, tiers)
+    expect(fee3).toBe(150)
+
+    // Exceeds all tiers - uses highest
+    const fee4 = calculateTransportFee(15, tiers)
+    expect(fee4).toBe(150)
+  })
+
+  test('Transport fee with legacy field names (radius instead of radius_km)', () => {
+    const tiers = [
+      { radius: 5, hourly_rate: 100 },
+      { radius: 10, hourly_rate: 150 }
+    ]
+
+    const fee1 = calculateTransportFee(3, tiers)
+    expect(fee1).toBe(100)
+
+    const fee2 = calculateTransportFee(8, tiers)
+    expect(fee2).toBe(150)
+  })
+
+  test('Null distance should return 0', () => {
+    const tiers = [
+      { radius_km: 10, rate: 100 }
+    ]
+
+    const fee = calculateTransportFee(null as any, tiers)
+    expect(fee).toBe(0)
+  })
+
+  test('Integration: Full booking with distance-based transport fee', () => {
+    // Scenario: Client 5km away from trainer
+    // Trainer has radius tiers: 0-3km=50, 3-7km=100, 7+=150
+    const trainerLat = -1.2921
+    const trainerLng = 36.8219
+    const clientLat = -1.32 // Slightly south
+    const clientLng = 36.82 // Slightly west
+
+    const distance = calculateDistance(trainerLat, trainerLng, clientLat, clientLng)
+
+    // Should be around 5km
+    expect(distance).toBeGreaterThan(4)
+    expect(distance).toBeLessThan(6)
+
+    const radiusTiers = [
+      { radius_km: 3, rate: 50 },
+      { radius_km: 7, rate: 100 },
+      { radius_km: 15, rate: 150 }
+    ]
+
+    const transportFee = calculateTransportFee(distance!, radiusTiers)
+    expect(transportFee).toBe(100) // Falls in 3-7km range
+
+    // Now calculate full booking fee
+    const baseAmount = 500
+    const breakdown = calculateFeeBreakdown(baseAmount, {}, transportFee)
+
+    // Client pays: 500 + 80 (VAT) + 100 (transport) = 680
+    expect(breakdown.clientTotal).toBe(680)
+
+    // Trainer gets: 500 - 125 (platform fee) + 100 (transport) = 475
+    expect(breakdown.trainerNetAmount).toBe(475)
   })
 })

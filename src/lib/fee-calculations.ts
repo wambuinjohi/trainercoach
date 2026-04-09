@@ -120,3 +120,92 @@ export function calculateTrainerEarnings(
 function round(value: number): number {
   return Math.round(value * 100) / 100
 }
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @param lat1 - Latitude of first point
+ * @param lon1 - Longitude of first point
+ * @param lat2 - Latitude of second point
+ * @param lon2 - Longitude of second point
+ * @returns Distance in kilometers, or null if coordinates are invalid
+ */
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number | null {
+  // Validate coordinates
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return null
+  }
+
+  // Check if within valid geographic ranges
+  if (lat1 < -90 || lat1 > 90 || lon1 < -180 || lon1 > 180 || lat2 < -90 || lat2 > 90 || lon2 < -180 || lon2 > 180) {
+    return null
+  }
+
+  const R = 6371 // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  const distance = R * c
+
+  // Sanity check: max distance between two points on Earth is ~20,000km
+  if (distance > 20000) {
+    return null
+  }
+
+  return distance
+}
+
+/**
+ * Calculate transport fee based on distance and radius tiers
+ * Mirrors the backend calculateTransportFee logic
+ *
+ * @param distanceKm - Distance in kilometers
+ * @param radiusTiers - Array of radius tier objects with { radius_km: number, rate: number } or { radius: number, hourly_rate: number }
+ * @returns Transport fee amount or 0 if cannot calculate
+ */
+export function calculateTransportFee(
+  distanceKm: number | null,
+  radiusTiers: any[]
+): number {
+  // If no distance calculated, return 0
+  if (distanceKm === null || distanceKm === undefined) {
+    return 0
+  }
+
+  // If no radius tiers configured, return 0
+  if (!radiusTiers || !Array.isArray(radiusTiers) || radiusTiers.length === 0) {
+    return 0
+  }
+
+  // Sort tiers by radius in ascending order
+  const sortedTiers = [...radiusTiers].sort((a, b) => {
+    const radiusA = Number(a.radius_km ?? a.radius ?? 0)
+    const radiusB = Number(b.radius_km ?? b.radius ?? 0)
+    return radiusA - radiusB
+  })
+
+  // Find the matching tier (first tier >= distance)
+  for (const tier of sortedTiers) {
+    const tierRadius = Number(tier.radius_km ?? tier.radius ?? 0)
+    const tierRate = Number(tier.rate ?? tier.hourly_rate ?? 0)
+
+    if (distanceKm <= tierRadius) {
+      return round(tierRate)
+    }
+  }
+
+  // If distance exceeds all tiers, use the highest tier rate
+  const lastTier = sortedTiers[sortedTiers.length - 1]
+  const rate = Number(lastTier.rate ?? lastTier.hourly_rate ?? 0)
+  return round(rate)
+}
