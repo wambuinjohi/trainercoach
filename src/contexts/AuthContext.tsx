@@ -47,12 +47,17 @@ async function performLogin(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
-        },
+        headers,
         body: JSON.stringify({ action: 'login', email, password }),
         signal: controller.signal,
       });
@@ -266,12 +271,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+        const token = localStorage.getItem('auth_token');
+        const signupHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (token) {
+          signupHeaders['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
-          },
+          headers: signupHeaders,
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
