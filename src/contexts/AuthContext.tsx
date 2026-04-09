@@ -360,6 +360,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSignupData(signupDataToStore);
         localStorage.setItem('signup_data', JSON.stringify(signupDataToStore));
 
+        // Auto-approve clients on signup
+        if (userTypeParam === 'client') {
+          try {
+            const { updateUserProfile } = await import('@/lib/api-service');
+            await updateUserProfile(user_id, { is_approved: true });
+            console.log('Client auto-approved on signup');
+          } catch (error) {
+            console.error('Error auto-approving client:', error);
+          }
+        }
+
         // Flag for step 2 onboarding
         if (userTypeParam === 'trainer') {
           localStorage.setItem('trainer_signup_step2', 'true');
