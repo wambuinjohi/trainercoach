@@ -450,9 +450,14 @@ export const TrainerDashboard: React.FC = () => {
         const allCategories = categoriesData?.data || []
         setCategories(allCategories)
 
-        // Load trainer's selected categories
+        // Load trainer's selected categories - handle both direct array and wrapped response
         const trainerCategoriesData = await apiService.getTrainerCategories(user.id)
-        const trainerCategoryIds = trainerCategoriesData?.data?.map((tc: any) => String(tc.category_id || tc.id)) || []
+        const categoryList = Array.isArray(trainerCategoriesData)
+          ? trainerCategoriesData
+          : (trainerCategoriesData?.data && Array.isArray(trainerCategoriesData.data)
+              ? trainerCategoriesData.data
+              : [])
+        const trainerCategoryIds = categoryList.map((tc: any) => String(tc.category_id || tc.id || tc.cat_id))
         setSelectedCategoryIds(trainerCategoryIds)
       } catch (err) {
         console.warn('Failed to load categories', err)

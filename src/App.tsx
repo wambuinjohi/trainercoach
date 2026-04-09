@@ -113,6 +113,21 @@ const LoadingFallback = () => (
   </div>
 );
 
+const ProtectedAuthRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  // Redirect logged-in users away from auth pages
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppRoutes = () => (
   <Suspense fallback={<LoadingFallback />}>
     <Routes>
@@ -124,16 +139,16 @@ const AppRoutes = () => (
       <Route path="/client/home" element={<ClientDashboard />} />
       <Route path="/client/explore" element={<ClientDashboard />} />
       <Route path="/client/sessions" element={<ClientDashboard />} />
-      <Route path="/signin" element={<AuthForm onSuccess={(type) => {
+      <Route path="/signin" element={<ProtectedAuthRoute><AuthForm onSuccess={(type) => {
         if (type === 'admin') window.location.href = "/admin";
         else if (type === 'trainer') window.location.href = "/trainer";
         else window.location.href = "/client";
-      }} />} />
-      <Route path="/signup" element={<TrainerSignupWithProfileModal onSuccess={(type) => {
+      }} /></ProtectedAuthRoute>} />
+      <Route path="/signup" element={<ProtectedAuthRoute><TrainerSignupWithProfileModal onSuccess={(type) => {
         // Note: Trainers are redirected by the component itself after step 2 onboarding
         if (type === 'admin') window.location.href = "/admin";
         else if (type !== 'trainer') window.location.href = "/client";
-      }} />} />
+      }} /></ProtectedAuthRoute>} />
       <Route path="/signup-step2" element={<SignupStep2 />} />
       <Route path="/signup-client-step2" element={<SignupClientStep2 />} />
       <Route path="/booking-confirmation/:bookingId" element={<BookingConfirmation />} />
