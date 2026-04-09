@@ -186,9 +186,34 @@ try {
 
                     // If payment successful, record payment
                     if ($status === 'success') {
-                        $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount, $mpesaReceiptNumber);
+                        // CRITICAL: Validate that M-Pesa receipt was actually captured
+                        if (empty($mpesaReceiptNumber)) {
+                            error_log("[C2B CALLBACK ERROR] SUCCESS result but NO M-Pesa receipt captured! CheckoutRequestID: $checkoutRequestId, Amount: $amount");
+                            logC2BEvent('missing_receipt', [
+                                'checkout_request_id' => $checkoutRequestId,
+                                'amount' => $amount,
+                                'phone' => $phoneNumber,
+                                'error' => 'M-Pesa returned success (ResultCode=0) but did not include MpesaReceiptNumber in callback'
+                            ]);
+                            // Still attempt to record but with NULL receipt to flag it for manual review
+                            $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount, null);
+                        } else {
+                            error_log("[C2B CALLBACK] Payment successful with receipt: $mpesaReceiptNumber for amount: $amount");
+                            $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount, $mpesaReceiptNumber);
+                        }
+
                         if ($recorded) {
-                            logC2BEvent('payment_processed', ['checkout_request_id' => $checkoutRequestId]);
+                            logC2BEvent('payment_processed', [
+                                'checkout_request_id' => $checkoutRequestId,
+                                'receipt' => $mpesaReceiptNumber,
+                                'amount' => $amount
+                            ]);
+                        } else {
+                            logC2BEvent('payment_processing_failed', [
+                                'checkout_request_id' => $checkoutRequestId,
+                                'receipt' => $mpesaReceiptNumber,
+                                'error' => 'recordMpesaPayment returned false'
+                            ]);
                         }
                     } elseif (($status === 'failed' || $status === 'timeout') && $session['id']) {
                         // Update booking payment status to failed if booking exists
