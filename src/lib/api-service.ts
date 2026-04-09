@@ -171,8 +171,8 @@ export async function getTrainerCategories(trainerId: string) {
   return apiRequest('trainer_categories_get', { trainer_id: trainerId })
 }
 
-export async function addTrainerCategory(trainerId: string, categoryId: number) {
-  return apiRequest('trainer_category_add', { trainer_id: trainerId, category_id: categoryId })
+export async function addTrainerCategory(trainerId: string, categoryId: number, hourlyRate?: number) {
+  return apiRequest('trainer_category_add', { trainer_id: trainerId, category_id: categoryId, hourly_rate: hourlyRate || 0 })
 }
 
 export async function removeTrainerCategory(trainerId: string, categoryId: number) {
