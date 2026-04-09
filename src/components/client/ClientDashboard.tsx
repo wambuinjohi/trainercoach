@@ -28,7 +28,8 @@ import {
   Sliders,
   Repeat2,
   Send,
-  AlertCircle
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -1046,6 +1047,16 @@ export const ClientDashboard: React.FC = () => {
 
           {showActions && (
             <div className="space-y-2">
+              {booking.status === 'in_session' && booking.session_phase === 'awaiting_completion' && (
+                <Button
+                  size="sm"
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  onClick={() => setPendingSessionConfirm(booking)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirm Session End
+                </Button>
+              )}
               {booking.status === 'completed' && (
                 <div className="flex flex-col gap-2 sm:flex-row">
                   {!reviewsByBooking[booking.id] && (
@@ -1187,7 +1198,7 @@ export const ClientDashboard: React.FC = () => {
                   <Clock className="h-5 w-5 text-orange-500" />
                   Awaiting Completion
                 </h2>
-                {groupedByStatus.awaiting_completion.map(b => renderBookingCard(b, false))}
+                {groupedByStatus.awaiting_completion.map(b => renderBookingCard(b, true))}
               </div>
             )}
 
