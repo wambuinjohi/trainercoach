@@ -281,8 +281,32 @@ export default function BookingConfirmation() {
   useEffect(() => {
     if (!bookingId || !paymentPollingActive || paymentStatus === 'completed') return
 
+    const POLLING_INTERVAL = 2000 // Poll every 2 seconds for faster feedback
+    const MAX_POLLING_DURATION = 5 * 60 * 1000 // 5 minutes max
+    let pollStartTime = Date.now()
+    let pollAttempts = 0
+
     const paymentPollInterval = setInterval(async () => {
       try {
+        pollAttempts++
+        const elapsedTime = Date.now() - pollStartTime
+
+        // Stop polling if timeout reached
+        if (elapsedTime > MAX_POLLING_DURATION) {
+          console.warn('[BookingConfirmation] Payment polling timeout after 5 minutes', {
+            bookingId,
+            attempts: pollAttempts,
+            currentStatus: paymentStatus,
+          })
+          setPaymentPollingActive(false)
+          toast({
+            title: 'Payment Status Timeout',
+            description: 'Payment confirmation is taking longer than expected. Please check your booking details or contact support.',
+            variant: 'destructive',
+          })
+          return
+        }
+
         const response = await apiRequest(
           'booking_get',
           { id: bookingId },
@@ -293,6 +317,14 @@ export default function BookingConfirmation() {
           const newPaymentStatus = response.payment_status
 
           if (newPaymentStatus !== paymentStatus) {
+            console.log('[BookingConfirmation] Payment status changed', {
+              bookingId,
+              previousStatus: paymentStatus,
+              newStatus: newPaymentStatus,
+              attempt: pollAttempts,
+              elapsedTime: Math.round(elapsedTime / 1000) + 's',
+            })
+
             setPaymentStatus(newPaymentStatus)
             setBookingData(response)
 
@@ -337,13 +369,30 @@ export default function BookingConfirmation() {
                 title: 'Payment Successful!',
                 description: 'Your payment has been processed successfully.',
               })
+            } else if (newPaymentStatus === 'failed') {
+              // Stop polling if payment failed
+              setPaymentPollingActive(false)
+              console.error('[BookingConfirmation] Payment failed', {
+                bookingId,
+                resultCode: response.payment_result_code,
+                resultDescription: response.payment_result_description,
+              })
+              toast({
+                title: 'Payment Failed',
+                description: response.payment_result_description || 'Your payment could not be processed. Please try again.',
+                variant: 'destructive',
+              })
             }
           }
         }
       } catch (err) {
-        console.warn('Payment polling error:', err)
+        console.warn('[BookingConfirmation] Payment polling error', {
+          bookingId,
+          error: err instanceof Error ? err.message : String(err),
+          attempt: pollAttempts,
+        })
       }
-    }, 3000) // Poll every 3 seconds for faster payment status updates
+    }, POLLING_INTERVAL)
 
     return () => clearInterval(paymentPollInterval)
   }, [bookingId, paymentPollingActive, paymentStatus, user?.id, displayData?.totalAmount])
