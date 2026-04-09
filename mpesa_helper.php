@@ -967,8 +967,9 @@ function maskSecret($secret) {
 
 // Record M-Pesa payment from session data
 function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount = null, $receipt = null) {
+    // Validate result code - only record if successful (0 = success)
     if ($resultCode !== 0 && $resultCode !== '0') {
-        error_log("[MPESA RECORD] Skipping record for non-zero ResultCode: $resultCode");
+        error_log("[MPESA RECORD] Skipping record for non-zero ResultCode: $resultCode - Result Description: $resultDesc");
         return false;
     }
 
@@ -977,6 +978,17 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
     $clientId = $session['client_id'] ?? null;
     $trainerId = $session['trainer_id'] ?? null;
     $amount = $amount ?? $session['amount'] ?? 0;
+
+    // CRITICAL VALIDATION: Log when receipt is missing or invalid
+    if (empty($receipt)) {
+        error_log("[MPESA RECORD WARNING] Payment recording with MISSING M-Pesa receipt!");
+        error_log("[MPESA RECORD WARNING] CheckoutRequestID: $checkoutRequestId");
+        error_log("[MPESA RECORD WARNING] BookingID: $bookingId");
+        error_log("[MPESA RECORD WARNING] Amount: $amount");
+        error_log("[MPESA RECORD WARNING] This payment cannot be properly verified and should be manually reviewed");
+    } else {
+        error_log("[MPESA RECORD] M-Pesa receipt captured successfully: $receipt");
+    }
 
     // Check for existing payment by receipt
     if (!empty($receipt)) {
@@ -1042,7 +1054,16 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
 
     $paymentId = 'payment_' . uniqid();
     $now = date('Y-m-d H:i:s');
-    $status = 'completed';
+
+    // CRITICAL: Only mark as 'completed' if M-Pesa receipt was captured
+    // If receipt is missing, mark as 'pending_verification' so admin can review
+    if (empty($receipt)) {
+        $status = 'pending_verification';
+        error_log("[MPESA RECORD] Status set to 'pending_verification' due to missing receipt - Payment requires manual review");
+    } else {
+        $status = 'completed';
+        error_log("[MPESA RECORD] Status set to 'completed' - Receipt captured: $receipt");
+    }
     $method = 'stk';
 
     $paymentStmt = $conn->prepare("
