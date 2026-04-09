@@ -184,6 +184,43 @@ try {
                         'receipt' => $mpesaReceiptNumber
                     ]);
 
+                    // Store callback in audit trail for complete logging and troubleshooting
+                    $callbackId = 'callback_' . uniqid();
+                    $insertCallbackSql = "
+                        INSERT INTO c2b_payment_callbacks (
+                            id, checkout_request_id, merchant_request_id, result_code, result_description,
+                            amount, mpesa_receipt_number, phone_number, transaction_date, raw_response,
+                            payment_recorded, received_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                        ON DUPLICATE KEY UPDATE
+                            result_code = VALUES(result_code),
+                            result_description = VALUES(result_description),
+                            raw_response = VALUES(raw_response),
+                            updated_at = NOW()
+                    ";
+
+                    $callbackStmt = $conn->prepare($insertCallbackSql);
+                    if ($callbackStmt) {
+                        $paymentRecorded = 0; // Will be updated to 1 if payment is recorded
+                        $rawResponse = $rawRequest;
+
+                        $callbackStmt->bind_param(
+                            "sssssdssssi",
+                            $callbackId, $checkoutRequestId, $merchantRequestId, $resultCode, $resultDesc,
+                            $amount, $mpesaReceiptNumber, $phoneNumber, $transactionDate, $rawResponse,
+                            $paymentRecorded
+                        );
+
+                        if ($callbackStmt->execute()) {
+                            error_log("[C2B CALLBACK] Stored in audit trail: $callbackId");
+                        } else {
+                            error_log("[C2B CALLBACK WARNING] Failed to store callback in audit trail: " . $conn->error);
+                        }
+                        $callbackStmt->close();
+                    } else {
+                        error_log("[C2B CALLBACK WARNING] Failed to prepare callback audit insert: " . $conn->error);
+                    }
+
                     // If payment successful, record payment
                     if ($status === 'success') {
                         // CRITICAL: Validate that M-Pesa receipt was actually captured
@@ -208,12 +245,31 @@ try {
                                 'receipt' => $mpesaReceiptNumber,
                                 'amount' => $amount
                             ]);
+
+                            // Update audit trail to mark payment as recorded
+                            $updateCallbackSql = "UPDATE c2b_payment_callbacks SET payment_recorded = 1, processed_at = NOW() WHERE checkout_request_id = ?";
+                            $updateCallbackStmt = $conn->prepare($updateCallbackSql);
+                            if ($updateCallbackStmt) {
+                                $updateCallbackStmt->bind_param("s", $checkoutRequestId);
+                                $updateCallbackStmt->execute();
+                                $updateCallbackStmt->close();
+                            }
                         } else {
                             logC2BEvent('payment_processing_failed', [
                                 'checkout_request_id' => $checkoutRequestId,
                                 'receipt' => $mpesaReceiptNumber,
                                 'error' => 'recordMpesaPayment returned false'
                             ]);
+
+                            // Update audit trail with failure note
+                            $failureNote = 'Payment recording failed: recordMpesaPayment returned false';
+                            $updateCallbackSql = "UPDATE c2b_payment_callbacks SET payment_recorded = 0, notes = ?, processed_at = NOW() WHERE checkout_request_id = ?";
+                            $updateCallbackStmt = $conn->prepare($updateCallbackSql);
+                            if ($updateCallbackStmt) {
+                                $updateCallbackStmt->bind_param("ss", $failureNote, $checkoutRequestId);
+                                $updateCallbackStmt->execute();
+                                $updateCallbackStmt->close();
+                            }
                         }
                     } elseif (($status === 'failed' || $status === 'timeout') && $session['id']) {
                         // Update booking payment status to failed if booking exists

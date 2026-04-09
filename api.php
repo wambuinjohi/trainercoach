@@ -8181,6 +8181,13 @@ switch ($action) {
         $resultDescription = isset($input['result_description']) ? $conn->real_escape_string($input['result_description']) : null;
         $merchantRequestId = isset($input['merchant_request_id']) ? $conn->real_escape_string($input['merchant_request_id']) : null;
 
+        // CRITICAL: Extract M-Pesa receipt from callback (same as c2b_callback.php)
+        // This is passed from M-Pesa callback metadata as MpesaReceiptNumber
+        $mpesaReceiptNumber = isset($input['mpesa_receipt_number']) ? $conn->real_escape_string($input['mpesa_receipt_number']) : null;
+        $amount = isset($input['amount']) ? floatval($input['amount']) : null;
+
+        error_log("[API STK CALLBACK] CheckoutRequestID: $checkoutRequestId, ResultCode: $resultCode, Receipt: " . ($mpesaReceiptNumber ?? 'MISSING'));
+
         $status = 'failed';
         if ($resultCode === '0' || $resultCode === 0) {
             $status = 'success';
@@ -8208,7 +8215,8 @@ switch ($action) {
         $bookingId = $session['booking_id'] ?? null;
 
         if ($status === 'success') {
-            $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDescription);
+            // CRITICAL: Pass M-Pesa receipt to recordMpesaPayment for proper validation
+            $recorded = recordMpesaPayment($conn, $session, $resultCode, $resultDescription, $amount, $mpesaReceiptNumber);
             if (!$recorded) {
                 $status = 'failed';
                 if ($bookingId) {
