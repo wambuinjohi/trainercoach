@@ -764,60 +764,60 @@ export const ClientDashboard: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2 mt-0.5 flex-shrink-0">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="min-w-0 text-xl font-bold leading-tight text-foreground sm:text-2xl">
-              {selectedCategory ? `${selectedCategory} Trainers` : 'All Available Trainers'}
-            </h1>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(true)} className="w-full sm:w-auto"><Sliders className="h-4 w-4 mr-2" />Filters</Button>
-        </div>
-
-        {/* Location Display and Change Button */}
-        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2 dark:border-blue-800 dark:bg-blue-950/20 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-            <span className="break-words text-blue-700 dark:text-blue-300">
-              {selectedLocationMode === 'home' ? '🏠 Using Home' : '📍 Using Current'}
-            </span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedLocationMode(null)} className="h-auto w-full py-1 px-2 text-xs sm:w-auto">
-            Change
-          </Button>
-        </div>
-
-        {/* Horizontal Scrollable Categories */}
+        {/* Category Filter Pills Bar */}
         {dbCategories.length > 0 && (
-          <div className="flex overflow-x-auto gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                !selectedCategory
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
-              }`}
-            >
-              All
-            </button>
-            {dbCategories.map((cat) => (
+          <div className="space-y-3">
+            <div className="flex overflow-x-auto gap-2 pb-2 -mx-2 px-2 scrollbar-hide">
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
-                  selectedCategory === cat.name
-                    ? 'bg-primary text-primary-foreground'
+                onClick={() => setSelectedCategory(null)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                  !selectedCategory
+                    ? 'bg-muted text-muted-foreground border'
                     : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
                 }`}
               >
-                {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                {cat.name}
+                All
               </button>
-            ))}
+              {dbCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                    selectedCategory === cat.name
+                      ? 'bg-green-500 text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
+                  }`}
+                >
+                  {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Filter Options Row */}
+            <div className="flex flex-wrap gap-3 px-1">
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <MapPin className="h-4 w-4" />
+                Location
+              </button>
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <DollarSign className="h-4 w-4" />
+                Price
+              </button>
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Users className="h-4 w-4" />
+                Availability
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Heading */}
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">
+            {selectedCategory ? `${selectedCategory} Trainers in Your Area` : 'All Available Trainers'}
+          </h2>
+        </div>
 
         {filteredTrainers.length === 0 ? (
           <Card className="bg-card border-border">
@@ -826,110 +826,117 @@ export const ClientDashboard: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredTrainers.map((trainer, idx) => {
               const trainerCategories = getCategoryNamesForTrainer(trainer.categoryIds)
-              const displayCategories = trainerCategories.slice(0, 2)
-              const remainingCategoriesCount = trainerCategories.length - displayCategories.length
+              const displayCategory = trainerCategories[0]
+              const isNearest = idx === 0 && userLocation && selectedCategory
 
               return (
-              <Card
-                key={trainer.id}
-                className={`bg-card border-2 transition-all ${idx === 0 && userLocation ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-border'}`}
-              >
-                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                  {/* Header with name, badges */}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-primary flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
-                      {trainer.profile_image ? (
-                        <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
-                      ) : (
-                        '👤'
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <h3 className="break-words font-semibold text-foreground">{trainer.name}</h3>
-                        {idx === 0 && userLocation && selectedCategory && (
-                          <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
+              <Card key={trainer.id} className="bg-card border-border hover:border-muted-foreground/50 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex gap-4">
+                    {/* Trainer Image - Left */}
+                    <div className="flex-shrink-0">
+                      <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden">
+                        {trainer.profile_image ? (
+                          <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
+                        ) : (
+                          '👤'
                         )}
-                        <Badge variant={isTrainerAvailableNow(trainer) ? "default" : "secondary"} className="flex-shrink-0">
-                          {isTrainerAvailableNow(trainer) ? 'Available Now' : 'Not Available'}
-                        </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground break-words">{trainer.discipline || 'Training'}</p>
-                      {trainer.bio && (
-                        <p className="mt-1 break-words text-xs text-muted-foreground">{trainer.bio}</p>
-                      )}
                     </div>
-                  </div>
 
-                  {/* Service Categories */}
-                  {trainerCategories.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                      {displayCategories.map((category, catIdx) => (
-                        <Badge key={catIdx} variant="outline" className="bg-muted/50">
-                          {getCategoryIcon(category)} <span className="ml-1">{category.name}</span>
-                        </Badge>
-                      ))}
-                      {remainingCategoriesCount > 0 && (
-                        <Badge variant="outline" className="bg-muted/50 text-xs">
-                          +{remainingCategoriesCount} more
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Rating, Location, Distance */}
-                  <div className="space-y-0.5 text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span>{trainer.rating.toFixed(1)} ({trainer.reviews})</span>
+                    {/* Content - Right */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      {/* Name and Category Badge */}
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <div>
+                          <h3 className="font-semibold text-foreground text-lg break-words">{trainer.name}</h3>
+                          <p className="text-sm text-muted-foreground">{trainer.discipline || 'Training'}</p>
+                        </div>
+                        {displayCategory && (
+                          <Badge className="bg-blue-600 text-white text-xs flex-shrink-0">
+                            {getCategoryIcon(displayCategory)} <span className="ml-1">{displayCategory.name}</span>
+                          </Badge>
+                        )}
                       </div>
-                      <div className="flex min-w-0 items-center gap-1 sm:flex-1">
-                        <MapPin className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">{trainer.location_label}</span>
-                      </div>
-                      {trainer.distance !== '—' && (
-                        <span className="font-semibold text-foreground">{trainer.distance}</span>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Pricing and Availability Info */}
-                  <div className="flex flex-col gap-1.5 pt-1.5 sm:pt-2 border-t border-border/50">
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      {/* Rating and Experience */}
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="flex items-center gap-1">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-4 w-4 ${
+                                  i < Math.floor(trainer.rating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-muted-foreground'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="font-semibold text-foreground">{trainer.rating?.toFixed(1) || '0.0'}</span>
+                          <span className="text-muted-foreground">({trainer.reviews || 0})</span>
+                        </div>
+                        {trainer.experience_years && (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <span>👤 {trainer.experience_years}+ Years Experience</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pricing Breakdown */}
                       {trainer.categoryPricing && trainer.categoryPricing.length > 0 ? (
-                        trainer.categoryPricing.map((pricing: any, idx: number) => {
-                          const categoryName = dbCategories.find((cat: any) => cat.id === pricing.category_id)?.name || `Category ${pricing.category_id}`
-                          const isSelectedCategory = selectedCategory === categoryName
-                          return (
-                            <span key={idx} className={isSelectedCategory ? 'font-bold text-foreground text-sm' : 'text-muted-foreground text-sm'}>
-                              {categoryName}: <span className="font-semibold">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
-                            </span>
-                          )
-                        })
+                        <div className="flex flex-wrap gap-2 text-sm">
+                          {trainer.categoryPricing.map((pricing: any, idx: number) => {
+                            const categoryName = dbCategories.find((cat: any) => cat.id === pricing.category_id)?.name || `Category ${pricing.category_id}`
+                            return (
+                              <div key={idx} className="text-muted-foreground">
+                                <span className="font-medium">{categoryName}:</span> <span className="font-semibold text-foreground">Ksh {formatHourlyRate(pricing.hourly_rate)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
                       ) : (
-                        <span className="font-semibold text-foreground text-sm">Ksh {formatHourlyRate(trainer.hourlyRate)}/hour</span>
+                        <div className="text-sm">
+                          <span className="font-semibold text-foreground">Ksh {formatHourlyRate(trainer.hourlyRate)}</span>
+                          <span className="text-muted-foreground">/hour</span>
+                        </div>
                       )}
-                    </div>
-                    {trainer.pricing_packages && trainer.pricing_packages.length > 0 && (
-                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs w-fit">
-                        📦 Packages
-                      </Badge>
-                    )}
-                    {getAvailabilitySummary(trainer) && (
-                      <div className="text-xs text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded px-2 py-1 w-fit">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {getAvailabilitySummary(trainer)}
+
+                      {/* Availability */}
+                      {getAvailabilitySummary(trainer) && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {getAvailabilitySummary(trainer)}
+                        </div>
+                      )}
+
+                      {/* Distance and Action */}
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{trainer.location_label}</span>
+                          {trainer.distance && trainer.distance !== '—' && (
+                            <span className="font-semibold text-foreground ml-1">{trainer.distance}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {isNearest && (
+                            <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
+                          )}
+                          <Button
+                            size="sm"
+                            className="bg-green-500 hover:bg-green-600 text-white text-sm"
+                            onClick={() => setSelectedTrainerForBooking(trainer)}
+                          >
+                            Book Now
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-stretch gap-1.5 pt-1.5 sm:pt-2 sm:justify-end">
-                    <Button size="sm" className="w-full bg-gradient-primary text-white sm:w-auto text-xs sm:text-sm" onClick={() => setSelectedTrainerForBooking(trainer)}>
-                      Book Now
-                    </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
