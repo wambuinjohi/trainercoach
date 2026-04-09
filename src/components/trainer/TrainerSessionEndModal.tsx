@@ -57,12 +57,10 @@ export const TrainerSessionEndModal: React.FC<TrainerSessionEndModalProps> = ({
         durationMinutes = Math.round((endTime - startTime) / (1000 * 60))
       }
 
-      // Update booking: trainer marks end, transition to awaiting_completion
+      // Update booking: trainer marks end
       await apiService.updateBooking(booking.id, {
-        trainer_marked_end: true,
         ended_at: endedAt,
         session_duration_minutes: durationMinutes,
-        session_phase: 'awaiting_completion',
       })
 
       // Clear timeout

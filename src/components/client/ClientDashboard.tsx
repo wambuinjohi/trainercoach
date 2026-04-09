@@ -219,8 +219,8 @@ export const ClientDashboard: React.FC = () => {
   }, [searchQuery, trainers])
 
   const getClientFlowState = (bookingList: any[]) => ({
-    pendingStart: bookingList.find((booking: any) => booking.status === 'in_session' && booking.trainer_marked_start && !booking.client_confirmed_start) || null,
-    pendingCompletion: bookingList.find((booking: any) => booking.status === 'in_session' && (booking.session_phase === 'awaiting_completion' || booking.trainer_marked_end)) || null,
+    pendingStart: null, // Pending start detection disabled - requires database schema changes
+    pendingCompletion: null, // Pending completion detection disabled - requires database schema changes
   })
 
   // Define helper functions (must be before hooks that use them)
