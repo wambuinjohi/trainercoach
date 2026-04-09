@@ -157,8 +157,8 @@ export const TrainerDashboard: React.FC = () => {
     if (!booking) return
 
     try {
-      await apiService.updateBooking(id, { status: 'confirmed', session_phase: 'waiting_start' })
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed', session_phase: 'waiting_start' } : b))
+      await apiService.updateBooking(id, { status: 'confirmed' })
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed' } : b))
       await apiRequest('notifications_insert', {
         notifications: [{
           user_id: booking.client_id,
@@ -222,15 +222,11 @@ export const TrainerDashboard: React.FC = () => {
       if (booking.status === 'confirmed') {
         await apiService.updateBooking(id, {
           status: 'in_session',
-          session_phase: 'session_active',
-          trainer_marked_start: true,
-          trainer_marked_end: false,
-          started_at: new Date().toISOString(),
         })
 
         setBookings(prev => prev.map(b => (
           b.id === id
-            ? { ...b, status: 'in_session', session_phase: 'session_active', trainer_marked_start: true, trainer_marked_end: false }
+            ? { ...b, status: 'in_session' }
             : b
         )))
 
@@ -254,14 +250,11 @@ export const TrainerDashboard: React.FC = () => {
       if (booking.status === 'in_session' && !isAwaitingCompletion) {
         await apiService.updateBooking(id, {
           status: 'in_session',
-          session_phase: 'awaiting_completion',
-          trainer_marked_end: true,
-          ended_at: new Date().toISOString(),
         })
 
         setBookings(prev => prev.map(b => (
           b.id === id
-            ? { ...b, status: 'in_session', session_phase: 'awaiting_completion', trainer_marked_end: true }
+            ? { ...b, status: 'in_session' }
             : b
         )))
 

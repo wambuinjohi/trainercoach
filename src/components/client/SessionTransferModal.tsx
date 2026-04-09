@@ -136,7 +136,6 @@ export const SessionTransferModal: React.FC<SessionTransferModalProps> = ({
         duration_hours: currentBooking.duration_hours || 1,
         total_sessions: currentBooking.total_sessions || 1,
         status: 'pending',
-        session_phase: 'waiting_start',
         base_service_amount: currentBooking.base_service_amount,
         notes: `Transferred from trainer ${currentTrainer.name}. ${currentBooking.notes || ''}`,
         session_location_preference: currentBooking.session_location_preference,

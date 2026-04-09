@@ -47,10 +47,6 @@ export const SessionStartConfirmModal: React.FC<SessionStartConfirmModalProps> =
     try {
       await apiService.updateBooking(booking.id, {
         status: 'in_session',
-        session_phase: 'session_active',
-        client_confirmed_start: true,
-        trainer_marked_start: false,
-        session_start_confirmed_at: new Date().toISOString(),
       })
 
       if (timeoutId) clearTimeout(timeoutId)
