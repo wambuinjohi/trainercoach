@@ -1145,7 +1145,7 @@ export const ClientDashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-foreground">My Sessions</h1>
         </div>
 
-        {true ? (
+        {sortedBookings.length === 0 ? (
           <Card className="bg-card border-border">
             <CardContent className="p-6 text-center">
               <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />

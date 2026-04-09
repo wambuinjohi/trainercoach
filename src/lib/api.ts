@@ -175,7 +175,13 @@ async function apiRequest_Internal<T = any>(
     }
 
     if (!json) throw new Error('Empty API response')
-    if (json.status === 'error') throw new Error(json.message || `API error: ${res.status}`)
+    if (json.status === 'error') {
+      // Provide more helpful error message for auth-related failures
+      if (json.message && json.message.includes('Authorization')) {
+        console.error('[API] Authorization failed - check that auth_token is available in localStorage')
+      }
+      throw new Error(json.message || `API error: ${res.status}`)
+    }
     if (!res.ok && json.status !== 'success') throw new Error(json.message || `API error: ${res.status}`)
     return (json.data as T) ?? (json as unknown as T)
   } catch (error) {
@@ -186,5 +192,12 @@ async function apiRequest_Internal<T = any>(
 
 export function withAuth(token?: string): Record<string, string> {
   const t = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || '' : '')
-  return t ? { Authorization: `Bearer ${t}` } : {}
+  if (!t) {
+    // Log when auth token is missing - helps with debugging
+    if (typeof localStorage !== 'undefined') {
+      console.debug('[API] Auth token not found in localStorage. Auth-required endpoints may fail.')
+    }
+    return {}
+  }
+  return { Authorization: `Bearer ${t}` }
 }
