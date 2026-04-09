@@ -1059,19 +1059,20 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
                     error_log("[MPESA RECORD VALIDATION] Amount matches expected total. Using booking fee breakdown. Expected: $expectedTotal, Received: $mpesaAmount");
                 } else {
                     // MISMATCH: M-Pesa amount does NOT match expected total
-                    // This means some fees were not charged (likely transport)
                     // Only record what M-Pesa actually charged
+                    // Do NOT use booking amounts if the payment is incomplete
                     $baseServiceAmount = $mpesaAmount;
-                    $transportFee = 0;  // Don't record transport if M-Pesa didn't charge it
-                    $platformFee = 0;   // Calculate only from actual amounts
-                    $vatAmount = floatval($booking['vat_amount'] ?? 0);  // VAT is typically charged
-                    $trainerNetAmount = $mpesaAmount;  // Trainer gets what was actually received
+                    $transportFee = 0;      // Don't record transport if M-Pesa didn't charge it
+                    $platformFee = 0;       // Don't record platform fee
+                    $vatAmount = 0;         // Don't record VAT breakdown if amount is different
+                    $trainerNetAmount = $mpesaAmount;  // Trainer gets only what was actually received
 
                     error_log("[MPESA RECORD VALIDATION] AMOUNT MISMATCH DETECTED!");
                     error_log("[MPESA RECORD VALIDATION] Booking total_amount: $expectedTotal, M-Pesa received: $mpesaAmount");
                     error_log("[MPESA RECORD VALIDATION] Difference: " . abs($expectedTotal - $mpesaAmount));
-                    error_log("[MPESA RECORD VALIDATION] Transport fee NOT recorded: " . floatval($booking['transport_fee'] ?? 0) . " (M-Pesa did not charge it)");
-                    error_log("[MPESA RECORD VALIDATION] Recording payment with ONLY amount actually charged by M-Pesa");
+                    error_log("[MPESA RECORD VALIDATION] Transport fee NOT recorded: " . floatval($booking['transport_fee'] ?? 0) . " (NOT charged by M-Pesa)");
+                    error_log("[MPESA RECORD VALIDATION] Recording payment with ONLY what M-Pesa actually returned: Ksh $mpesaAmount");
+                    error_log("[MPESA RECORD VALIDATION] This payment appears incomplete and should be reviewed by admin");
                 }
             }
             $bookingStmt->close();
