@@ -49,7 +49,10 @@ async function performLogin(
 
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
+        },
         body: JSON.stringify({ action: 'login', email, password }),
         signal: controller.signal,
       });
@@ -265,7 +268,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
+          },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
