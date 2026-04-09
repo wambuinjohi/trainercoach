@@ -1032,7 +1032,7 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
     $bookingDate = null;
     $bookingTime = null;
     if ($bookingId) {
-        $bookingStmt = $conn->prepare("SELECT trainer_id, session_date, session_time, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount FROM bookings WHERE id = ? LIMIT 1");
+        $bookingStmt = $conn->prepare("SELECT trainer_id, session_date, session_time, base_service_amount, transport_fee, platform_fee, vat_amount, trainer_net_amount, total_amount FROM bookings WHERE id = ? LIMIT 1");
         if ($bookingStmt) {
             $bookingStmt->bind_param("s", $bookingId);
             $bookingStmt->execute();
@@ -1042,11 +1042,38 @@ function recordMpesaPayment($conn, $session, $resultCode, $resultDesc, $amount =
                 $trainerId = $trainerId ?? $booking['trainer_id'];
                 $bookingDate = $booking['session_date'] ?? null;
                 $bookingTime = $booking['session_time'] ?? null;
-                $baseServiceAmount = floatval($booking['base_service_amount'] ?? $amount);
-                $transportFee = floatval($booking['transport_fee'] ?? 0);
-                $platformFee = floatval($booking['platform_fee'] ?? 0);
-                $vatAmount = floatval($booking['vat_amount'] ?? 0);
-                $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? $amount);
+
+                // CRITICAL: Validate that M-Pesa callback amount matches expected total
+                // Only use booking fee breakdown if M-Pesa amount matches the total_amount
+                // If not, it means transport (or other fees) were NOT charged by M-Pesa
+                $expectedTotal = floatval($booking['total_amount'] ?? 0);
+                $mpesaAmount = floatval($amount);
+
+                if (abs($expectedTotal - $mpesaAmount) < 0.01) {
+                    // M-Pesa charged the full expected amount - use booking fee breakdown
+                    $baseServiceAmount = floatval($booking['base_service_amount'] ?? $amount);
+                    $transportFee = floatval($booking['transport_fee'] ?? 0);
+                    $platformFee = floatval($booking['platform_fee'] ?? 0);
+                    $vatAmount = floatval($booking['vat_amount'] ?? 0);
+                    $trainerNetAmount = floatval($booking['trainer_net_amount'] ?? $amount);
+                    error_log("[MPESA RECORD VALIDATION] Amount matches expected total. Using booking fee breakdown. Expected: $expectedTotal, Received: $mpesaAmount");
+                } else {
+                    // MISMATCH: M-Pesa amount does NOT match expected total
+                    // Only record what M-Pesa actually charged
+                    // Do NOT use booking amounts if the payment is incomplete
+                    $baseServiceAmount = $mpesaAmount;
+                    $transportFee = 0;      // Don't record transport if M-Pesa didn't charge it
+                    $platformFee = 0;       // Don't record platform fee
+                    $vatAmount = 0;         // Don't record VAT breakdown if amount is different
+                    $trainerNetAmount = $mpesaAmount;  // Trainer gets only what was actually received
+
+                    error_log("[MPESA RECORD VALIDATION] AMOUNT MISMATCH DETECTED!");
+                    error_log("[MPESA RECORD VALIDATION] Booking total_amount: $expectedTotal, M-Pesa received: $mpesaAmount");
+                    error_log("[MPESA RECORD VALIDATION] Difference: " . abs($expectedTotal - $mpesaAmount));
+                    error_log("[MPESA RECORD VALIDATION] Transport fee NOT recorded: " . floatval($booking['transport_fee'] ?? 0) . " (NOT charged by M-Pesa)");
+                    error_log("[MPESA RECORD VALIDATION] Recording payment with ONLY what M-Pesa actually returned: Ksh $mpesaAmount");
+                    error_log("[MPESA RECORD VALIDATION] This payment appears incomplete and should be reviewed by admin");
+                }
             }
             $bookingStmt->close();
         }
