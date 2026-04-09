@@ -656,7 +656,8 @@ export const TrainerProfileEditor: React.FC<TrainerProfileEditorProps> = ({ onCl
 
       for (const categoryId of categoriesToAdd) {
         try {
-          await apiService.addTrainerCategory(userId, categoryId)
+          const price = categoryPricing[categoryId] || hourlyRateNum
+          await apiService.addTrainerCategory(userId, categoryId, Number(price))
         } catch (catErr) {
           console.warn(`Failed to add category ${categoryId}:`, catErr)
           categorySaveErrors.push(`Could not add category ${categoryId}`)

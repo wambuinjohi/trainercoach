@@ -4136,9 +4136,11 @@ switch ($action) {
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $stmt = $conn->prepare("
-            SELECT tc.id, tc.trainer_id, tc.category_id, c.id as cat_id, c.name, c.icon, c.description, tc.created_at
+            SELECT tc.id, tc.trainer_id, tc.category_id, c.id as cat_id, c.name, c.icon, c.description,
+                   COALESCE(tcp.hourly_rate, 0) as hourly_rate, tc.created_at
             FROM trainer_categories tc
             LEFT JOIN categories c ON tc.category_id = c.id
+            LEFT JOIN trainer_category_pricing tcp ON tc.trainer_id = tcp.trainer_id AND tc.category_id = tcp.category_id
             WHERE tc.trainer_id = ?
             ORDER BY c.name ASC
         ");
@@ -4166,14 +4168,27 @@ switch ($action) {
 
         $trainerId = $conn->real_escape_string($input['trainer_id']);
         $categoryId = intval($input['category_id']);
+        $hourlyRate = isset($input['hourly_rate']) ? floatval($input['hourly_rate']) : 0;
         $assignmentId = 'tc_' . uniqid();
         $now = date('Y-m-d H:i:s');
 
-        $stmt = $conn->prepare("
-            INSERT INTO trainer_categories (id, trainer_id, category_id, created_at)
-            VALUES (?, ?, ?, ?)
-        ");
-        $stmt->bind_param("ssis", $assignmentId, $trainerId, $categoryId, $now);
+        // Check if hourly_rate column exists in trainer_categories table
+        $columnCheckResult = $conn->query("SHOW COLUMNS FROM trainer_categories WHERE Field = 'hourly_rate'");
+        $hasHourlyRateColumn = $columnCheckResult && $columnCheckResult->num_rows > 0;
+
+        if ($hasHourlyRateColumn) {
+            $stmt = $conn->prepare("
+                INSERT INTO trainer_categories (id, trainer_id, category_id, hourly_rate, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->bind_param("sisds", $assignmentId, $trainerId, $categoryId, $hourlyRate, $now);
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO trainer_categories (id, trainer_id, category_id, created_at)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->bind_param("ssis", $assignmentId, $trainerId, $categoryId, $now);
+        }
 
         if ($stmt->execute()) {
             $stmt->close();
