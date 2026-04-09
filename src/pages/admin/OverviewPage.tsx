@@ -119,10 +119,17 @@ export default function OverviewPage() {
       ])
 
       let documentsData = []
-      try {
-        documentsData = await apiService.listVerificationDocuments('pending')
-      } catch (docError) {
-        console.warn('Failed to load verification documents:', docError)
+      // Check if auth token is available before making authenticated API call
+      const authToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+      if (authToken) {
+        try {
+          documentsData = await apiService.listVerificationDocuments('pending')
+        } catch (docError) {
+          console.warn('Failed to load verification documents:', docError)
+          documentsData = []
+        }
+      } else {
+        console.warn('Auth token not available, skipping verification documents load')
         documentsData = []
       }
 
