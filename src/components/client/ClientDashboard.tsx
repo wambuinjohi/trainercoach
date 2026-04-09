@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Search,
   MapPin,
@@ -1146,14 +1147,18 @@ export const ClientDashboard: React.FC = () => {
         </div>
 
         {sortedBookings.length === 0 ? (
-          <Card className="bg-card border-border">
-            <CardContent className="p-6 text-center">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">No sessions yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Book a session to get started</p>
-              <Button className="mt-4" size="sm" onClick={() => navigate('/client/explore')}>Explore Trainers</Button>
-            </CardContent>
-          </Card>
+          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              <div className="space-y-3">
+                <div>
+                  <p className="font-semibold">No sessions yet</p>
+                  <p className="text-sm mt-1">Book a session with a trainer to get started</p>
+                </div>
+                <Button size="sm" className="w-full" onClick={() => navigate('/client/explore')}>Explore Trainers</Button>
+              </div>
+            </AlertDescription>
+          </Alert>
         ) : (
           <div className="space-y-6">
             {groupedByStatus.confirmed.length > 0 && (
