@@ -265,76 +265,32 @@ function devApiPlugin() {
               return;
 
             case "get_users":
-              // Proxy to real API to get users from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const usersResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'get_users', user_type: body.user_type, status: body.status, search: body.search }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const usersData = await usersResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(usersData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch users:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Users retrieved",
-                  data: []
-                }));
-              }
+              // Return mock users data in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Users retrieved",
+                data: []
+              }));
               return;
 
             case "get_categories":
-              // Proxy to real API to get all categories from database
-              try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const categoryResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_categories' }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const categoryData = await categoryResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(categoryData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch categories, using mock:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Categories retrieved",
-                  data: [
-                    { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
-                    { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
-                    { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
-                    { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
-                  ]
-                }));
-              }
+              // Return mock data for categories in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Categories retrieved",
+                data: [
+                  { id: 1, name: "Strength Training", icon: "💪", description: "Build muscle and increase strength" },
+                  { id: 2, name: "Cardio", icon: "🏃", description: "Improve cardiovascular fitness" },
+                  { id: 3, name: "Yoga", icon: "🧘", description: "Flexibility and mindfulness" },
+                  { id: 4, name: "HIIT", icon: "⚡", description: "High-intensity interval training" }
+                ]
+              }));
               return;
 
             case "announcements_get":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Announcements retrieved",
@@ -343,6 +299,7 @@ function devApiPlugin() {
               return;
 
             case "notifications_get":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Notifications retrieved",
@@ -351,124 +308,35 @@ function devApiPlugin() {
               return;
 
             case "trainer_categories_get":
-              // Proxy to real API to get trainer's categories from database
-              try {
-                // Use authorization header from request if available, otherwise use token from body
-                const authHeader = req.headers['authorization']
-                  ? { 'Authorization': req.headers['authorization'] }
-                  : body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const catResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'trainer_categories_get', trainer_id: body.trainer_id }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const catData = await catResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(catData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch trainer categories:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Trainer categories retrieved",
-                  data: []
-                }));
-              }
+              // Return mock trainer categories in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Trainer categories retrieved",
+                data: []
+              }));
               return;
 
             case "trainer_category_pricing_get":
-              // Proxy to real API to get trainer's category pricing from database
-              try {
-                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-
-                console.log(`[Dev API] trainer_category_pricing_get for trainer_id=${body.trainer_id}`);
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const pricingResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'trainer_category_pricing_get', trainer_id: body.trainer_id }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-
-                  if (!pricingResponse.ok) {
-                    console.warn(`[Dev API] trainer_category_pricing_get API returned status ${pricingResponse.status}`);
-                    throw new Error(`API returned ${pricingResponse.status}`);
-                  }
-
-                  const pricingData = await pricingResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(pricingData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch trainer category pricing:', {
-                  error: e instanceof Error ? e.message : String(e),
-                  trainer_id: body.trainer_id
-                });
-                // Return empty data array as fallback when real API is unreachable
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Trainer category pricing retrieved",
-                  data: []
-                }));
-              }
+              // Return mock trainer category pricing in development
+              console.log(`[Dev API] trainer_category_pricing_get for trainer_id=${body.trainer_id}`);
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Trainer category pricing retrieved",
+                data: []
+              }));
               return;
 
             case "get_trainers":
             case "get_trainer_details":
-              // Proxy to real API to get trainers from database
-              try {
-                // Use authorization header from request if available, otherwise use token from body
-                const authHeader = req.headers['authorization']
-                  ? { 'Authorization': req.headers['authorization'] }
-                  : body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const trainersResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: action, trainer_id: body.trainer_id, status: body.status, search: body.search }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const trainersData = await trainersResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(trainersData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch trainers:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Trainers retrieved",
-                  data: []
-                }));
-              }
+              // Return mock trainers data in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Trainers retrieved",
+                data: []
+              }));
               return;
 
             case "create_booking":
@@ -480,39 +348,17 @@ function devApiPlugin() {
               return;
 
             case "get_bookings":
-              // Proxy to real API to get bookings from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const bookingsResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'get_bookings', status: body.status, trainer_id: body.trainer_id, client_id: body.client_id }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const bookingsData = await bookingsResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(bookingsData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch bookings:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Bookings retrieved",
-                  data: []
-                }));
-              }
+              // Return mock bookings data in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Bookings retrieved",
+                data: []
+              }));
               return;
 
             case "profile_get":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Profile retrieved",
@@ -537,72 +383,27 @@ function devApiPlugin() {
               return;
 
             case "payout_requests_get":
-              // Proxy to real API to get payout requests from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const payoutResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'payout_requests_get', status: body.status, trainer_id: body.trainer_id }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const payoutData = await payoutResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(payoutData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch payout requests:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Payout requests retrieved",
-                  data: []
-                }));
-              }
+              // Return mock payout requests in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Payout requests retrieved",
+                data: []
+              }));
               return;
 
             case "b2c_payments_get":
-              // Proxy to real API to get B2C payments from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                try {
-                  const b2cResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify({ action: 'b2c_payments_get', status: body.status }),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-                  const b2cData = await b2cResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(b2cData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error('[Dev API] Failed to fetch B2C payments:', e instanceof Error ? e.message : String(e));
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "B2C payments retrieved",
-                  data: []
-                }));
-              }
+              // Return mock B2C payments in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "B2C payments retrieved",
+                data: []
+              }));
               return;
 
             case "announcement_create":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Announcement created",
@@ -611,94 +412,45 @@ function devApiPlugin() {
               return;
 
             case "promotion_requests_get":
-              // Proxy to real API to get promotion requests from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const promoResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: 'promotion_requests_get', status: body.status })
-                });
-                const promoData = await promoResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(promoData));
-              } catch (e) {
-                console.error('Failed to fetch promotion requests:', e);
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Promotion requests retrieved",
-                  data: []
-                }));
-              }
+              // Return mock promotion requests in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Promotion requests retrieved",
+                data: []
+              }));
               return;
 
             case "promotion_request_approve":
-              // Proxy to real API to approve promotion requests
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const approveResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: 'promotion_request_approve', request_id: body.request_id })
-                });
-                const approveData = await approveResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(approveData));
-              } catch (e) {
-                console.error('Failed to approve promotion request:', e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: "Failed to approve promotion request"
-                }));
-              }
+              // Return mock approval response in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Promotion request approved"
+              }));
               return;
 
             case "promotion_request_reject":
-              // Proxy to real API to reject promotion requests
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const rejectResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: 'promotion_request_reject', request_id: body.request_id })
-                });
-                const rejectData = await rejectResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(rejectData));
-              } catch (e) {
-                console.error('Failed to reject promotion request:', e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: "Failed to reject promotion request"
-                }));
-              }
+              // Return mock rejection response in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Promotion request rejected"
+              }));
               return;
 
             case "payments_get":
-              // Proxy to real API to get payments from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const paymentsResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: 'payments_get', status: body.status, trainer_id: body.trainer_id, client_id: body.client_id })
-                });
-                const paymentsData = await paymentsResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(paymentsData));
-              } catch (e) {
-                console.error('Failed to fetch payments:', e);
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Payments retrieved",
-                  data: []
-                }));
-              }
+              // Return mock payments in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Payments retrieved",
+                data: []
+              }));
               return;
 
             case "payout_insert":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Payout request created",
@@ -707,54 +459,27 @@ function devApiPlugin() {
               return;
 
             case "verification_documents_get":
-              // Proxy to real API to get trainer's documents from database
-              try {
-                const authHeader = body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const docGetResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({ action: 'verification_documents_get', trainer_id: body.trainer_id })
-                });
-                const docGetData = await docGetResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(docGetData));
-              } catch (e) {
-                console.error('Failed to fetch verification documents, using empty response:', e);
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: "Verification documents retrieved",
-                  data: []
-                }));
-              }
+              // Return mock verification documents in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents retrieved",
+                data: []
+              }));
               return;
 
             case "verification_documents_list":
-              // Proxy to real API to get all pending documents for admin review
-              try {
-                // Use Authorization header from request (set by withAuth() in api.ts)
-                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } :
-                                   body.token ? { 'Authorization': `Bearer ${body.token}` } : {};
-                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : {};
-                const docListResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader, ...adminTokenHeader },
-                  body: JSON.stringify({ action: 'verification_documents_list', status: body.status })
-                });
-                const docListData = await docListResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(docListData));
-              } catch (e) {
-                console.error('Failed to list verification documents:', e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: "Failed to list verification documents",
-                  data: null
-                }));
-              }
+              // Return mock verification documents list in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Verification documents retrieved",
+                data: []
+              }));
               return;
 
             case "verification_document_upload":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Document uploaded successfully",
@@ -763,28 +488,16 @@ function devApiPlugin() {
               return;
 
             case "verification_document_verify":
-              // Proxy to real API to approve/reject documents
-              try {
-                const adminTokenHeader = body.admin_token ? { 'X-Admin-Token': body.admin_token } : req.headers['x-admin-token'] ? { 'X-Admin-Token': req.headers['x-admin-token'] } : {};
-                const verifyResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...adminTokenHeader },
-                  body: JSON.stringify({ action: 'verification_document_verify', document_id: body.document_id, status: body.status, rejection_reason: body.rejection_reason })
-                });
-                const verifyData = await verifyResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(verifyData));
-              } catch (e) {
-                console.error('Failed to verify document:', e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: "Failed to verify document"
-                }));
-              }
+              // Return mock verification response in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Document verified successfully"
+              }));
               return;
 
             case "check_documents_submission":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Documents submission checked",
@@ -793,6 +506,7 @@ function devApiPlugin() {
               return;
 
             case "message_insert":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Message sent",
@@ -801,6 +515,7 @@ function devApiPlugin() {
               return;
 
             case "request_password_reset":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Password reset email sent",
@@ -809,6 +524,7 @@ function devApiPlugin() {
               return;
 
             case "reset_password_with_token":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Password reset successfully",
@@ -817,6 +533,7 @@ function devApiPlugin() {
               return;
 
             case "waitlist_migration":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Waitlist table created",
@@ -825,6 +542,7 @@ function devApiPlugin() {
               return;
 
             case "waitlist_alter_table":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Waitlist table altered",
@@ -833,6 +551,7 @@ function devApiPlugin() {
               return;
 
             case "seed_categories":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Categories seeded",
@@ -841,6 +560,7 @@ function devApiPlugin() {
               return;
 
             case "migrate":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Migration completed"
@@ -848,6 +568,7 @@ function devApiPlugin() {
               return;
 
             case "seed_all_users":
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: "Users seeded successfully",
@@ -859,39 +580,14 @@ function devApiPlugin() {
             case "insert":
             case "update":
             case "delete":
-              // Proxy database operations to real API with timeout
-              try {
-                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-                try {
-                  const dbResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...authHeader },
-                    body: JSON.stringify(body),
-                    signal: controller.signal
-                  });
-                  clearTimeout(timeoutId);
-
-                  const dbData = await dbResponse.json();
-                  res.setHeader("Content-Type", "application/json; charset=utf-8");
-                  res.end(JSON.stringify(dbData));
-                } catch (e) {
-                  clearTimeout(timeoutId);
-                  throw e;
-                }
-              } catch (e) {
-                console.error(`[Dev API] Failed to proxy ${action} request to real API:`, e instanceof Error ? e.message : String(e));
-                // Return mock data on error instead of error response
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify({
-                  status: "success",
-                  message: `${action} operation completed (using mock data - backend unavailable)`,
-                  data: action === "select" ? [] : action === "insert" ? { id: "mock_" + Math.random().toString(36).substring(7) } : action === "update" ? { affected_rows: 1 } : { affected_rows: 1 }
-                }));
-              }
+              // Return mock data for database operations in development
+              console.log(`[Dev API] ${action.toUpperCase()} operation (mock data):`, body);
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: `${action} operation completed`,
+                data: action === "select" ? [] : action === "insert" ? { id: "mock_" + Math.random().toString(36).substring(7) } : action === "update" ? { affected_rows: 1 } : { affected_rows: 1 }
+              }));
               return;
 
             // M-Pesa STK Push Initiation (mock for development)
@@ -951,30 +647,13 @@ function devApiPlugin() {
               return;
 
             case "admin_category_list":
-              // Proxy to real API for admin category list with filtering
-              try {
-                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-                const catListResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify({
-                    action: 'admin_category_list',
-                    status: body.status || 'all',
-                    sortBy: body.sortBy || 'created_at'
-                  })
-                });
-                const catListData = await catListResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(catListData));
-              } catch (e) {
-                console.error('Failed to fetch admin categories from real API:', e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: "Failed to fetch categories",
-                  data: null
-                }));
-              }
+              // Return mock admin category list in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Categories retrieved",
+                data: []
+              }));
               return;
 
             case "admin_category_create":
@@ -983,31 +662,18 @@ function devApiPlugin() {
             case "admin_category_archive":
             case "admin_category_approve":
             case "admin_category_reject":
-              // Proxy all admin category operations to real API
-              try {
-                const authHeader = req.headers['authorization'] ? { 'Authorization': req.headers['authorization'] } : {};
-                const adminCatResponse = await fetch('https://trainercoachconnect.com/api.php', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...authHeader },
-                  body: JSON.stringify(body)
-                });
-                const adminCatData = await adminCatResponse.json();
-                res.setHeader("Content-Type", "application/json; charset=utf-8");
-                res.end(JSON.stringify(adminCatData));
-              } catch (e) {
-                console.error(`Failed to execute admin action ${action}:`, e);
-                res.statusCode = 500;
-                res.end(JSON.stringify({
-                  status: "error",
-                  message: `Failed to execute ${action}`,
-                  data: null
-                }));
-              }
+              // Return mock response for admin category operations in development
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({
+                status: "success",
+                message: `${action} completed successfully`
+              }));
               return;
 
             // Default: return success for any unknown action
             default:
               console.warn(`[Dev API] Unknown action: ${action}`);
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({
                 status: "success",
                 message: `Action '${action}' processed (mocked in development)`,
