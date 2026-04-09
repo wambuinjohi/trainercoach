@@ -222,7 +222,6 @@ export const TrainerDashboard: React.FC = () => {
       if (booking.status === 'confirmed') {
         await apiService.updateBooking(id, {
           status: 'in_session',
-          started_at: new Date().toISOString(),
         })
 
         setBookings(prev => prev.map(b => (
@@ -251,7 +250,6 @@ export const TrainerDashboard: React.FC = () => {
       if (booking.status === 'in_session' && !isAwaitingCompletion) {
         await apiService.updateBooking(id, {
           status: 'in_session',
-          ended_at: new Date().toISOString(),
         })
 
         setBookings(prev => prev.map(b => (

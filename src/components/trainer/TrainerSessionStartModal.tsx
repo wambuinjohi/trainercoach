@@ -49,7 +49,6 @@ export const TrainerSessionStartModal: React.FC<TrainerSessionStartModalProps> =
       // Update booking status to in_session
       await apiService.updateBooking(booking.id, {
         status: 'in_session',
-        started_at: new Date().toISOString(),
       })
 
       // Clear timeout

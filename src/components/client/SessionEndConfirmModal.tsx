@@ -120,8 +120,6 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
     try {
       await apiService.updateBooking(booking.id, {
         status: 'completed',
-        auto_completed: true,
-        completed_at: new Date().toISOString(),
       })
 
       await settleCompletion(true)
@@ -149,7 +147,6 @@ export const SessionEndConfirmModal: React.FC<SessionEndConfirmModalProps> = ({
     try {
       await apiService.updateBooking(booking.id, {
         status: 'completed',
-        completed_at: new Date().toISOString(),
       })
 
       await settleCompletion(false)
