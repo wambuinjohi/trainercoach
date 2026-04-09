@@ -34,7 +34,7 @@ export async function createNotification(payload: NotificationPayload): Promise<
       created_at: new Date().toISOString(),
     }
 
-    await apiRequest('notification_insert', notificationRecord, { headers: withAuth() })
+    await apiRequest('notifications_insert', { notifications: [notificationRecord] }, { headers: withAuth() })
     return true
   } catch (error) {
     console.warn('Failed to create notification:', error)
