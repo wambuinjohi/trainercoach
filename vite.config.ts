@@ -312,6 +312,14 @@ function devApiPlugin() {
               }
               return;
 
+            case "announcements_get":
+              res.end(JSON.stringify({
+                status: "success",
+                message: "Announcements retrieved",
+                data: []
+              }));
+              return;
+
             case "notifications_get":
               res.end(JSON.stringify({
                 status: "success",
