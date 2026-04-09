@@ -91,15 +91,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 p-4 gap-3 bg-card border-r border-border">
-        <div className="flex items-center justify-between gap-4 mb-2">
-          <div className="flex items-center gap-4">
-            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white shadow-card ring-1 ring-border/60 transition-colors duration-300 dark:bg-white">
-              <img src={logoSrc} alt={APP_LOGO_ALT} className="h-20 w-auto object-contain" loading="lazy" />
+      <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 p-5 gap-4 bg-gradient-to-b from-card to-card/50 border-r border-border/40 shadow-sm">
+        <div className="flex items-center justify-between gap-4 mb-1">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-primary/10 ring-1 ring-gradient-primary/20 transition-all duration-300 hover:ring-gradient-primary/40">
+              <img src={logoSrc} alt={APP_LOGO_ALT} className="h-8 w-auto object-contain" loading="lazy" />
             </div>
             <div>
-              <div className="text-lg font-semibold leading-tight">Admin</div>
-              <div className="text-sm text-muted-foreground">Dashboard</div>
+              <div className="text-base font-bold leading-tight bg-gradient-primary bg-clip-text text-transparent">Admin</div>
+              <div className="text-xs font-medium text-muted-foreground">Dashboard</div>
             </div>
           </div>
           <Button
@@ -107,12 +107,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
             size="icon"
             onClick={() => onSignOut && onSignOut()}
             title="Logout"
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
           >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
-        <nav className="flex-1 flex flex-col gap-1">
+
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-border via-border to-transparent"></div>
+
+        <nav className="flex-1 flex flex-col gap-0.5 overflow-y-auto">
           {ADMIN_SIDEBAR_ITEMS.map(item => {
             const active = currentPage === item.key
             const Icon = item.icon
@@ -121,20 +125,35 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
                 key={item.key}
                 onClick={() => handleNavigate(item.key)}
                 className={cn(
-                  'w-full text-left px-3 py-2 rounded-md flex items-center gap-3 text-sm',
-                  active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
+                  'w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-all duration-200',
+                  active
+                    ? 'bg-gradient-primary/10 text-primary shadow-sm ring-1 ring-gradient-primary/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
               >
-                <span className="opacity-90"><Icon className="h-4 w-4" /></span>
+                <span className={cn(
+                  'transition-colors',
+                  active ? 'text-primary' : 'group-hover:text-foreground'
+                )}>
+                  <Icon className="h-4.5 w-4.5" />
+                </span>
                 <span>{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="pt-4 border-t border-border">
-          <Button variant="outline" onClick={() => onSignOut && onSignOut()} className="w-full">Sign Out</Button>
-        </div>
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-border to-border"></div>
+
+        <Button
+          variant="outline"
+          onClick={() => onSignOut && onSignOut()}
+          className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 border-red-200/40 dark:border-red-900/40 rounded-lg font-medium transition-colors"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
       </aside>
     </>
   )
