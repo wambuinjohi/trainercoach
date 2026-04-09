@@ -926,6 +926,7 @@ export const TrainerDashboard: React.FC = () => {
         {sessionStartBooking && (
           <TrainerSessionStartModal
             booking={sessionStartBooking}
+            trainerName={profileData.name}
             onConfirm={() => {
               loadBookings()
               setSessionStartBooking(null)
