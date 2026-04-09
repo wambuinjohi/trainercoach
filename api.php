@@ -7939,11 +7939,11 @@ switch ($action) {
         }
         error_log("[API STK PUSH] M-Pesa credentials retrieved, environment: " . ($mpesaCreds['environment'] ?? 'sandbox') . ", shortcode: " . ($mpesaCreds['shortcode'] ?? 'N/A'));
 
-        $callbackUrl = null;
-        if (!empty($mpesaCreds['result_url'])) {
-            $callbackUrl = $mpesaCreds['result_url'];
-        }
-        error_log("[API STK PUSH] Callback URL configured: " . ($callbackUrl ?? 'default'));
+        // For STK push (C2B), always use the C2B callback endpoint, NOT the database value (which may be misconfigured)
+        // The initiateSTKPush() function has a built-in fallback to use c2b_callback.php if no URL is provided
+        // This ensures M-Pesa callbacks are routed to the correct handler that updates payment status
+        $callbackUrl = null; // Do NOT use database value for STK push - use the default c2b_callback.php
+        error_log("[API STK PUSH] Callback URL: using default c2b_callback.php (NOT database value for STK push)");
 
         error_log("[API STK PUSH] Calling initiateSTKPush() with: phone=" . $phone . ", amount=" . $amount . ", reference=" . $accountReference . ", configured_payment_type=" . ($mpesaCreds['payment_type'] ?? 'paybill'));
         // Respect the payment type saved in M-Pesa credentials so existing Paybill setups continue to work
@@ -8020,7 +8020,7 @@ switch ($action) {
         }
         $retryCount = 0;
         $shouldRetry = true;
-        $stmt->bind_param("ssssdsssssssibbss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $paymentType, $initStatus, $retryCount, $shouldRetry, $now, $now);
+        $stmt->bind_param("ssssdsssssssiiss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $paymentType, $initStatus, $retryCount, $shouldRetry, $now, $now);
 
         if (!$stmt->execute()) {
             $stmt->close();
