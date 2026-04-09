@@ -8020,7 +8020,7 @@ switch ($action) {
         }
         $retryCount = 0;
         $shouldRetry = true;
-        $stmt->bind_param("ssssdsssssssibbss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $paymentType, $initStatus, $retryCount, $shouldRetry, $now, $now);
+        $stmt->bind_param("ssssdsssssssiiss", $sessionId, $clientId, $trainerId, $phone, $amount, $bookingId, $accountReference, $description, $checkoutRequestId, $merchantRequestId, $paymentType, $initStatus, $retryCount, $shouldRetry, $now, $now);
 
         if (!$stmt->execute()) {
             $stmt->close();
