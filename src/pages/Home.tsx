@@ -378,9 +378,6 @@ const Home: React.FC = () => {
       {/* Top Coaches This Week Section */}
       <section className="py-8 lg:py-10 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Coaches This Week</h2>
-          <p className="text-lg text-muted-foreground mb-10">Meet our most-reviewed and highest-rated coaches</p>
-
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading coaches...</div>
           ) : topCoaches.length === 0 ? (
