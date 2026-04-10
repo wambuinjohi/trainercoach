@@ -271,13 +271,13 @@ const Home: React.FC = () => {
 
         {/* Content */}
         <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 lg:py-4 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
-          <div className="space-y-4 lg:space-y-6 max-w-4xl">
+          <div className="space-y-2 lg:space-y-3 max-w-4xl">
             {/* Main Heading */}
             <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-2">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-0">
                 Find Your Perfect Trainer
               </h1>
-              <p className="text-lg sm:text-xl text-white/90">
+              <p className="text-lg sm:text-xl text-white/90 mb-0">
                 Discover certified trainers and book sessions that fit your schedule
               </p>
             </div>
