@@ -319,7 +319,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Trending in Nairobi Section */}
-      <section className="py-12 lg:py-16 bg-background">
+      <section className="py-4 lg:py-6 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
