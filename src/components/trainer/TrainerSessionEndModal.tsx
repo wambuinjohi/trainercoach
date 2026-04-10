@@ -57,10 +57,10 @@ export const TrainerSessionEndModal: React.FC<TrainerSessionEndModalProps> = ({
         durationMinutes = Math.round((endTime - startTime) / (1000 * 60))
       }
 
-      // Update booking to mark completion (no timestamp fields available)
-      // Note: session_duration_minutes and ended_at fields don't exist in database schema
+      // Update booking to awaiting_completion state - client must confirm
       const updateData: any = {
-        status: 'completed',
+        status: 'in_session',
+        session_phase: 'awaiting_completion',
       }
       await apiService.updateBooking(booking.id, updateData)
 

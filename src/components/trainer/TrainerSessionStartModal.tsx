@@ -10,12 +10,14 @@ import * as notificationService from '@/lib/notification-service'
 
 interface TrainerSessionStartModalProps {
   booking: Booking
+  trainerName?: string
   onConfirm?: () => void
   onDismiss?: () => void
 }
 
 export const TrainerSessionStartModal: React.FC<TrainerSessionStartModalProps> = ({
   booking,
+  trainerName,
   onConfirm,
   onDismiss,
 }) => {
@@ -58,7 +60,7 @@ export const TrainerSessionStartModal: React.FC<TrainerSessionStartModalProps> =
       await notificationService.notifySessionStarted(
         booking.id,
         booking.client_id,
-        booking.trainer_id || ''
+        trainerName || 'Your trainer'
       )
 
       toast({

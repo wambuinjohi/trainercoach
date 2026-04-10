@@ -28,7 +28,8 @@ import {
   Sliders,
   Repeat2,
   Send,
-  AlertCircle
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -108,6 +109,7 @@ export const ClientDashboard: React.FC = () => {
   const [locationName, setLocationName] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(true)
   const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, boolean>>({})
   const [reviewBooking, setReviewBooking] = useState<any>(null)
   const [unreadNotificationsClient, setUnreadNotificationsClient] = useState(0)
@@ -226,6 +228,7 @@ export const ClientDashboard: React.FC = () => {
   // Define helper functions (must be before hooks that use them)
   const loadBookings = useCallback(async () => {
     if (!user?.id) return
+    setBookingsLoading(true)
     try {
       const bookingsData = await apiService.getBookings(user.id, 'client')
       const bookingList = Array.isArray(bookingsData)
@@ -1046,6 +1049,16 @@ export const ClientDashboard: React.FC = () => {
 
           {showActions && (
             <div className="space-y-2">
+              {booking.status === 'in_session' && booking.session_phase === 'awaiting_completion' && (
+                <Button
+                  size="sm"
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  onClick={() => setPendingSessionConfirm(booking)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirm Session End
+                </Button>
+              )}
               {booking.status === 'completed' && (
                 <div className="flex flex-col gap-2 sm:flex-row">
                   {!reviewsByBooking[booking.id] && (
@@ -1147,18 +1160,23 @@ export const ClientDashboard: React.FC = () => {
         </div>
 
         {sortedBookings.length === 0 ? (
-          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800 dark:text-blue-200">
-              <div className="space-y-3">
-                <div>
-                  <p className="font-semibold">No sessions yet</p>
-                  <p className="text-sm mt-1">Book a session with a trainer to get started</p>
+          <div className="space-y-4">
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold">No sessions yet</p>
+                    <p className="text-sm mt-1">Book a session with a trainer to get started</p>
+                  </div>
+                  <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/client/explore')}>
+                    <Compass className="h-4 w-4 mr-2" />
+                    Explore
+                  </Button>
                 </div>
-                <Button size="sm" className="w-full" onClick={() => navigate('/client/explore')}>Explore Trainers</Button>
-              </div>
-            </AlertDescription>
-          </Alert>
+              </AlertDescription>
+            </Alert>
+          </div>
         ) : (
           <div className="space-y-6">
             {groupedByStatus.confirmed.length > 0 && (
@@ -1187,7 +1205,7 @@ export const ClientDashboard: React.FC = () => {
                   <Clock className="h-5 w-5 text-orange-500" />
                   Awaiting Completion
                 </h2>
-                {groupedByStatus.awaiting_completion.map(b => renderBookingCard(b, false))}
+                {groupedByStatus.awaiting_completion.map(b => renderBookingCard(b, true))}
               </div>
             )}
 
