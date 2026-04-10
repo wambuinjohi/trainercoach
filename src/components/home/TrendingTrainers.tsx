@@ -55,7 +55,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
       <section className="py-4 lg:py-6">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">Trending in Nairobi</h2>
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6">
             {[1, 2].map(i => (
               <div key={i} className="bg-slate-200 dark:bg-slate-700 rounded-lg h-96 animate-pulse" />
             ))}
@@ -77,7 +77,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
           Connect with our top-rated trainers
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {trainers.map((trainer) => {
             const categoryNames = trainer.categoryIds
               ? trainer.categoryIds
