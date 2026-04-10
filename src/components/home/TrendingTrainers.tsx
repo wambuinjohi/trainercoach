@@ -95,10 +95,10 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
               >
                 <div className="flex flex-col h-full">
                   {/* Image or Fallback */}
-                  <div className="relative w-full h-48 sm:h-72 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full h-32 sm:h-48 lg:h-72 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
-                        <span className="text-white text-6xl sm:text-7xl font-semibold">{getInitials(trainer.name)}</span>
+                        <span className="text-white text-4xl sm:text-6xl lg:text-7xl font-semibold">{getInitials(trainer.name)}</span>
                       </div>
                     ) : (
                       <img
@@ -119,34 +119,34 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                   </div>
 
                   {/* Content */}
-                  <CardContent className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
+                  <CardContent className="flex-1 p-2 sm:p-4 lg:p-6 flex flex-col justify-between">
                     {/* Category Badge and Name */}
-                    <div className="mb-3 sm:mb-4">
+                    <div className="mb-2 sm:mb-3 lg:mb-4">
                       {categoryNames.length > 0 && (
-                        <Badge className="mb-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm inline-block w-fit font-medium">
+                        <Badge className="mb-1 sm:mb-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs inline-block w-fit font-medium">
                           {categoryNames[0]}
                         </Badge>
                       )}
 
                       {/* Trainer Name */}
-                      <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1 line-clamp-2">
+                      <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-foreground mb-0.5 sm:mb-1 line-clamp-2">
                         {trainer.name}
                       </h3>
 
                       {/* Specialty */}
-                      <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">
+                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground line-clamp-1">
                         {getSpecialty(trainer, categoryNames)}
                       </p>
                     </div>
 
                     {/* Rating */}
                     {trainer.rating > 0 && (
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-4">
                         <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-4 w-4 sm:h-5 sm:w-5 ${
+                              className={`h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 ${
                                 i < Math.round(trainer.rating)
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'fill-slate-300 text-slate-300'
@@ -154,14 +154,14 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                             />
                           ))}
                         </div>
-                        <span className="text-sm font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
+                        <span className="text-xs sm:text-sm lg:text-base font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
                       </div>
                     )}
 
                     {/* Book Now Button */}
                     <Button
                       onClick={() => onBookNow?.(trainer)}
-                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold py-2 sm:py-3 text-sm sm:text-base"
+                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base"
                     >
                       Book Now
                     </Button>

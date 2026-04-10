@@ -318,43 +318,8 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Popular Categories Section */}
-      <section className="py-16 lg:py-20 bg-muted/30">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Categories</h2>
-          <p className="text-lg text-muted-foreground mb-10">Explore different training disciplines</p>
-
-          {categoriesLoading ? (
-            <div className="text-center text-muted-foreground py-8">Loading categories...</div>
-          ) : categories.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No categories available at the moment
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {categories.slice(0, 4).map((category) => (
-                <Link key={category.id} to={`/explore?category=${category.id}`}>
-                  <Card className="h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden rounded-xl">
-                    <div className={`relative h-40 lg:h-48 ${getCategoryGradient(category.id, category.name)} flex items-center justify-center overflow-hidden`}>
-                      <div className="text-6xl lg:text-7xl drop-shadow-lg">
-                        {category.icon || '🏋️'}
-                      </div>
-                    </div>
-                    <CardContent className="p-4 lg:p-6 text-center">
-                      <h3 className="text-base lg:text-lg font-bold text-foreground">{category.name}</h3>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Trending in Nairobi Section */}
-      <section className="py-16 lg:py-20 bg-background">
+      <section className="py-12 lg:py-16 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
           <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
@@ -374,6 +339,41 @@ const Home: React.FC = () => {
               isLoading={trainersLoading}
               onBookNow={handleBookNow}
             />
+          )}
+        </div>
+      </section>
+
+      {/* Popular Categories Section */}
+      <section className="py-12 lg:py-16 bg-muted/30">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Categories</h2>
+          <p className="text-lg text-muted-foreground mb-10">Explore different training disciplines</p>
+
+          {categoriesLoading ? (
+            <div className="text-center text-muted-foreground py-8">Loading categories...</div>
+          ) : categories.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No categories available at the moment
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+              {categories.slice(0, 4).map((category) => (
+                <Link key={category.id} to={`/explore?category=${category.id}`}>
+                  <Card className="h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden rounded-lg sm:rounded-xl">
+                    <div className={`relative h-28 sm:h-36 lg:h-48 ${getCategoryGradient(category.id, category.name)} flex items-center justify-center overflow-hidden`}>
+                      <div className="text-4xl sm:text-5xl lg:text-7xl drop-shadow-lg">
+                        {category.icon || '🏋️'}
+                      </div>
+                    </div>
+                    <CardContent className="p-2 sm:p-4 lg:p-6 text-center">
+                      <h3 className="text-xs sm:text-base lg:text-lg font-bold text-foreground">{category.name}</h3>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </section>

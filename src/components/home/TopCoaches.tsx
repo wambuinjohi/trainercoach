@@ -119,12 +119,12 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                 key={trainer.id}
                 className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 border-0 rounded-lg"
               >
-                <CardContent className="p-4 sm:p-6 flex gap-4 sm:gap-6 h-full">
+                <CardContent className="p-2 sm:p-4 lg:p-6 flex gap-2 sm:gap-4 lg:gap-6 h-full">
                   {/* Left: Profile Image - Circular */}
-                  <div className="flex-shrink-0 w-24 h-24 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-md">
+                  <div className="flex-shrink-0 w-16 h-16 sm:w-24 sm:h-24 lg:w-36 lg:h-36 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-md">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
-                        <span className="text-white text-3xl sm:text-5xl font-semibold">{getInitials(trainer.name)}</span>
+                        <span className="text-white text-xl sm:text-3xl lg:text-5xl font-semibold">{getInitials(trainer.name)}</span>
                       </div>
                     ) : (
                       <img
@@ -138,32 +138,32 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                   </div>
 
                   {/* Right: Content */}
-                  <div className="flex-1 flex flex-col justify-center gap-2 sm:gap-3">
+                  <div className="flex-1 flex flex-col justify-center gap-1 sm:gap-2 lg:gap-3">
                     {/* Name */}
-                    <h3 className="text-lg sm:text-xl font-bold text-foreground line-clamp-1">
+                    <h3 className="text-xs sm:text-lg lg:text-xl font-bold text-foreground line-clamp-1">
                       {trainer.name}
                     </h3>
 
                     {/* Specialty */}
-                    <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">
+                    <p className="text-xs sm:text-sm lg:text-base text-muted-foreground line-clamp-1">
                       {trainer.bio ? trainer.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
                     </p>
 
                     {/* Experience Badge */}
                     {trainer.experience_level && (
-                      <div className="mb-1">
+                      <div className="mb-0.5 sm:mb-1">
                         {getExperienceBadge(trainer.experience_level)}
                       </div>
                     )}
 
                     {/* Rating */}
                     {trainer.rating > 0 && (
-                      <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="flex items-center gap-0.5 sm:gap-1 lg:gap-2">
                         <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-4 w-4 sm:h-5 sm:w-5 ${
+                              className={`h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 ${
                                 i < Math.round(trainer.rating)
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'fill-slate-300 text-slate-300'
@@ -171,8 +171,8 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                             />
                           ))}
                         </div>
-                        <span className="text-sm sm:text-base font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">({trainer.total_reviews || 0})</span>
+                        <span className="text-xs sm:text-sm lg:text-base font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">({trainer.total_reviews || 0})</span>
                       </div>
                     )}
                   </div>
