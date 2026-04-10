@@ -318,31 +318,6 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Trending in Nairobi Section */}
-      <section className="py-16 lg:py-20 bg-background">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
-          <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
-
-          {trainersLoading ? (
-            <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
-          ) : trendingTrainers.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No trainers available at the moment
-              </CardContent>
-            </Card>
-          ) : (
-            <TrendingTrainers
-              trainers={trendingTrainers}
-              categories={categories}
-              isLoading={trainersLoading}
-              onBookNow={handleBookNow}
-            />
-          )}
-        </div>
-      </section>
-
       {/* Popular Categories Section */}
       <section className="py-16 lg:py-20 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -374,6 +349,31 @@ const Home: React.FC = () => {
                 </Link>
               ))}
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* Trending in Nairobi Section */}
+      <section className="py-16 lg:py-20 bg-background">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
+          <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
+
+          {trainersLoading ? (
+            <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
+          ) : trendingTrainers.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No trainers available at the moment
+              </CardContent>
+            </Card>
+          ) : (
+            <TrendingTrainers
+              trainers={trendingTrainers}
+              categories={categories}
+              isLoading={trainersLoading}
+              onBookNow={handleBookNow}
+            />
           )}
         </div>
       </section>
