@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Users,
   Award,
-  ArrowRight
+  ArrowRight,
+  Search
 } from 'lucide-react'
 import * as apiService from '@/lib/api-service'
 

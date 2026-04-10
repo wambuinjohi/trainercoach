@@ -110,13 +110,27 @@ export default function OverviewPage() {
         }
       }
 
-      const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.all([
+      const [dashboard, trainerMetrics, analyticsTimeline, activityEvents, issuesData] = await Promise.allSettled([
         getDashboardOverview(),
         getTrainerMetrics(),
         getAnalyticsTimeSeries(),
         getActivityFeed(4),
         apiService.getIssuesWithPagination({ page: 1, pageSize: 100 }),
-      ])
+      ]).then(results => results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        }
+        console.warn(`API call ${index} failed, using fallback`)
+        // Return empty/default values for failed requests
+        switch(index) {
+          case 0: return { users: { totalClients: 0, totalTrainers: 0, totalAdmins: 0 }, bookings: { total: 0 }, revenue: { totalRevenue: 0 }, approvals: { totalPending: 0 } }
+          case 1: return { activeTrainers: 0 }
+          case 2: return []
+          case 3: return []
+          case 4: return { data: [] }
+          default: return null
+        }
+      }))
 
       let documentsData = []
       // Check if auth token is available before making authenticated API call
