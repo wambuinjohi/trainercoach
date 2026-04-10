@@ -73,8 +73,8 @@ const AppContent = () => {
   }
 
   if (!user) {
-    // Mobile users go directly to Explore, desktop users see Home (intro) page
-    return isMobile ? <Explore /> : <Home />;
+    // All users see the Home page (landing page with overview)
+    return <Home />;
   }
 
   // Check if user is in signup step 2 onboarding - don't redirect if they are
