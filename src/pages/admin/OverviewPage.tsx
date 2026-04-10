@@ -288,7 +288,7 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-4 space-y-2 sm:space-y-4">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Dashboard</h1>
       </div>

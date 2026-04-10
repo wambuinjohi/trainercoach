@@ -48,7 +48,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       />
       <main className="flex-1 overflow-auto">
         {user && (
-          <div className="p-3 sm:p-6 pt-0">
+          <div className="p-3 sm:p-4 pt-0">
             <AnnouncementBanner
               userId={user.id}
               userType="admin"
