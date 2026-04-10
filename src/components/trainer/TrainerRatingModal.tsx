@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Star, CheckCircle } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import * as apiService from '@/lib/api-service'
+import { apiRequest, withAuth } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { Booking } from '@/types'
 
@@ -31,13 +31,16 @@ export const TrainerRatingModal: React.FC<TrainerRatingModalProps> = ({
     setLoading(true)
     try {
       // Insert trainer rating
-      const response = await apiService.makeRequest('trainer_rating_insert', {
-        booking_id: booking.id,
-        trainer_id: user.id,
-        client_rating: clientRating,
-        app_rating: appRating,
-        review: review || null,
-      })
+      await apiRequest('trainer_ratings_insert', {
+        trainer_ratings: [{
+          booking_id: booking.id,
+          trainer_id: user.id,
+          client_rating: clientRating,
+          app_rating: appRating,
+          review: review || null,
+          created_at: new Date().toISOString(),
+        }]
+      }, { headers: withAuth() })
 
       toast({
         title: 'Rating Submitted',
@@ -45,7 +48,7 @@ export const TrainerRatingModal: React.FC<TrainerRatingModalProps> = ({
       })
 
       setSubmitted(true)
-      
+
       // Auto-close after 2 seconds
       setTimeout(() => {
         onConfirm?.()
