@@ -767,14 +767,14 @@ export const ClientDashboard: React.FC = () => {
     const nearestTrainerId = filteredTrainers.length > 0 ? filteredTrainers[0].id : null
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Category Filter Pills Bar */}
         {dbCategories.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             <div className="flex overflow-x-auto gap-2 pb-2 -mx-2 px-2 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory(null)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                className={`flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full whitespace-nowrap font-medium transition-colors text-xs md:text-sm ${
                   !selectedCategory
                     ? 'bg-muted text-muted-foreground border'
                     : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
@@ -786,31 +786,31 @@ export const ClientDashboard: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.name)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors text-sm ${
+                  className={`flex-shrink-0 px-2 md:px-4 py-1.5 md:py-2 rounded-full whitespace-nowrap font-medium transition-colors text-xs md:text-sm ${
                     selectedCategory === cat.name
                       ? 'bg-green-500 text-white'
                       : 'bg-muted text-muted-foreground hover:bg-muted-foreground/20'
                   }`}
                 >
-                  {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                  {cat.name}
+                  {cat.icon && <span className="mr-0.5 md:mr-1 text-sm">{cat.icon}</span>}
+                  <span className="hidden sm:inline">{cat.name}</span>
                 </button>
               ))}
             </div>
 
             {/* Filter Options Row */}
-            <div className="flex flex-wrap gap-3 px-1">
-              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <MapPin className="h-4 w-4" />
-                Location
+            <div className="flex flex-wrap gap-2 md:gap-3 px-1">
+              <button className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <MapPin className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Location</span>
               </button>
-              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <DollarSign className="h-4 w-4" />
-                Price
+              <button className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <DollarSign className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Price</span>
               </button>
-              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <Users className="h-4 w-4" />
-                Availability
+              <button className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Users className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Availability</span>
               </button>
             </div>
           </div>
@@ -818,8 +818,8 @@ export const ClientDashboard: React.FC = () => {
 
         {/* Heading */}
         <div>
-          <h2 className="text-2xl font-bold text-foreground">
-            {selectedCategory ? `${selectedCategory} Trainers in Your Area` : 'All Available Trainers'}
+          <h2 className="text-lg md:text-2xl font-bold text-foreground line-clamp-2">
+            {selectedCategory ? `${selectedCategory} Trainers` : 'All Trainers'}
           </h2>
         </div>
 
@@ -830,7 +830,7 @@ export const ClientDashboard: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {filteredTrainers.map((trainer, idx) => {
               const trainerCategories = getCategoryNamesForTrainer(trainer.categoryIds)
               const displayCategory = trainerCategories[0]
@@ -838,11 +838,11 @@ export const ClientDashboard: React.FC = () => {
 
               return (
               <Card key={trainer.id} className="bg-card border-border hover:border-muted-foreground/50 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
+                <CardContent className="p-3 md:p-4">
+                  <div className="flex gap-2 md:gap-4">
                     {/* Trainer Image - Left */}
                     <div className="flex-shrink-0">
-                      <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center text-2xl overflow-hidden">
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-primary flex items-center justify-center text-xl md:text-2xl overflow-hidden">
                         {trainer.profile_image ? (
                           <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
                         ) : (
@@ -852,28 +852,28 @@ export const ClientDashboard: React.FC = () => {
                     </div>
 
                     {/* Content - Right */}
-                    <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex-1 min-w-0 space-y-1 md:space-y-2">
                       {/* Name and Category Badge */}
                       <div className="flex items-start gap-2 flex-wrap">
-                        <div>
-                          <h3 className="font-semibold text-foreground text-lg break-words">{trainer.name}</h3>
-                          <p className="text-sm text-muted-foreground">{trainer.discipline || 'Training'}</p>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-foreground text-base md:text-lg break-words line-clamp-2">{trainer.name}</h3>
+                          <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">{trainer.discipline || 'Training'}</p>
                         </div>
                         {displayCategory && (
-                          <Badge className="bg-blue-600 text-white text-xs flex-shrink-0">
-                            {getCategoryIcon(displayCategory)} <span className="ml-1">{displayCategory.name}</span>
+                          <Badge className="bg-blue-600 text-white text-xs flex-shrink-0 whitespace-nowrap">
+                            <span>{getCategoryIcon(displayCategory)}</span> <span className="hidden sm:inline ml-1">{displayCategory.name}</span>
                           </Badge>
                         )}
                       </div>
 
                       {/* Rating and Experience */}
-                      <div className="flex items-center gap-3 text-sm">
+                      <div className="flex items-center gap-2 md:gap-3 text-xs md:text-sm flex-wrap">
                         <div className="flex items-center gap-1">
-                          <div className="flex">
+                          <div className="flex gap-0.5">
                             {[...Array(5)].map((_, i) => (
                               <Star
                                 key={i}
-                                className={`h-4 w-4 ${
+                                className={`h-3 w-3 md:h-4 md:w-4 ${
                                   i < Math.floor(trainer.rating || 0)
                                     ? 'fill-yellow-400 text-yellow-400'
                                     : 'text-muted-foreground'
@@ -881,19 +881,19 @@ export const ClientDashboard: React.FC = () => {
                               />
                             ))}
                           </div>
-                          <span className="font-semibold text-foreground">{trainer.rating?.toFixed(1) || '0.0'}</span>
-                          <span className="text-muted-foreground">({trainer.reviews || 0})</span>
+                          <span className="font-semibold text-foreground text-xs md:text-sm">{trainer.rating?.toFixed(1) || '0.0'}</span>
+                          <span className="text-muted-foreground text-xs hidden sm:inline">({trainer.reviews || 0})</span>
                         </div>
                         {trainer.experience_years && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <span>👤 {trainer.experience_years}+ Years Experience</span>
+                          <div className="flex items-center gap-1 text-muted-foreground text-xs md:text-sm hidden md:flex">
+                            <span>👤 {trainer.experience_years}+y</span>
                           </div>
                         )}
                       </div>
 
                       {/* Pricing Breakdown */}
                       {trainer.categoryPricing && trainer.categoryPricing.length > 0 ? (
-                        <div className="flex flex-wrap gap-2 text-sm">
+                        <div className="flex flex-wrap gap-1 md:gap-2 text-xs md:text-sm">
                           {trainer.categoryPricing.map((pricing: any, idx: number) => {
                             const categoryName = dbCategories.find((cat: any) => cat.id === pricing.category_id)?.name || `Category ${pricing.category_id}`
                             return (
@@ -904,39 +904,39 @@ export const ClientDashboard: React.FC = () => {
                           })}
                         </div>
                       ) : (
-                        <div className="text-sm">
+                        <div className="text-xs md:text-sm">
                           <span className="font-semibold text-foreground">Ksh {formatHourlyRate(trainer.hourlyRate)}</span>
-                          <span className="text-muted-foreground">/hour</span>
+                          <span className="text-muted-foreground">/hr</span>
                         </div>
                       )}
 
                       {/* Availability */}
                       {getAvailabilitySummary(trainer) && (
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 hidden md:flex">
                           <Clock className="h-3 w-3" />
                           {getAvailabilitySummary(trainer)}
                         </div>
                       )}
 
                       {/* Distance and Action */}
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
+                      <div className="flex items-center justify-between pt-1 md:pt-2 gap-2 flex-wrap">
+                        <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground hidden md:flex">
+                          <MapPin className="h-3 w-3 md:h-4 md:w-4" />
                           <span>{trainer.location_label}</span>
                           {trainer.distance && trainer.distance !== '—' && (
                             <span className="font-semibold text-foreground ml-1">{trainer.distance}</span>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1 md:gap-2 items-center">
                           {isNearest && (
                             <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
                           )}
                           <Button
                             size="sm"
-                            className="bg-green-500 hover:bg-green-600 text-white text-sm"
+                            className="bg-green-500 hover:bg-green-600 text-white text-xs md:text-sm h-8 md:h-9 px-2 md:px-3"
                             onClick={() => setSelectedTrainerForBooking(trainer)}
                           >
-                            Book Now
+                            Book
                           </Button>
                         </div>
                       </div>
