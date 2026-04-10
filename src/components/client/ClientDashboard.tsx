@@ -919,15 +919,15 @@ export const ClientDashboard: React.FC = () => {
                       )}
 
                       {/* Distance and Action */}
-                      <div className="flex items-center justify-between pt-1 md:pt-2 gap-2 flex-wrap">
-                        <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground hidden md:flex">
+                      <div className="flex items-center pt-1 md:pt-2 gap-2">
+                        <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground hidden md:flex flex-1">
                           <MapPin className="h-3 w-3 md:h-4 md:w-4" />
                           <span>{trainer.location_label}</span>
                           {trainer.distance && trainer.distance !== '—' && (
                             <span className="font-semibold text-foreground ml-1">{trainer.distance}</span>
                           )}
                         </div>
-                        <div className="flex gap-1 md:gap-2 items-center">
+                        <div className="flex gap-1 md:gap-2 items-center ml-auto">
                           {isNearest && (
                             <Badge className="bg-green-500 text-white text-xs">Nearest</Badge>
                           )}
