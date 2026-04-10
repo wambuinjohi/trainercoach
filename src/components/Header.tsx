@@ -82,9 +82,9 @@ const Header: React.FC = () => {
       `}</style>
 
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0">
-        <div className="flex h-16 sm:h-20 lg:h-24 items-center justify-between">
+        <div className="flex h-12 sm:h-14 lg:h-16 items-center justify-between">
           <div className="flex items-center gap-4 lg:gap-8">
-            <AuthLogo compact containerClassName="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24" className="h-16 sm:h-20 lg:h-24" />
+            <AuthLogo compact containerClassName="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" className="h-12 sm:h-14 lg:h-16" />
             <nav className="hidden md:flex items-center gap-8">
               <NavLink to="/">Home</NavLink>
               <NavLink to="/explore">Explore</NavLink>
@@ -153,7 +153,7 @@ const Header: React.FC = () => {
 
       {/* Mobile Menu Slide Panel */}
       {open && (
-        <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-background border-r border-border md:hidden menu-slide-in z-50 overflow-y-auto">
+        <div className="fixed left-0 top-12 sm:top-14 h-[calc(100vh-3rem)] sm:h-[calc(100vh-3.5rem)] w-64 bg-background border-r border-border md:hidden menu-slide-in z-50 overflow-y-auto">
           <nav className="flex flex-col gap-2 p-4">
             <Link
               to="/"
