@@ -330,20 +330,15 @@ const Home: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search for trainers or categories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
-                />
-                <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
-              <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-8 py-4 text-base rounded-lg">
-                Filters ▼
-              </Button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search for trainers or categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+              />
+              <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
 
             {/* Quick Filter Buttons */}
