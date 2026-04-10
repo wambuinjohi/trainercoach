@@ -70,7 +70,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
   }
 
   return (
-    <section className="py-4 lg:py-6">
+    <section className="py-8 lg:py-10 bg-muted/30">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
         <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-6">
@@ -84,7 +84,7 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                   .map((id: number) => categories.find(c => c.id === id)?.name)
                   .filter(Boolean)
               : []
-            
+
             const hasImageError = imageErrors.has(trainer.id)
             const showFallback = !trainer.image_url || hasImageError
 
@@ -93,12 +93,12 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                 key={trainer.id}
                 className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 border-0 rounded-lg"
               >
-                <div className="flex flex-col h-full">
-                  {/* Image or Fallback */}
-                  <div className="relative w-full h-32 sm:h-48 lg:h-72 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                <CardContent className="p-2 sm:p-4 lg:p-6 flex gap-2 sm:gap-4 lg:gap-6 h-full">
+                  {/* Left: Profile Image - Circular */}
+                  <div className="flex-shrink-0 w-16 h-16 sm:w-24 sm:h-24 lg:w-36 lg:h-36 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-md">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
-                        <span className="text-white text-4xl sm:text-6xl lg:text-7xl font-semibold">{getInitials(trainer.name)}</span>
+                        <span className="text-white text-xl sm:text-3xl lg:text-5xl font-semibold">{getInitials(trainer.name)}</span>
                       </div>
                     ) : (
                       <img
@@ -109,39 +109,32 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                         loading="lazy"
                       />
                     )}
-
-                    {/* Verified Badge */}
-                    {trainer.verified && (
-                      <div className="absolute top-4 right-4 bg-green-500 dark:bg-green-600 rounded-full p-2 shadow-md">
-                        <CheckCircle className="w-6 h-6 text-white fill-current" />
-                      </div>
-                    )}
                   </div>
 
-                  {/* Content */}
-                  <CardContent className="flex-1 p-2 sm:p-4 lg:p-6 flex flex-col justify-between">
-                    {/* Category Badge and Name */}
-                    <div className="mb-2 sm:mb-3 lg:mb-4">
-                      {categoryNames.length > 0 && (
-                        <Badge className="mb-1 sm:mb-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs inline-block w-fit font-medium">
+                  {/* Right: Content */}
+                  <div className="flex-1 flex flex-col justify-center gap-1 sm:gap-2 lg:gap-3">
+                    {/* Name */}
+                    <h3 className="text-xs sm:text-lg lg:text-xl font-bold text-foreground line-clamp-1">
+                      {trainer.name}
+                    </h3>
+
+                    {/* Specialty */}
+                    <p className="text-xs sm:text-sm lg:text-base text-muted-foreground line-clamp-1">
+                      {getSpecialty(trainer, categoryNames)}
+                    </p>
+
+                    {/* Category Badge */}
+                    {categoryNames.length > 0 && (
+                      <div className="mb-0.5 sm:mb-1">
+                        <Badge className="bg-emerald-600 dark:bg-emerald-700 text-white inline-flex items-center gap-1 text-xs sm:text-sm font-medium">
                           {categoryNames[0]}
                         </Badge>
-                      )}
-
-                      {/* Trainer Name */}
-                      <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-foreground mb-0.5 sm:mb-1 line-clamp-2">
-                        {trainer.name}
-                      </h3>
-
-                      {/* Specialty */}
-                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground line-clamp-1">
-                        {getSpecialty(trainer, categoryNames)}
-                      </p>
-                    </div>
+                      </div>
+                    )}
 
                     {/* Rating */}
                     {trainer.rating > 0 && (
-                      <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-4">
+                      <div className="flex items-center gap-0.5 sm:gap-1 lg:gap-2">
                         <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star
@@ -155,18 +148,11 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                           ))}
                         </div>
                         <span className="text-xs sm:text-sm lg:text-base font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">({trainer.total_reviews || 0})</span>
                       </div>
                     )}
-
-                    {/* Book Now Button */}
-                    <Button
-                      onClick={() => onBookNow?.(trainer)}
-                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base"
-                    >
-                      Book Now
-                    </Button>
-                  </CardContent>
-                </div>
+                  </div>
+                </CardContent>
               </Card>
             )
           })}
