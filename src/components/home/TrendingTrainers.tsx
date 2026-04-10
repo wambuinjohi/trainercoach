@@ -125,11 +125,9 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
 
                     {/* Category Badge */}
                     {categoryNames.length > 0 && (
-                      <div className="mb-0.5 sm:mb-1">
-                        <Badge className="bg-emerald-600 dark:bg-emerald-700 text-white inline-flex items-center gap-1 text-xs sm:text-sm font-medium">
-                          {categoryNames[0]}
-                        </Badge>
-                      </div>
+                      <Badge className="bg-emerald-600 dark:bg-emerald-700 text-white inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5">
+                        {categoryNames[0]}
+                      </Badge>
                     )}
 
                     {/* Rating */}
