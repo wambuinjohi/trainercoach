@@ -336,9 +336,23 @@ const Home: React.FC = () => {
                 placeholder="Search for trainers or categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    navigate(`/explore?search=${encodeURIComponent(searchQuery)}`)
+                  }
+                }}
                 className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
               />
-              <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
+              <button
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    navigate(`/explore?search=${encodeURIComponent(searchQuery)}`)
+                  }
+                }}
+                className="absolute right-5 top-4 w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <Search className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Quick Filter Buttons */}
