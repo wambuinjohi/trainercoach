@@ -30,8 +30,68 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
     if (onChange) onChange(key)
   }
 
+  const closeMenu = () => setOpen(false)
+
   return (
     <>
+      <style>{`
+        @keyframes slideInFromLeft {
+          from {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideOutToLeft {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+
+        .menu-slide-in {
+          animation: slideInFromLeft 0.3s ease-out forwards;
+        }
+
+        .menu-slide-out {
+          animation: slideOutToLeft 0.3s ease-in forwards;
+        }
+
+        .overlay-fade-in {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .overlay-fade-out {
+          animation: fadeOut 0.3s ease-in forwards;
+        }
+      `}</style>
+
       {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
         <div className="flex items-center gap-4">
@@ -50,45 +110,58 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ value, onChange, onS
         </Button>
       </div>
 
-      {/* Mobile collapsible menu */}
-      <div id="admin-mobile-menu" className={cn('md:hidden transition-all duration-300', open ? 'max-h-[calc(100vh-100px)] overflow-y-auto' : 'max-h-0 overflow-hidden')}>
-        <div className="flex flex-col gap-1 p-3 border-b border-border bg-card">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 mb-2"
-            onClick={() => { setOpen(false); onSignOut && onSignOut() }}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
-          <div className="my-1 border-b border-border"></div>
+      {/* Mobile Menu Overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 md:hidden overlay-fade-in z-40"
+          onClick={closeMenu}
+        />
+      )}
 
-          {ADMIN_SIDEBAR_ITEMS.map(item => {
-            const active = currentPage === item.key
-            const Icon = item.icon
-            return (
-              <button
-                key={item.key}
-                onClick={() => { handleNavigate(item.key); setOpen(false) }}
-                className={cn(
-                  'w-full text-left px-3 py-2 rounded-md flex items-center gap-3 text-sm',
-                  active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
-                )}
-              >
-                <span className="opacity-80"><Icon className="h-4 w-4" /></span>
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-
-          <div className="mt-3 pt-3 border-t border-border">
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setOpen(false); onSignOut && onSignOut() }}>
-              Sign Out
+      {/* Mobile Slide Menu Panel */}
+      {open && (
+        <div
+          id="admin-mobile-menu"
+          className="fixed left-0 top-24 h-[calc(100vh-6rem)] w-64 bg-card border-r border-border md:hidden menu-slide-in z-50 overflow-y-auto"
+        >
+          <div className="flex flex-col gap-1 p-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 mb-2"
+              onClick={() => { closeMenu(); onSignOut && onSignOut() }}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
             </Button>
+            <div className="my-1 border-b border-border"></div>
+
+            {ADMIN_SIDEBAR_ITEMS.map(item => {
+              const active = currentPage === item.key
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => { handleNavigate(item.key); closeMenu() }}
+                  className={cn(
+                    'w-full text-left px-3 py-2 rounded-md flex items-center gap-3 text-sm',
+                    active ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  <span className="opacity-80"><Icon className="h-4 w-4" /></span>
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
+
+            <div className="mt-3 pt-3 border-t border-border">
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { closeMenu(); onSignOut && onSignOut() }}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 p-5 gap-4 bg-gradient-to-b from-card to-card/50 border-r border-border/40 shadow-sm">

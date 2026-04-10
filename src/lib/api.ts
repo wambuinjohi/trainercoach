@@ -85,44 +85,39 @@ export async function apiRequest<T = any>(action: string, payload: Record<string
     lastSuccessfulApiUrl = apiUrl
     return response
   } catch (primaryError) {
-    console.error(`[API] ${action} failed with primary URL:`, primaryError, { url: apiUrl })
+    console.debug(`[API] ${action} failed with primary URL:`, primaryError, { url: apiUrl })
 
     // Try fallback URLs if primary fails
     const fallbackUrls = getCurrentFallbackApiUrls(apiUrl)
 
-    // Log detailed error info for debugging
+    // Log detailed error info for debugging only if not a common network error
     const errorMsg = primaryError instanceof Error ? primaryError.message : String(primaryError)
-    if (errorMsg.includes('Failed to fetch')) {
-      console.warn(`[API DEBUG] Network/CORS error detected. API URL: ${apiUrl}`, {
-        isProduction: import.meta.env.PROD,
-        apiUrl,
-        fallbackUrls: fallbackUrls,
-      })
+    if (!errorMsg.includes('Failed to fetch')) {
+      console.warn(`[API] ${action} error:`, primaryError)
     }
+
     for (const fallbackUrl of fallbackUrls) {
-      console.log(`[API] ${action} - trying fallback URL:`, fallbackUrl)
       try {
         const response = await apiRequest_Internal<T>(fallbackUrl, action, payload, headers, init)
         lastSuccessfulApiUrl = fallbackUrl
-        console.log(`[API] ${action} - fallback URL succeeded:`, fallbackUrl)
+        console.debug(`[API] ${action} - fallback succeeded`, { url: fallbackUrl })
         return response
       } catch (fallbackError) {
-        console.error(`[API] ${action} - fallback URL failed:`, fallbackError, { url: fallbackUrl })
+        console.debug(`[API] ${action} - fallback failed:`, { url: fallbackUrl })
         continue
       }
     }
 
     // All API endpoints failed, try mock data as last resort
-    console.log(`[API] ${action} - all real endpoints failed, attempting mock data fallback`)
     const mockResponse = getMockResponse(action, payload)
     if (mockResponse) {
-      console.log(`[API] ${action} - using mock data (all real endpoints failed)`)
+      console.debug(`[API] ${action} - using mock data fallback`)
       const result = mockResponse.data ? mockResponse.data as T : mockResponse as unknown as T
       return result
     }
 
     // No mock data available either
-    console.error(`[API] ${action} - no mock data available, throwing error`)
+    console.error(`[API] ${action} - all endpoints failed and no mock data available`)
     throw primaryError
   }
 }
