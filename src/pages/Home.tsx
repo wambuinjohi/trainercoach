@@ -341,11 +341,9 @@ const Home: React.FC = () => {
                 />
                 <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
               </div>
-              <Link to="/explore">
-                <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-8 py-4 text-base rounded-lg">
-                  Filters ▼
-                </Button>
-              </Link>
+              <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-8 py-4 text-base rounded-lg">
+                Filters ▼
+              </Button>
             </div>
 
             {/* Quick Filter Buttons */}
