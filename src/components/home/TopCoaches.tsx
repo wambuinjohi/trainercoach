@@ -78,10 +78,10 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
 
   if (isLoading) {
     return (
-      <section className="py-20 lg:py-32 bg-muted/30 dark:bg-slate-900/30">
+      <section className="py-8 lg:py-10 bg-muted/30 dark:bg-slate-900/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">Top Coaches This Week</h2>
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6">
             {[1, 2].map(i => (
               <div key={i} className="bg-slate-200 dark:bg-slate-700 rounded-lg h-48 animate-pulse" />
             ))}
@@ -96,14 +96,14 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
   }
 
   return (
-    <section className="py-20 lg:py-32 bg-muted/30">
+    <section className="py-8 lg:py-10 bg-muted/30">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl sm:text-4xl font-bold mb-4">Top Coaches This Week</h2>
-        <p className="text-lg text-muted-foreground mb-12">
+        <p className="text-lg text-muted-foreground mb-6">
           Meet our most-reviewed and highest-rated coaches
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {trainers.map((trainer) => {
             const categoryNames = trainer.categoryIds
               ? trainer.categoryIds
