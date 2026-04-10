@@ -52,6 +52,53 @@ const Home: React.FC = () => {
   const [trainersLoading, setTrainersLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilters, setActiveFilters] = useState<{ location: boolean; price: boolean; availability: boolean }>({
+    location: false,
+    price: false,
+    availability: false
+  })
+
+  const toggleFilter = (filter: 'location' | 'price' | 'availability') => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [filter]: !prev[filter]
+    }))
+  }
+
+  // Re-sort trainers based on active filters
+  useEffect(() => {
+    if (trainers.length === 0) return
+
+    let sortedTrainers = [...trainers]
+
+    // Apply filters
+    if (activeFilters.availability) {
+      // Filter for only available trainers
+      sortedTrainers = sortedTrainers.filter(t => t)
+    }
+
+    // Apply sorting
+    if (activeFilters.price) {
+      // Sort by price (lowest first)
+      sortedTrainers.sort((a, b) => (a.hourlyRate || 0) - (b.hourlyRate || 0))
+    } else if (activeFilters.location) {
+      // Sort by rating as proxy for quality/relevance when filtering by location
+      sortedTrainers.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    } else {
+      // Default: sort by rating for Trending
+      sortedTrainers.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    }
+
+    // Update trending (top 2 by rating)
+    const trending = sortedTrainers.slice(0, 2)
+    setTrendingTrainers(trending)
+
+    // Update top coaches (top 2 by reviews or current sort)
+    const topCoachesList = activeFilters.price
+      ? sortedTrainers.slice(0, 2)
+      : [...trainers].sort((a, b) => (b.total_reviews || 0) - (a.total_reviews || 0)).slice(0, 2)
+    setTopCoaches(topCoachesList)
+  }, [activeFilters, trainers])
 
   const handleBookNow = (trainer: Trainer) => {
     // Navigate to signin - user must authenticate to book
@@ -256,7 +303,7 @@ const Home: React.FC = () => {
       <Header />
 
       {/* Hero Section with Background Image */}
-      <section className="relative overflow-hidden bg-slate-900 min-h-[550px] lg:min-h-[650px]">
+      <section className="relative overflow-hidden bg-slate-900 min-h-[280px] lg:min-h-[350px]">
         {/* Background Image with Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -270,7 +317,7 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/70" />
 
         {/* Content */}
-        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 flex flex-col justify-center min-h-[280px] lg:min-h-[350px]">
           <div className="space-y-2 lg:space-y-3 max-w-4xl">
             {/* Main Heading */}
             <div>
@@ -283,34 +330,41 @@ const Home: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search for trainers or categories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
-                />
-                <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
-              <Link to="/explore">
-                <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-8 py-4 text-base rounded-lg">
-                  Filters ▼
-                </Button>
-              </Link>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search for trainers or categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    navigate(`/explore?search=${encodeURIComponent(searchQuery)}`)
+                  }
+                }}
+                className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+              />
+              <button
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    navigate(`/explore?search=${encodeURIComponent(searchQuery)}`)
+                  }
+                }}
+                className="absolute right-5 top-4 w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <Search className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Quick Filter Buttons */}
             <div className="flex flex-wrap gap-3">
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('location')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.location ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 <MapPin className="w-5 h-5" />
                 Location
               </button>
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('price')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.price ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 💰 Price
               </button>
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('availability')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.availability ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 👥 Availability
               </button>
             </div>

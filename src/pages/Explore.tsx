@@ -270,7 +270,7 @@ const Explore: React.FC = () => {
     }
   }, [geoLocation])
 
-  // Initialize filters from URL parameters
+  // Initialize filters and search from URL parameters
   useEffect(() => {
     const categoryParam = searchParams.get('category')
     if (categoryParam) {
@@ -278,6 +278,16 @@ const Explore: React.FC = () => {
       if (!isNaN(categoryId)) {
         setFilters(prev => ({ ...prev, categoryId }))
       }
+    }
+
+    const searchParam = searchParams.get('search')
+    if (searchParam) {
+      setSearchQuery(decodeURIComponent(searchParam))
+    }
+
+    const sortParam = searchParams.get('sort')
+    if (sortParam && ['location', 'price', 'availability'].includes(sortParam)) {
+      setSortBy(sortParam as 'location' | 'price' | 'availability')
     }
   }, [searchParams])
 
