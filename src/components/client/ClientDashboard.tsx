@@ -952,6 +952,38 @@ export const ClientDashboard: React.FC = () => {
   }
 
   const renderScheduleContent = () => {
+    // Show empty state immediately if bookings have loaded and are empty
+    if (!bookingsLoading && bookings.length === 0) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-foreground">My Sessions</h1>
+          </div>
+          <div className="space-y-4">
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 relative">
+              <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">explore</Badge>
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold">No sessions yet</p>
+                    <p className="text-sm mt-1">Book a session with a trainer to get started</p>
+                  </div>
+                  <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/client/explore')}>
+                    <Compass className="h-4 w-4 mr-2" />
+                    Explore
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )
+    }
+
     const sortedBookings = [...bookings].sort((a, b) =>
       new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
     )
@@ -1161,7 +1193,8 @@ export const ClientDashboard: React.FC = () => {
 
         {sortedBookings.length === 0 ? (
           <div className="space-y-4">
-            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800">
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 relative">
+              <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">explore</Badge>
               <AlertCircle className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800 dark:text-blue-200">
                 <div className="space-y-3">
@@ -1327,15 +1360,13 @@ export const ClientDashboard: React.FC = () => {
         />
       )}
 
-      {!modalOpen && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
-          <div className="container max-w-md mx-auto grid grid-cols-3 gap-1 py-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/sessions')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
-          </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+        <div className="container max-w-md mx-auto grid grid-cols-3 gap-1 py-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/client/sessions')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
