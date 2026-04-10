@@ -193,6 +193,41 @@ const Home: React.FC = () => {
     { icon: <Award className="w-6 h-6" />, value: "50K+", label: "Sessions Completed" }
   ]
 
+  // Generate category background gradients
+  const getCategoryGradient = (categoryId: number, categoryName: string): string => {
+    const gradients: Record<string, string> = {
+      'badminton': 'bg-gradient-to-br from-green-400 to-green-600',
+      'tennis': 'bg-gradient-to-br from-blue-400 to-blue-600',
+      'table tennis': 'bg-gradient-to-br from-orange-400 to-orange-600',
+      'lawn tennis': 'bg-gradient-to-br from-blue-500 to-blue-700',
+      'cooking': 'bg-gradient-to-br from-yellow-400 to-yellow-600',
+      'yoga': 'bg-gradient-to-br from-purple-400 to-purple-600',
+      'fitness': 'bg-gradient-to-br from-red-400 to-red-600',
+      'pilates': 'bg-gradient-to-br from-pink-400 to-pink-600',
+      'dance': 'bg-gradient-to-br from-indigo-400 to-indigo-600',
+      'swimming': 'bg-gradient-to-br from-cyan-400 to-cyan-600',
+    }
+
+    const key = categoryName.toLowerCase().trim()
+    if (gradients[key]) {
+      return gradients[key]
+    }
+
+    // Default gradients based on category ID
+    const defaultGradients = [
+      'bg-gradient-to-br from-green-400 to-green-600',
+      'bg-gradient-to-br from-blue-400 to-blue-600',
+      'bg-gradient-to-br from-orange-400 to-orange-600',
+      'bg-gradient-to-br from-purple-400 to-purple-600',
+      'bg-gradient-to-br from-pink-400 to-pink-600',
+      'bg-gradient-to-br from-yellow-400 to-yellow-600',
+      'bg-gradient-to-br from-red-400 to-red-600',
+      'bg-gradient-to-br from-indigo-400 to-indigo-600',
+    ]
+
+    return defaultGradients[categoryId % defaultGradients.length]
+  }
+
   const testimonials = [
     {
       name: "Jane C.",
@@ -221,26 +256,31 @@ const Home: React.FC = () => {
       <Header />
 
       {/* Hero Section with Background Image */}
-      <section className="relative overflow-hidden bg-slate-900 h-auto lg:min-h-[600px]">
-        {/* Background Image */}
+      <section className="relative overflow-hidden bg-slate-900 min-h-[550px] lg:min-h-[650px]">
+        {/* Background Image with Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: 'url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&h=800&fit=crop")',
-            opacity: 0.4
+            backgroundImage: 'url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&h=900&fit=crop")',
+            opacity: 0.35
           }}
         />
 
-        {/* Overlay Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/70 to-slate-900/60" />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/70" />
 
         {/* Content */}
-        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
-          <div className="space-y-6 lg:space-y-8 max-w-3xl">
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
+          <div className="space-y-8 lg:space-y-10 max-w-4xl">
             {/* Main Heading */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
-              Find Your Perfect Trainer
-            </h1>
+            <div>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-4">
+                Find Your Perfect Trainer
+              </h1>
+              <p className="text-lg sm:text-xl text-white/90">
+                Discover certified trainers and book sessions that fit your schedule
+              </p>
+            </div>
 
             {/* Search Bar */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
@@ -250,27 +290,27 @@ const Home: React.FC = () => {
                   placeholder="Search for trainers or categories..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-trainer-primary"
+                  className="w-full px-5 py-4 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 />
-                <Search className="absolute right-4 top-3.5 w-5 h-5 text-gray-400 pointer-events-none" />
+                <Search className="absolute right-5 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
               </div>
               <Link to="/explore">
-                <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-6">
+                <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-8 py-4 text-base rounded-lg">
                   Filters ▼
                 </Button>
               </Link>
             </div>
 
             {/* Quick Filter Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
-                <MapPin className="w-4 h-4" />
+            <div className="flex flex-wrap gap-3">
+              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+                <MapPin className="w-5 h-5" />
                 Location
               </button>
-              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
+              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
                 💰 Price
               </button>
-              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
+              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
                 👥 Availability
               </button>
             </div>
@@ -279,9 +319,10 @@ const Home: React.FC = () => {
       </section>
 
       {/* Trending in Nairobi Section */}
-      <section className="py-12 lg:py-16 bg-background">
+      <section className="py-16 lg:py-20 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Trending in Nairobi</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
+          <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
 
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
@@ -303,9 +344,10 @@ const Home: React.FC = () => {
       </section>
 
       {/* Popular Categories Section */}
-      <section className="py-12 lg:py-16 bg-muted/30">
+      <section className="py-16 lg:py-20 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Popular Categories</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Categories</h2>
+          <p className="text-lg text-muted-foreground mb-10">Explore different training disciplines</p>
 
           {categoriesLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading categories...</div>
@@ -319,14 +361,14 @@ const Home: React.FC = () => {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {categories.slice(0, 4).map((category) => (
                 <Link key={category.id} to={`/explore?category=${category.id}`}>
-                  <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden">
-                    <div className="relative h-32 lg:h-40 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
-                      <div className="text-5xl lg:text-6xl">
+                  <Card className="h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden rounded-xl">
+                    <div className={`relative h-40 lg:h-48 ${getCategoryGradient(category.id, category.name)} flex items-center justify-center overflow-hidden`}>
+                      <div className="text-6xl lg:text-7xl drop-shadow-lg">
                         {category.icon || '🏋️'}
                       </div>
                     </div>
                     <CardContent className="p-4 lg:p-6 text-center">
-                      <h3 className="text-base lg:text-lg font-semibold text-foreground">{category.name}</h3>
+                      <h3 className="text-base lg:text-lg font-bold text-foreground">{category.name}</h3>
                     </CardContent>
                   </Card>
                 </Link>
@@ -337,9 +379,10 @@ const Home: React.FC = () => {
       </section>
 
       {/* Top Coaches This Week Section */}
-      <section className="py-12 lg:py-16 bg-background">
+      <section className="py-16 lg:py-20 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Top Coaches This Week</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Coaches This Week</h2>
+          <p className="text-lg text-muted-foreground mb-10">Meet our most-reviewed and highest-rated coaches</p>
 
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading coaches...</div>

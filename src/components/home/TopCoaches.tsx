@@ -117,14 +117,14 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
             return (
               <Card
                 key={trainer.id}
-                className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-800 border-0"
+                className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 border-0 rounded-lg"
               >
-                <CardContent className="p-0 flex gap-2 sm:gap-5 h-full">
+                <CardContent className="p-4 sm:p-6 flex gap-4 sm:gap-6 h-full">
                   {/* Left: Profile Image - Circular */}
-                  <div className="flex-shrink-0 w-20 h-20 sm:w-32 sm:h-32 m-3 sm:m-5 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center flex-shrink-0">
+                  <div className="flex-shrink-0 w-24 h-24 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-md">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
-                        <span className="text-white text-4xl font-semibold">{getInitials(trainer.name)}</span>
+                        <span className="text-white text-3xl sm:text-5xl font-semibold">{getInitials(trainer.name)}</span>
                       </div>
                     ) : (
                       <img
@@ -138,32 +138,32 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                   </div>
 
                   {/* Right: Content */}
-                  <div className="flex-1 py-3 sm:py-5 pr-3 sm:pr-5 flex flex-col justify-between">
-                    {/* Top: Name and Specialty */}
-                    <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-foreground line-clamp-2">
-                        {trainer.name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 line-clamp-2">
-                        {trainer.bio ? trainer.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
-                      </p>
+                  <div className="flex-1 flex flex-col justify-center gap-2 sm:gap-3">
+                    {/* Name */}
+                    <h3 className="text-lg sm:text-xl font-bold text-foreground line-clamp-1">
+                      {trainer.name}
+                    </h3>
 
-                      {/* Experience Badge */}
-                      {trainer.experience_level && (
-                        <div className="mb-1.5 sm:mb-3">
-                          {getExperienceBadge(trainer.experience_level)}
-                        </div>
-                      )}
-                    </div>
+                    {/* Specialty */}
+                    <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">
+                      {trainer.bio ? trainer.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
+                    </p>
 
-                    {/* Middle: Rating */}
+                    {/* Experience Badge */}
+                    {trainer.experience_level && (
+                      <div className="mb-1">
+                        {getExperienceBadge(trainer.experience_level)}
+                      </div>
+                    )}
+
+                    {/* Rating */}
                     {trainer.rating > 0 && (
                       <div className="flex items-center gap-1 sm:gap-2">
                         <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-3 w-3 sm:h-4 sm:w-4 ${
+                              className={`h-4 w-4 sm:h-5 sm:w-5 ${
                                 i < Math.round(trainer.rating)
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'fill-slate-300 text-slate-300'
@@ -171,8 +171,8 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                             />
                           ))}
                         </div>
-                        <span className="text-xs sm:text-sm font-medium">{trainer.rating.toFixed(1)}</span>
-                        <span className="text-xs text-muted-foreground">({trainer.total_reviews || 0})</span>
+                        <span className="text-sm sm:text-base font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">({trainer.total_reviews || 0})</span>
                       </div>
                     )}
                   </div>

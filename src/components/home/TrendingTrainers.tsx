@@ -40,6 +40,12 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
     return colors[hash % colors.length]
   }
 
+  // Generate specialty text from bio or categories
+  const getSpecialty = (trainer: any, categoryNames: string[]) => {
+    if (trainer.bio) return trainer.bio.split('\n')[0]
+    return categoryNames.length > 0 ? `${categoryNames[0]} Specialist` : 'Training Specialist'
+  }
+
   const getCategoryName = (categoryId: number) => {
     return categories.find(c => c.id === categoryId)?.name || 'Training'
   }
@@ -85,14 +91,14 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
             return (
               <Card
                 key={trainer.id}
-                className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-800 border-0"
+                className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 border-0 rounded-lg"
               >
                 <div className="flex flex-col h-full">
                   {/* Image or Fallback */}
-                  <div className="relative w-full h-40 sm:h-64 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full h-48 sm:h-72 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
                     {showFallback ? (
                       <div className={`w-full h-full ${getAvatarColor(trainer.id)} flex items-center justify-center`}>
-                        <span className="text-white text-5xl font-semibold">{getInitials(trainer.name)}</span>
+                        <span className="text-white text-6xl sm:text-7xl font-semibold">{getInitials(trainer.name)}</span>
                       </div>
                     ) : (
                       <img
@@ -106,39 +112,41 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
 
                     {/* Verified Badge */}
                     {trainer.verified && (
-                      <div className="absolute top-3 right-3 bg-green-500 dark:bg-green-600 rounded-full p-1.5 shadow-md">
-                        <CheckCircle className="w-5 h-5 text-white fill-current" />
+                      <div className="absolute top-4 right-4 bg-green-500 dark:bg-green-600 rounded-full p-2 shadow-md">
+                        <CheckCircle className="w-6 h-6 text-white fill-current" />
                       </div>
                     )}
                   </div>
 
                   {/* Content */}
-                  <CardContent className="flex-1 p-3 sm:p-5 flex flex-col">
-                    {/* Category Badge */}
-                    {categoryNames.length > 0 && (
-                      <Badge className="mb-1.5 sm:mb-3 bg-blue-600 dark:bg-blue-700 text-white text-xs inline-block w-fit">
-                        {categoryNames[0]}
-                      </Badge>
-                    )}
+                  <CardContent className="flex-1 p-4 sm:p-6 flex flex-col justify-between">
+                    {/* Category Badge and Name */}
+                    <div className="mb-3 sm:mb-4">
+                      {categoryNames.length > 0 && (
+                        <Badge className="mb-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm inline-block w-fit font-medium">
+                          {categoryNames[0]}
+                        </Badge>
+                      )}
 
-                    {/* Trainer Name */}
-                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-0.5 line-clamp-2">
-                      {trainer.name}
-                    </h3>
+                      {/* Trainer Name */}
+                      <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1 line-clamp-2">
+                        {trainer.name}
+                      </h3>
 
-                    {/* Specialty */}
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 line-clamp-2">
-                      {trainer.bio ? trainer.bio.split('\n')[0] : `${categoryNames[0] || 'Training'} Specialist`}
-                    </p>
+                      {/* Specialty */}
+                      <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">
+                        {getSpecialty(trainer, categoryNames)}
+                      </p>
+                    </div>
 
                     {/* Rating */}
                     {trainer.rating > 0 && (
-                      <div className="flex items-center gap-1 mb-2 sm:mb-4">
-                        <div className="flex items-center">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-3 w-3 sm:h-4 sm:w-4 ${
+                              className={`h-4 w-4 sm:h-5 sm:w-5 ${
                                 i < Math.round(trainer.rating)
                                   ? 'fill-yellow-400 text-yellow-400'
                                   : 'fill-slate-300 text-slate-300'
@@ -146,18 +154,14 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
                             />
                           ))}
                         </div>
-                        <span className="text-xs sm:text-sm font-medium ml-1">{trainer.rating.toFixed(1)}</span>
-                        <span className="text-xs text-muted-foreground">({trainer.total_reviews || 0})</span>
+                        <span className="text-sm font-semibold text-foreground">{trainer.rating.toFixed(1)}</span>
                       </div>
                     )}
-
-                    {/* Spacer */}
-                    <div className="flex-1" />
 
                     {/* Book Now Button */}
                     <Button
                       onClick={() => onBookNow?.(trainer)}
-                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white"
+                      className="w-full bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold py-2 sm:py-3 text-sm sm:text-base"
                     >
                       Book Now
                     </Button>
