@@ -52,6 +52,18 @@ const Home: React.FC = () => {
   const [trainersLoading, setTrainersLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilters, setActiveFilters] = useState<{ location: boolean; price: boolean; availability: boolean }>({
+    location: false,
+    price: false,
+    availability: false
+  })
+
+  const toggleFilter = (filter: 'location' | 'price' | 'availability') => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [filter]: !prev[filter]
+    }))
+  }
 
   const handleBookNow = (trainer: Trainer) => {
     // Navigate to signin - user must authenticate to book
@@ -303,14 +315,14 @@ const Home: React.FC = () => {
 
             {/* Quick Filter Buttons */}
             <div className="flex flex-wrap gap-3">
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('location')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.location ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 <MapPin className="w-5 h-5" />
                 Location
               </button>
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('price')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.price ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 💰 Price
               </button>
-              <button className="flex items-center gap-2 px-4 py-3 bg-white/25 hover:bg-white/35 text-white rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm">
+              <button onClick={() => toggleFilter('availability')} className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-colors backdrop-blur-sm ${activeFilters.availability ? 'bg-white text-slate-900' : 'bg-white/25 hover:bg-white/35 text-white'}`}>
                 👥 Availability
               </button>
             </div>
