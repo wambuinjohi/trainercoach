@@ -270,7 +270,7 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/70" />
 
         {/* Content */}
-        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
           <div className="space-y-8 lg:space-y-10 max-w-4xl">
             {/* Main Heading */}
             <div>
