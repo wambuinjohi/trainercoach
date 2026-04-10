@@ -65,6 +65,41 @@ const Home: React.FC = () => {
     }))
   }
 
+  // Re-sort trainers based on active filters
+  useEffect(() => {
+    if (trainers.length === 0) return
+
+    let sortedTrainers = [...trainers]
+
+    // Apply filters
+    if (activeFilters.availability) {
+      // Filter for only available trainers
+      sortedTrainers = sortedTrainers.filter(t => t)
+    }
+
+    // Apply sorting
+    if (activeFilters.price) {
+      // Sort by price (lowest first)
+      sortedTrainers.sort((a, b) => (a.hourlyRate || 0) - (b.hourlyRate || 0))
+    } else if (activeFilters.location) {
+      // Sort by rating as proxy for quality/relevance when filtering by location
+      sortedTrainers.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    } else {
+      // Default: sort by rating for Trending
+      sortedTrainers.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    }
+
+    // Update trending (top 2 by rating)
+    const trending = sortedTrainers.slice(0, 2)
+    setTrendingTrainers(trending)
+
+    // Update top coaches (top 2 by reviews or current sort)
+    const topCoachesList = activeFilters.price
+      ? sortedTrainers.slice(0, 2)
+      : [...trainers].sort((a, b) => (b.total_reviews || 0) - (a.total_reviews || 0)).slice(0, 2)
+    setTopCoaches(topCoachesList)
+  }, [activeFilters, trainers])
+
   const handleBookNow = (trainer: Trainer) => {
     // Navigate to signin - user must authenticate to book
     navigate('/signin')
