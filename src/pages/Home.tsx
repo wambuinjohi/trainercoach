@@ -321,9 +321,6 @@ const Home: React.FC = () => {
       {/* Trending in Nairobi Section */}
       <section className="py-12 lg:py-16 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
-          <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
-
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
           ) : trendingTrainers.length === 0 ? (
