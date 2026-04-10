@@ -270,14 +270,14 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/70" />
 
         {/* Content */}
-        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
-          <div className="space-y-8 lg:space-y-10 max-w-4xl">
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 flex flex-col justify-center min-h-[550px] lg:min-h-[650px]">
+          <div className="space-y-2 lg:space-y-3 max-w-4xl">
             {/* Main Heading */}
             <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-4">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-0">
                 Find Your Perfect Trainer
               </h1>
-              <p className="text-lg sm:text-xl text-white/90">
+              <p className="text-lg sm:text-xl text-white/90 mb-0">
                 Discover certified trainers and book sessions that fit your schedule
               </p>
             </div>
@@ -319,11 +319,8 @@ const Home: React.FC = () => {
       </section>
 
       {/* Trending in Nairobi Section */}
-      <section className="py-12 lg:py-16 bg-background">
+      <section className="py-2 lg:py-4 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Trending in Nairobi</h2>
-          <p className="text-lg text-muted-foreground mb-10">Connect with our top-rated trainers</p>
-
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
           ) : trendingTrainers.length === 0 ? (
@@ -344,7 +341,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Popular Categories Section */}
-      <section className="py-12 lg:py-16 bg-muted/30">
+      <section className="py-6 lg:py-8 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Categories</h2>
           <p className="text-lg text-muted-foreground mb-10">Explore different training disciplines</p>
@@ -379,11 +376,8 @@ const Home: React.FC = () => {
       </section>
 
       {/* Top Coaches This Week Section */}
-      <section className="py-16 lg:py-20 bg-background">
+      <section className="py-8 lg:py-10 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Coaches This Week</h2>
-          <p className="text-lg text-muted-foreground mb-10">Meet our most-reviewed and highest-rated coaches</p>
-
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading coaches...</div>
           ) : topCoaches.length === 0 ? (
