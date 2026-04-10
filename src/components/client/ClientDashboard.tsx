@@ -109,6 +109,7 @@ export const ClientDashboard: React.FC = () => {
   const [locationName, setLocationName] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [bookings, setBookings] = useState<any[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(true)
   const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, boolean>>({})
   const [reviewBooking, setReviewBooking] = useState<any>(null)
   const [unreadNotificationsClient, setUnreadNotificationsClient] = useState(0)
@@ -227,6 +228,7 @@ export const ClientDashboard: React.FC = () => {
   // Define helper functions (must be before hooks that use them)
   const loadBookings = useCallback(async () => {
     if (!user?.id) return
+    setBookingsLoading(true)
     try {
       const bookingsData = await apiService.getBookings(user.id, 'client')
       const bookingList = Array.isArray(bookingsData)
