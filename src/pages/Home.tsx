@@ -256,7 +256,7 @@ const Home: React.FC = () => {
       <Header />
 
       {/* Hero Section with Background Image */}
-      <section className="relative overflow-hidden bg-slate-900 min-h-[400px] lg:min-h-[500px]">
+      <section className="relative overflow-hidden bg-slate-900 min-h-[280px] lg:min-h-[350px]">
         {/* Background Image with Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -270,7 +270,7 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/75 to-slate-900/70" />
 
         {/* Content */}
-        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 flex flex-col justify-center min-h-[400px] lg:min-h-[500px]">
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0 flex flex-col justify-center min-h-[280px] lg:min-h-[350px]">
           <div className="space-y-2 lg:space-y-3 max-w-4xl">
             {/* Main Heading */}
             <div>
