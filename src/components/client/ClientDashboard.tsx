@@ -1331,7 +1331,7 @@ export const ClientDashboard: React.FC = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
           <div className="container max-w-md mx-auto grid grid-cols-3 gap-1 py-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'home' ? 'text-primary' : 'text-muted-foreground'}`}><Home className="h-5 w-5" /><span className="text-xs">Home</span></Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/client/explore')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/explore')} className={`h-auto flex-col gap-1 py-2 relative ${activeTab === 'explore' ? 'text-primary' : 'text-muted-foreground'}`}><Compass className="h-5 w-5" /><span className="text-xs">Explore</span><Badge className="absolute -top-1 -right-1 h-5 w-fit px-1.5 flex items-center justify-center p-0 bg-primary text-primary-foreground rounded-full text-xs">explore</Badge></Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/client/sessions')} className={`h-auto flex-col gap-1 py-2 ${activeTab === 'schedule' ? 'text-primary' : 'text-muted-foreground'}`}><Calendar className="h-5 w-5" /><span className="text-xs">Sessions</span></Button>
           </div>
         </div>
