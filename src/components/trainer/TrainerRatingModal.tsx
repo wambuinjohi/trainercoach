@@ -30,16 +30,17 @@ export const TrainerRatingModal: React.FC<TrainerRatingModalProps> = ({
 
     setLoading(true)
     try {
-      // Insert trainer rating
-      await apiRequest('trainer_ratings_insert', {
-        trainer_ratings: [{
-          booking_id: booking.id,
-          trainer_id: user.id,
-          client_rating: clientRating,
-          app_rating: appRating,
-          review: review || null,
-          created_at: new Date().toISOString(),
-        }]
+      // Update booking with trainer ratings
+      await apiRequest('update', {
+        table: 'bookings',
+        data: {
+          trainer_client_rating: clientRating,
+          trainer_app_rating: appRating,
+          trainer_review: review || null,
+          trainer_rating_submitted: true,
+          updated_at: new Date().toISOString(),
+        },
+        where: `id = '${booking.id}'`,
       }, { headers: withAuth() })
 
       toast({
