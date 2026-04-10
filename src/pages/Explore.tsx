@@ -470,6 +470,40 @@ const Explore: React.FC = () => {
         <Header />
         <div className="px-4 py-5 border-t border-slate-200 dark:border-slate-800 bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-900 dark:to-slate-900">
           <div className="container max-w-4xl mx-auto space-y-3">
+            {/* Horizontal Scrollable Categories with Icons - NOW ON TOP */}
+            {categories.length > 0 && (
+              <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 pb-2">
+                  <button
+                    onClick={() => setFilters(prev => ({ ...prev, categoryIds: [], categoryId: null }))}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
+                      (!filters.categoryIds || filters.categoryIds.length === 0) && !filters.categoryId
+                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Compass className="h-4 w-4" />
+                    All
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setFilters(prev => ({ ...prev, categoryIds: [cat.id] }))}
+                      className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
+                        filters.categoryIds && filters.categoryIds.length === 1 && filters.categoryIds[0] === cat.id
+                          ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
+                      }`}
+                      title={cat.name}
+                    >
+                      {renderCategoryIcon(cat.icon, cat.name)}
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Search Bar with Enhanced Styling */}
             <div className="relative">
               <SearchBar
@@ -511,40 +545,6 @@ const Explore: React.FC = () => {
                 Filters
               </Button>
             </div>
-
-            {/* Horizontal Scrollable Categories with Icons */}
-            {categories.length > 0 && (
-              <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-2 pb-2">
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, categoryIds: [], categoryId: null }))}
-                    className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
-                      (!filters.categoryIds || filters.categoryIds.length === 0) && !filters.categoryId
-                        ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <Compass className="h-4 w-4" />
-                    All
-                  </button>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setFilters(prev => ({ ...prev, categoryIds: [cat.id] }))}
-                      className={`flex-shrink-0 px-4 py-2.5 rounded-full whitespace-nowrap font-medium transition-all text-sm flex items-center gap-2 ${
-                        filters.categoryIds && filters.categoryIds.length === 1 && filters.categoryIds[0] === cat.id
-                          ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:shadow-sm'
-                      }`}
-                      title={cat.name}
-                    >
-                      {renderCategoryIcon(cat.icon, cat.name)}
-                      <span>{cat.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Sort Options */}
             <div className="flex gap-2 items-center mt-4">
