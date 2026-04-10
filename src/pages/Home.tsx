@@ -50,6 +50,7 @@ const Home: React.FC = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [trainersLoading, setTrainersLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const handleBookNow = (trainer: Trainer) => {
     // Navigate to signin - user must authenticate to book
@@ -218,144 +219,92 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-trainer-primary/10 via-transparent to-trainer-accent/10" />
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-          <div className="relative grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-trainer-primary/10 text-trainer-primary text-sm font-medium">
-                <Star className="w-4 h-4 fill-current" />
-                Trusted by 5,000+ fitness enthusiasts
-              </div>
-              
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                FIND YOUR COACH.{' '}
-                <span className="bg-gradient-primary bg-clip-text text-transparent">
-                  FIND YOUR FREEDOM.
-                </span>
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl">
-                Connect with certified trainers in your area. Book sessions, track progress, and achieve your fitness goals with personalized guidance.
-              </p>
+      {/* Hero Section with Background Image */}
+      <section className="relative overflow-hidden bg-slate-900 h-auto lg:min-h-[600px]">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&h=800&fit=crop")',
+            opacity: 0.4
+          }}
+        />
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/signup">
-                  <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity text-white shadow-glow">
-                    Start Your Journey
-                  </Button>
-                </Link>
-                <Link to="/explore">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                    Explore Trainers
-                  </Button>
-                </Link>
-              </div>
+        {/* Overlay Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/70 to-slate-900/60" />
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-8">
-                {stats.map((stat, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="text-trainer-primary">{stat.icon}</div>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <div className="text-sm text-muted-foreground">{stat.label}</div>
-                  </div>
-                ))}
+        {/* Content */}
+        <div className="relative container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+          <div className="space-y-6 lg:space-y-8 max-w-3xl">
+            {/* Main Heading */}
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
+              Find Your Perfect Trainer
+            </h1>
+
+            {/* Search Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search for trainers or categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-trainer-primary"
+                />
+                <Search className="absolute right-4 top-3.5 w-5 h-5 text-gray-400 pointer-events-none" />
               </div>
+              <Link to="/explore">
+                <Button className="w-full sm:w-auto bg-white text-slate-900 hover:bg-gray-100 font-semibold px-6">
+                  Filters ▼
+                </Button>
+              </Link>
             </div>
 
-            {/* Hero Image Grid */}
-            <div className="relative lg:h-[600px]">
-              <div className="grid grid-cols-2 gap-4 h-full">
-                <div className="space-y-4">
-                  <Card className="overflow-hidden h-48 lg:h-64 shadow-card hover:shadow-glow transition-shadow">
-                    <img 
-                      src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=800&fit=crop" 
-                      alt="Personal training session"
-                      className="w-full h-full object-cover"
-                    />
-                  </Card>
-                  <Card className="overflow-hidden h-32 lg:h-48 shadow-card hover:shadow-glow transition-shadow">
-                    <img 
-                      src="https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&h=600&fit=crop" 
-                      alt="Outdoor workout"
-                      className="w-full h-full object-cover"
-                    />
-                  </Card>
-                </div>
-                <div className="space-y-4 pt-8">
-                  <Card className="overflow-hidden h-32 lg:h-48 shadow-card hover:shadow-glow transition-shadow">
-                    <img 
-                      src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=600&fit=crop" 
-                      alt="Gym training"
-                      className="w-full h-full object-cover"
-                    />
-                  </Card>
-                  <Card className="overflow-hidden h-48 lg:h-64 shadow-card hover:shadow-glow transition-shadow">
-                    <img 
-                      src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=600&h=800&fit=crop" 
-                      alt="Group fitness"
-                      className="w-full h-full object-cover"
-                    />
-                  </Card>
-                </div>
-              </div>
+            {/* Quick Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
+                <MapPin className="w-4 h-4" />
+                Location
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
+                💰 Price
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors">
+                👥 Availability
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trending Trainers Section */}
-      <TrendingTrainers
-        trainers={trendingTrainers}
-        categories={categories}
-        isLoading={trainersLoading}
-        onBookNow={handleBookNow}
-      />
-
-      {/* Features Section */}
-      <section className="py-20 lg:py-32 bg-muted/30">
+      {/* Trending in Nairobi Section */}
+      <section className="py-12 lg:py-16 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Why Choose TrainerCoachConnect?
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to find, book, and train with the best fitness professionals
-            </p>
-          </div>
+          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Trending in Nairobi</h2>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card
-                key={index}
-                className="p-6 hover:shadow-glow transition-all duration-300 hover:-translate-y-1 bg-card"
-              >
-                <CardContent className="p-0 space-y-4">
-                  <div className="w-14 h-14 rounded-lg bg-trainer-primary/10 flex items-center justify-center">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {trainersLoading ? (
+            <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
+          ) : trendingTrainers.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No trainers available at the moment
+              </CardContent>
+            </Card>
+          ) : (
+            <TrendingTrainers
+              trainers={trendingTrainers}
+              categories={categories}
+              isLoading={trainersLoading}
+              onBookNow={handleBookNow}
+            />
+          )}
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-20 lg:py-32">
+      {/* Popular Categories Section */}
+      <section className="py-12 lg:py-16 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Find Trainers by Service
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Browse certified trainers specialized in various fitness disciplines
-            </p>
-          </div>
+          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Popular Categories</h2>
 
           {categoriesLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading categories...</div>
@@ -366,20 +315,17 @@ const Home: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-6 max-w-2xl">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               {categories.slice(0, 4).map((category) => (
                 <Link key={category.id} to={`/explore?category=${category.id}`}>
-                  <Card className="h-full hover:shadow-glow transition-all duration-300 hover:-translate-y-1 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden">
-                    <div className="relative h-40 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
-                      <div className="text-6xl">
+                  <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden">
+                    <div className="relative h-32 lg:h-40 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center overflow-hidden">
+                      <div className="text-5xl lg:text-6xl">
                         {category.icon || '🏋️'}
                       </div>
                     </div>
-                    <CardContent className="p-6 text-center">
-                      <h3 className="text-lg font-semibold text-foreground mb-1">{category.name}</h3>
-                      {category.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-1">{category.description}</p>
-                      )}
+                    <CardContent className="p-4 lg:p-6 text-center">
+                      <h3 className="text-base lg:text-lg font-semibold text-foreground">{category.name}</h3>
                     </CardContent>
                   </Card>
                 </Link>
@@ -389,70 +335,29 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Top Coaches Section */}
-      <TopCoaches
-        trainers={topCoaches}
-        categories={categories}
-        isLoading={trainersLoading}
-      />
-
-      {/* Testimonials Section */}
-      <section className="py-20 lg:py-32">
+      {/* Top Coaches This Week Section */}
+      <section className="py-12 lg:py-16 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              What Our Community Says
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Real stories from real people achieving their fitness goals
-            </p>
-          </div>
+          <h2 className="text-2xl lg:text-3xl font-bold mb-8">Top Coaches This Week</h2>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="p-6 bg-card hover:shadow-glow transition-shadow">
-                <CardContent className="p-0 space-y-4">
-                  <div className="flex gap-1">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-trainer-primary text-trainer-primary" />
-                    ))}
-                  </div>
-                  <p className="text-foreground">{testimonial.content}</p>
-                  <div className="pt-4 border-t border-border">
-                    <div className="font-semibold">{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {trainersLoading ? (
+            <div className="text-center text-muted-foreground py-8">Loading coaches...</div>
+          ) : topCoaches.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No coaches available at the moment
+              </CardContent>
+            </Card>
+          ) : (
+            <TopCoaches
+              trainers={topCoaches}
+              categories={categories}
+              isLoading={trainersLoading}
+            />
+          )}
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 lg:py-32 bg-gradient-primary relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
-        <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Fitness Journey?
-          </h2>
-          <p className="text-lg sm:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of satisfied clients who've found their perfect trainer match. Start your transformation today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/signup">
-              <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                Create Free Account
-              </Button>
-            </Link>
-            <Link to="/explore">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/20">
-                Browse Trainers
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="border-t border-border bg-card">
