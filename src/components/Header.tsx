@@ -93,7 +93,7 @@ const Header: React.FC = () => {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-4">
+          <div className="flex items-center gap-2 lg:gap-4">
             <ThemeToggle />
             <div className="md:hidden">
               <button
