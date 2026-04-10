@@ -319,7 +319,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Trending in Nairobi Section */}
-      <section className="py-4 lg:py-6 bg-background">
+      <section className="py-0 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {trainersLoading ? (
             <div className="text-center text-muted-foreground py-8">Loading trainers...</div>
@@ -341,7 +341,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Popular Categories Section */}
-      <section className="py-12 lg:py-16 bg-muted/30">
+      <section className="py-6 lg:py-8 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl lg:text-4xl font-bold mb-4">Popular Categories</h2>
           <p className="text-lg text-muted-foreground mb-10">Explore different training disciplines</p>
@@ -376,7 +376,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Top Coaches This Week Section */}
-      <section className="py-16 lg:py-20 bg-background">
+      <section className="py-8 lg:py-10 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Coaches This Week</h2>
           <p className="text-lg text-muted-foreground mb-10">Meet our most-reviewed and highest-rated coaches</p>
