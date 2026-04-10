@@ -952,6 +952,38 @@ export const ClientDashboard: React.FC = () => {
   }
 
   const renderScheduleContent = () => {
+    // Show empty state immediately if bookings have loaded and are empty
+    if (!bookingsLoading && bookings.length === 0) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/client/home')} className="-ml-2">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold text-foreground">My Sessions</h1>
+          </div>
+          <div className="space-y-4">
+            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 relative">
+              <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">explore</Badge>
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold">No sessions yet</p>
+                    <p className="text-sm mt-1">Book a session with a trainer to get started</p>
+                  </div>
+                  <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/client/explore')}>
+                    <Compass className="h-4 w-4 mr-2" />
+                    Explore
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )
+    }
+
     const sortedBookings = [...bookings].sort((a, b) =>
       new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
     )
