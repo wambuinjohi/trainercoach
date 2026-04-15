@@ -409,17 +409,17 @@ const Home: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-3xl">
               {categories.slice(0, 4).map((category) => (
                 <Link key={category.id} to={`/explore?category=${category.id}`}>
                   <Card className="h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer bg-white dark:bg-slate-800 border-0 overflow-hidden rounded-lg sm:rounded-xl">
-                    <div className={`relative h-28 sm:h-36 lg:h-48 ${getCategoryGradient(category.id, category.name)} flex items-center justify-center overflow-hidden`}>
-                      <div className="text-4xl sm:text-5xl lg:text-7xl drop-shadow-lg">
+                    <div className={`relative h-40 sm:h-52 lg:h-64 ${getCategoryGradient(category.id, category.name)} flex items-center justify-center overflow-hidden`}>
+                      <div className="text-6xl sm:text-7xl lg:text-8xl drop-shadow-lg">
                         {category.icon || '🏋️'}
                       </div>
                     </div>
-                    <CardContent className="p-2 sm:p-4 lg:p-6 text-center">
-                      <h3 className="text-xs sm:text-base lg:text-lg font-bold text-foreground">{category.name}</h3>
+                    <CardContent className="p-4 sm:p-6 lg:p-8 text-center">
+                      <h3 className="text-base sm:text-lg lg:text-xl font-bold text-foreground">{category.name}</h3>
                     </CardContent>
                   </Card>
                 </Link>
