@@ -652,21 +652,22 @@ export const ClientDashboard: React.FC = () => {
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Browse Categories</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {categoriesLoading ? (
             <>
-              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
-              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
-              <Skeleton className="h-24 w-full rounded-lg bg-muted/40" />
+              <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
+              <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
             </>
           ) : dbCategories.length === 0 ? (
-            <div className="col-span-2 sm:col-span-2 lg:col-span-3 text-center text-sm text-muted-foreground py-8">No categories available.</div>
+            <div className="col-span-2 text-center text-sm text-muted-foreground py-8">No categories available.</div>
           ) : (
             dbCategories.map((category) => (
-              <Card key={category.id} className="bg-trainer-card border-transparent rounded-lg shadow-sm hover:shadow-md hover:border-primary/20 cursor-pointer group transition-all duration-200" onClick={() => handleCategorySelect(category.name)}>
-                <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full gap-2">
-                  <div className="w-14 h-14 rounded-full bg-gradient-primary flex items-center justify-center text-2xl text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-200">{category.icon}</div>
-                  <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2">{category.name}</h3>
+              <Card key={category.id} className="bg-trainer-card border-transparent rounded-lg shadow-sm hover:shadow-md hover:border-primary/20 cursor-pointer group transition-all duration-200 overflow-hidden" onClick={() => handleCategorySelect(category.name)}>
+                <CardContent className="p-0 flex flex-col items-center justify-center text-center h-full">
+                  <div className="w-full h-32 bg-gradient-primary flex items-center justify-center text-6xl text-white shadow-md group-hover:shadow-lg transition-all duration-200">{category.icon}</div>
+                  <div className="w-full p-4 bg-white dark:bg-slate-800">
+                    <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">{category.name}</h3>
+                  </div>
                 </CardContent>
               </Card>
             ))
