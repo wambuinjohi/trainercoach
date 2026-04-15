@@ -100,6 +100,7 @@ export const mockData = {
 export function getMockResponse(action: string, payload?: Record<string, any>): { status: string; data?: any; message?: string } | null {
   switch (action) {
     case 'get_categories':
+    case 'categories_get':
       return {
         status: 'success',
         data: mockData.categories
@@ -112,6 +113,7 @@ export function getMockResponse(action: string, payload?: Record<string, any>): 
       }
 
     case 'get_available_trainers':
+    case 'get_trainers':
       return {
         status: 'success',
         data: mockData.trainers
@@ -121,6 +123,54 @@ export function getMockResponse(action: string, payload?: Record<string, any>): 
       return {
         status: 'success',
         data: mockData.trainers
+      }
+
+    case 'select':
+      // Handle 'select' action for different tables
+      if (payload?.table === 'user_profiles') {
+        // For trainer queries
+        if (payload?.where?.includes('trainer')) {
+          return {
+            status: 'success',
+            data: mockData.trainers
+          }
+        }
+      }
+      return {
+        status: 'success',
+        data: []
+      }
+
+    case 'trainer_categories_get':
+    case 'trainer_categories_get':
+      return {
+        status: 'success',
+        data: []
+      }
+
+    case 'trainer_category_pricing_get':
+      return {
+        status: 'success',
+        data: []
+      }
+
+    case 'notifications_get':
+      return {
+        status: 'success',
+        data: []
+      }
+
+    case 'announcements_get':
+      return {
+        status: 'success',
+        data: []
+      }
+
+    case 'bookings_get':
+    case 'get_bookings':
+      return {
+        status: 'success',
+        data: []
       }
 
     case 'health_check':

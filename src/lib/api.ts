@@ -141,6 +141,8 @@ async function apiRequest_Internal<T = any>(
     // Spread init but exclude headers to prevent overriding our merged headers
     const { headers: _, ...restInit } = init
 
+    console.debug(`[API] Fetching from ${apiUrl} with action: ${action}`)
+
     const res = await fetch(apiUrl, {
       method: 'POST',
       ...restInit,
@@ -180,7 +182,13 @@ async function apiRequest_Internal<T = any>(
     if (!res.ok && json.status !== 'success') throw new Error(json.message || `API error: ${res.status}`)
     return (json.data as T) ?? (json as unknown as T)
   } catch (error) {
-    // Re-throw with more context
+    // Provide better error context for network failures
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error(`[API] Request failed for ${apiUrl}:`, {
+      action,
+      error: errorMsg,
+      type: error instanceof TypeError ? 'Network/Fetch Error' : 'Other Error'
+    })
     throw error
   }
 }
