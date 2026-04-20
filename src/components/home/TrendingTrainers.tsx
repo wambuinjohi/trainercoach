@@ -113,10 +113,17 @@ export const TrendingTrainers: React.FC<TrendingTrainersProps> = ({ trainers, ca
 
                   {/* Right: Content */}
                   <div className="flex-1 flex flex-col justify-center gap-1 sm:gap-2 lg:gap-3">
-                    {/* Name */}
-                    <h3 className="text-xs sm:text-lg lg:text-xl font-bold text-foreground line-clamp-1">
-                      {trainer.name}
-                    </h3>
+                    {/* Name and Verified Badge */}
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs sm:text-lg lg:text-xl font-bold text-foreground line-clamp-1">
+                        {trainer.name}
+                      </h3>
+                      {trainer.verified && (
+                        <Badge className="bg-green-600 dark:bg-green-700 text-white inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 flex-shrink-0">
+                          ✓ Verified
+                        </Badge>
+                      )}
+                    </div>
 
                     {/* Specialty */}
                     <p className="text-xs sm:text-sm lg:text-base text-muted-foreground line-clamp-1">
