@@ -1252,10 +1252,10 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-0 h-full">
       {/* Step Indicator */}
       {shouldShowStep2() && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border border-blue-200 dark:border-blue-800/50 rounded-md p-3">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-b border-blue-200 dark:border-blue-800/50 px-3 sm:px-6 py-3 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-sm text-blue-900 dark:text-blue-100">
               {bookingStep === 'step1' ? 'Step 1 of 2: Select Categories & Mode' : 'Step 2 of 2: Set Different Times Per Category'}
@@ -1268,9 +1268,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         </div>
       )}
 
-      {renderFormContent()}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-6">
+        {renderFormContent()}
+      </div>
 
-      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 border-t border-border pt-4 mt-auto flex-shrink-0 sticky bottom-0 bg-white dark:bg-slate-900 -mx-3 sm:-mx-6 px-3 sm:px-6 py-4">
         {shouldShowStep2() && bookingStep === 'step2' ? (
           <Button variant="outline" onClick={() => setBookingStep('step1')} className="w-full sm:w-auto">Back</Button>
         ) : (

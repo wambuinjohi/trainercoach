@@ -308,7 +308,7 @@ const Home: React.FC = () => {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: 'url("https://images.unsplash.com/photo-1518674590065-3e9f6451eee6?w=1600&h=900&fit=crop")',
+            backgroundImage: 'url("https://images.unsplash.com/photo-1600573472550-712d3f0b8f54?w=1600&h=900&fit=crop")',
             opacity: 0.35
           }}
         />
