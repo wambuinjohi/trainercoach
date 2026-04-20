@@ -37,7 +37,7 @@ export const BookingModal: React.FC<{ trainer: any, onClose: () => void, selecte
             <CardTitle className="text-base sm:text-lg truncate">Book Session with {trainer.name}</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-3 sm:p-6 flex-1 overflow-y-auto flex flex-col">
+          <CardContent className="p-0 flex-1 flex flex-col">
             <BookingForm
               trainer={trainer}
               trainerProfile={profile}
