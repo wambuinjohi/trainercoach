@@ -1270,11 +1270,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
 
       {renderFormContent()}
 
-      <div className="flex justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 border-t border-border pt-4 mt-4 flex-shrink-0">
         {shouldShowStep2() && bookingStep === 'step2' ? (
-          <Button variant="outline" onClick={() => setBookingStep('step1')}>Back</Button>
+          <Button variant="outline" onClick={() => setBookingStep('step1')} className="w-full sm:w-auto">Back</Button>
         ) : (
-          <Button variant="outline" onClick={() => onDone?.()}>Cancel</Button>
+          <Button variant="outline" onClick={() => onDone?.()} className="w-full sm:w-auto">Cancel</Button>
         )}
 
         {(() => {
@@ -1305,7 +1305,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             <Button
               onClick={submit}
               disabled={submitDisabled}
-              className="bg-gradient-primary text-white"
+              className="w-full sm:w-auto bg-gradient-primary text-white"
               title={submitTitle}
             >
               {loading ? 'Processing...' : 'Confirm & Pay'}
