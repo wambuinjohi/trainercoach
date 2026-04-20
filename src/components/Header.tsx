@@ -84,7 +84,16 @@ const Header: React.FC = () => {
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-0">
         <div className="flex h-12 sm:h-14 lg:h-16 items-center justify-between">
           <div className="flex items-center gap-4 lg:gap-8">
-            <AuthLogo compact containerClassName="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" className="h-12 sm:h-14 lg:h-16" />
+            <div className="flex items-center gap-3">
+              <AuthLogo compact containerClassName="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16" className="h-12 sm:h-14 lg:h-16" />
+              <div className="hidden sm:flex flex-col gap-0">
+                <h1 className="text-sm sm:text-base font-bold text-foreground leading-tight">Trainer Coach Connect</h1>
+                <div className="flex gap-3 text-xs sm:text-sm text-muted-foreground">
+                  <span>📱 +254 739 343 835</span>
+                  <span>📍 Nairobi, Kenya</span>
+                </div>
+              </div>
+            </div>
             <nav className="hidden md:flex items-center gap-8">
               <NavLink to="/">Home</NavLink>
               <NavLink to="/explore">Explore</NavLink>

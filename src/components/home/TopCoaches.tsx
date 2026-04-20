@@ -97,15 +97,22 @@ export const TopCoaches: React.FC<TopCoachesProps> = ({ trainers, categories, is
                       {/* Name and Category Badge */}
                       <div className="flex items-start gap-2 flex-wrap">
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-foreground text-base md:text-lg break-words line-clamp-2">
-                            {trainer.name}
-                          </h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-foreground text-base md:text-lg break-words line-clamp-2">
+                              {trainer.name}
+                            </h3>
+                            {trainer.rating >= 4.8 && (
+                              <Badge className="bg-blue-600 text-white text-xs flex-shrink-0 whitespace-nowrap">
+                                Pro Trainer
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">
                             {trainer.bio ? trainer.bio.split('\n')[0] : `${displayCategory || 'Training'} Specialist`}
                           </p>
                         </div>
                         {displayCategory && (
-                          <Badge className="bg-blue-600 text-white text-xs flex-shrink-0 whitespace-nowrap">
+                          <Badge className="bg-emerald-600 text-white text-xs flex-shrink-0 whitespace-nowrap">
                             {displayCategory}
                           </Badge>
                         )}
