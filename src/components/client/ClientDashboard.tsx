@@ -562,10 +562,19 @@ export const ClientDashboard: React.FC = () => {
 
   // -------------------- Render Functions --------------------
   const renderHomeContent = () => {
+    // Get trending trainers (top-rated)
+    const trendingTrainers = [...trainers]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 2)
+
+    // Get top coaches this week (also top-rated, but could be filtered by other criteria)
+    const topCoaches = [...trainers]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(2, 4)
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex-1"></div>
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
             <LogOut className="h-5 w-5 text-red-500" />
@@ -578,102 +587,270 @@ export const ClientDashboard: React.FC = () => {
           onDismiss={() => loadBookings()}
         />
 
-        {clientProfile && (
-          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden">
-                  {clientProfile.profile_image ? (
-                    <img src={clientProfile.profile_image} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="h-8 w-8 text-white" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-foreground">{clientProfile.full_name || 'Your Profile'}</h2>
-                  {clientProfile.phone_number && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      📱 {clientProfile.phone_number}
-                    </p>
-                  )}
-                  {clientProfile.location_label && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                      📍 {clientProfile.location_label}
-                    </p>
-                  )}
-                  {clientProfile.bio && (
-                    <p className="text-sm text-foreground mt-2">{clientProfile.bio}</p>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowEditProfile(true)}
-                    className="mt-3"
-                  >
-                    Edit Profile
-                  </Button>
-                </div>
+        {/* Hero Section with Background */}
+        <div className="relative bg-gradient-to-b from-slate-800 to-slate-900 -mx-4 px-4 py-8 text-white overflow-hidden">
+          <div className="absolute inset-0 opacity-30 bg-cover bg-center" style={{backgroundImage: 'url(https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=1200&h=400&fit=crop)' }}></div>
+          <div className="relative z-10">
+            {/* Company Header */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold mb-1">Trainer Coach Connect</h3>
+              <div className="flex flex-col gap-0.5 text-sm">
+                <p className="flex items-center gap-2">📱 +254 739 343 835</p>
+                <p className="flex items-center gap-2">📍 Nairobi, Kenya</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Hero Title */}
+            <h1 className="text-3xl md:text-4xl font-bold mb-3">Find Your Perfect Trainer</h1>
+            <p className="text-gray-200 mb-6">Connect with certified professionals in your area</p>
+
+            {/* Search Bar with Filters */}
+            <div className="space-y-2">
+              <SearchBar
+                placeholder="Search for trainers or categories..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                onSubmit={(query) => {
+                  if (!userLocation) {
+                    toast({
+                      title: 'Location required',
+                      description: 'Please enable GPS to search for trainers',
+                      variant: 'destructive'
+                    })
+                    requestLocation()
+                    return
+                  }
+                  if (query) {
+                    addSearch(query)
+                    navigate('/client/explore')
+                  }
+                }}
+                suggestions={suggestions}
+                recentSearches={recentSearches}
+                popularSearches={popularSearches}
+                categories={dbCategories}
+                onCategorySelect={handleCategorySelect}
+              />
+
+              {/* Filter Chips */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  onClick={() => setShowFilters(true)}
+                >
+                  <MapPin className="h-4 w-4 mr-1" /> Location
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  onClick={() => setShowFilters(true)}
+                >
+                  <DollarSign className="h-4 w-4 mr-1" /> Price
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  onClick={() => setShowFilters(true)}
+                >
+                  <Calendar className="h-4 w-4 mr-1" /> Availability
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {clientProfile && (
+          <div className="px-4 pt-6">
+            <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden">
+                    {clientProfile.profile_image ? (
+                      <img src={clientProfile.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-8 w-8 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-xl font-bold text-foreground">{clientProfile.full_name || 'Your Profile'}</h2>
+                    {clientProfile.phone_number && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                        📱 {clientProfile.phone_number}
+                      </p>
+                    )}
+                    {clientProfile.location_label && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                        📍 {clientProfile.location_label}
+                      </p>
+                    )}
+                    {clientProfile.bio && (
+                      <p className="text-sm text-foreground mt-2">{clientProfile.bio}</p>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowEditProfile(true)}
+                      className="mt-3"
+                    >
+                      Edit Profile
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        <div className="text-center py-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Find Your Perfect Trainer</h1>
-          <p className="text-muted-foreground">Connect with certified professionals in your area</p>
-        </div>
-      <SearchBar
-        placeholder="Search trainers or categories..."
-        value={searchQuery}
-        onChange={setSearchQuery}
-        onSubmit={(query) => {
-          if (!userLocation) {
-            toast({
-              title: 'Location required',
-              description: 'Please enable GPS to search for trainers',
-              variant: 'destructive'
-            })
-            requestLocation()
-            return
-          }
-          if (query) {
-            addSearch(query)
-            navigate('/client/explore')
-          }
-        }}
-        suggestions={suggestions}
-        recentSearches={recentSearches}
-        popularSearches={popularSearches}
-        categories={dbCategories}
-        onCategorySelect={handleCategorySelect}
-      />
-
-
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-foreground">Browse Categories</h2>
-        <div className="grid grid-cols-2 gap-4">
-          {categoriesLoading ? (
-            <>
-              <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
-              <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
-            </>
-          ) : dbCategories.length === 0 ? (
-            <div className="col-span-2 text-center text-sm text-muted-foreground py-8">No categories available.</div>
-          ) : (
-            dbCategories.map((category) => (
-              <Card key={category.id} className="bg-trainer-card border-transparent rounded-lg shadow-sm hover:shadow-md hover:border-primary/20 cursor-pointer group transition-all duration-200 overflow-hidden" onClick={() => handleCategorySelect(category.name)}>
-                <CardContent className="p-0 flex flex-col items-center justify-center text-center h-full">
-                  <div className="w-full h-32 bg-gradient-primary flex items-center justify-center text-6xl text-white shadow-md group-hover:shadow-lg transition-all duration-200">{category.icon}</div>
-                  <div className="w-full p-4 bg-white dark:bg-slate-800">
-                    <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">{category.name}</h3>
+        {/* Trending Trainers Section */}
+        {trendingTrainers.length > 0 && (
+          <div className="px-4 py-6 space-y-3">
+            <h2 className="text-xl font-semibold text-foreground">Trending in {clientProfile?.location_label || 'Nairobi'}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {trendingTrainers.map((trainer) => (
+                <Card key={trainer.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200" onClick={() => setSelectedTrainer(trainer)}>
+                  <div className="relative h-48 bg-gradient-to-br from-slate-200 to-slate-300 overflow-hidden">
+                    {trainer.profile_image ? (
+                      <img src={trainer.profile_image} alt={trainer.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-primary">
+                        <User className="h-16 w-16 text-white opacity-50" />
+                      </div>
+                    )}
+                    {trainer.is_verified && (
+                      <div className="absolute top-3 right-3 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                        ✓ Verified
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+                  <CardContent className="p-4">
+                    <h3 className="font-bold text-lg text-foreground">{trainer.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-2">{trainer.discipline || 'Coach'}</p>
+                    <div className="flex items-center gap-1 mb-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${i < Math.floor(trainer.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                      <span className="text-xs text-muted-foreground ml-1">({trainer.rating?.toFixed(1) || '0'})</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full bg-green-500 hover:bg-green-600 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedTrainerForBooking(trainer)
+                      }}
+                    >
+                      Book Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Popular Categories Section */}
+        <div className="px-4 py-6 space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">Popular Categories</h2>
+          <div className="grid grid-cols-2 gap-4">
+            {categoriesLoading ? (
+              <>
+                <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
+                <Skeleton className="h-40 w-full rounded-lg bg-muted/40" />
+              </>
+            ) : dbCategories.length === 0 ? (
+              <div className="col-span-2 text-center text-sm text-muted-foreground py-8">No categories available.</div>
+            ) : (
+              dbCategories.slice(0, 4).map((category) => {
+                // Category background images
+                const categoryImages: Record<string, string> = {
+                  'badminton': 'https://images.unsplash.com/photo-1599051246504-994150f9b491?w=400&h=300&fit=crop',
+                  'table tennis': 'https://images.unsplash.com/photo-1555170293-f3cf3476d054?w=400&h=300&fit=crop',
+                  'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34c8?w=400&h=300&fit=crop',
+                  'lawn tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34c8?w=400&h=300&fit=crop',
+                  'basketball': 'https://images.unsplash.com/photo-1546519638-68711109d298?w=400&h=300&fit=crop',
+                  'volleyball': 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&h=300&fit=crop',
+                  'soccer': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=300&fit=crop',
+                  'fitness': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop',
+                  'yoga': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop',
+                  'cooking': 'https://images.unsplash.com/photo-1556910103-1c02745aefb4?w=400&h=300&fit=crop',
+                  'dance': 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
+                  'swimming': 'https://images.unsplash.com/photo-1576610616656-d3aa5d1f3fabl?w=400&h=300&fit=crop',
+                }
+
+                const bgImage = categoryImages[(category.name || '').toLowerCase()] || 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop'
+
+                return (
+                  <Card
+                    key={category.id}
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 group"
+                    onClick={() => handleCategorySelect(category.name)}
+                  >
+                    <CardContent className="p-0 relative h-40">
+                      <div
+                        className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-200"
+                        style={{ backgroundImage: `url(${bgImage})` }}
+                      ></div>
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-200"></div>
+                      <div className="absolute inset-0 flex items-end p-4">
+                        <h3 className="font-semibold text-lg text-white">{category.name}</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Top Coaches This Week Section */}
+        {topCoaches.length > 0 && (
+          <div className="px-4 py-6 space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Top Coaches This Week</h2>
+            <div className="space-y-3">
+              {topCoaches.map((coach) => (
+                <Card key={coach.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200" onClick={() => setSelectedTrainer(coach)}>
+                  <CardContent className="p-4 flex gap-4">
+                    <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden bg-gradient-primary">
+                      {coach.profile_image ? (
+                        <img src={coach.profile_image} alt={coach.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="h-8 w-8 text-white opacity-50" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-foreground">{coach.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-1">{coach.discipline || 'Coach'}</p>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3 w-3 ${i < Math.floor(coach.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          />
+                        ))}
+                        <span className="text-xs text-muted-foreground ml-1">{coach.rating?.toFixed(1) || '0'}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end justify-between">
+                      {coach.is_verified && (
+                        <Badge className="bg-green-500 text-white text-xs">Pro Trainer</Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground mt-1">15+ Years Exp.</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
