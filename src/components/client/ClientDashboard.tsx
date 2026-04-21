@@ -1054,9 +1054,20 @@ export const ClientDashboard: React.FC = () => {
             {filteredTrainers.map((trainer, idx) => {
               const trainerCategories = getCategoryNamesForTrainer(trainer.categoryIds)
 
-              // If search query matches a category name, show only that category
+              // Determine which category to display
               let displayCategory = trainerCategories[0]
-              if (searchQuery) {
+
+              // First priority: selected category filter
+              if (selectedCategory) {
+                const selectedMatch = trainerCategories.find(cat =>
+                  (cat.name || '').toLowerCase() === selectedCategory.toLowerCase()
+                )
+                if (selectedMatch) {
+                  displayCategory = selectedMatch
+                }
+              }
+              // Second priority: search query match
+              else if (searchQuery) {
                 const searchLower = searchQuery.toLowerCase()
                 const matchedCategory = trainerCategories.find(cat =>
                   (cat.name || '').toLowerCase().includes(searchLower)
@@ -1089,7 +1100,7 @@ export const ClientDashboard: React.FC = () => {
                       <div className="flex items-start gap-2 flex-wrap">
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-foreground text-base md:text-lg break-words line-clamp-2">{trainer.name}</h3>
-                          <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">{trainer.discipline || 'Training'}</p>
+                          <p className="text-xs md:text-sm text-muted-foreground line-clamp-1">{displayCategory?.name || 'Training'}</p>
                         </div>
                         {displayCategory && (
                           <Badge className="bg-blue-600 text-white text-xs flex-shrink-0 whitespace-nowrap">
