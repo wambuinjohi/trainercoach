@@ -967,11 +967,13 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               <p className="text-xs text-muted-foreground mb-3">Select one or more categories. Pricing will be combined.</p>
             )}
             <div className="space-y-2">
-              {categoryPricing.map((category: any) => {
-                const isSelectedCategory = category.name === selectedCategory
-                const isDisabled = selectedCategory && !isSelectedCategory
-                return (
-                  <label key={category.id} className={`flex items-center gap-3 p-2 rounded ${isDisabled ? 'opacity-50 cursor-not-allowed bg-muted/20' : 'hover:bg-muted/50 cursor-pointer'}`}>
+              {(() => {
+                const displayedCategories = selectedCategory
+                  ? categoryPricing.filter((cat: any) => cat.name === selectedCategory)
+                  : categoryPricing
+
+                return displayedCategories.map((category: any) => (
+                  <label key={category.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedCategoryIds.includes(String(category.id))}
@@ -983,8 +985,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
                           setSelectedCategoryIds(selectedCategoryIds.filter(id => id !== catId))
                         }
                       }}
-                      disabled={isDisabled}
-                      className="w-4 h-4 rounded border-border cursor-pointer disabled:cursor-not-allowed"
+                      className="w-4 h-4 rounded border-border cursor-pointer"
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium">{category.name}</div>
@@ -993,8 +994,8 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
                       </div>
                     </div>
                   </label>
-                )
-              })}
+                ))
+              })()}
             </div>
           </div>
         )}
