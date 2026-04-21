@@ -818,11 +818,11 @@ export const ClientDashboard: React.FC = () => {
 
                 // Get icon from database or fallback to hardcoded mapping
                 const renderCategoryIcon = (): React.ReactNode => {
-                  const iconProps = { size: 40, className: 'text-white' }
+                  const iconProps = { size: 32, className: 'text-white' }
 
                   // If icon exists and looks like emoji/unicode character
                   if (category.icon && category.icon.length <= 2) {
-                    return <span className="text-4xl flex-shrink-0">{category.icon}</span>
+                    return <span className="text-3xl flex-shrink-0">{category.icon}</span>
                   }
 
                   // If icon is a lucide icon name from database
@@ -846,9 +846,9 @@ export const ClientDashboard: React.FC = () => {
                     className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 group"
                     onClick={() => handleCategorySelect(category.name)}
                   >
-                    <CardContent className="p-0 relative h-40 bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center">
+                    <CardContent className="p-0 relative h-32 bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center">
                       <div className="absolute inset-0 group-hover:bg-black/30 transition-colors duration-200"></div>
-                      <div className="relative z-10 flex flex-col items-center justify-center h-full gap-3">
+                      <div className="relative z-10 flex flex-col items-center justify-center h-full gap-2">
                         {renderCategoryIcon()}
                         <h3 className="font-semibold text-sm text-white text-center px-2">{category.name.toUpperCase()}</h3>
                       </div>
