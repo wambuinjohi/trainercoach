@@ -1,6 +1,6 @@
 {
   "appId": "co.skatryk.trainer",
-  "appName": "Skatryk Trainer",
+  "appName": "Trainer",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

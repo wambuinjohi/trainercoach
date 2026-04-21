@@ -23,9 +23,9 @@
     "android:debug": "npm run build && npx cap copy android && npx cap sync android && npm run cap:open:android"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.4",
-    "@capacitor/core": "^7.4.4",
-    "@capacitor/geolocation": "^7.1.5",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/geolocation": "^8.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -82,7 +82,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@capacitor/cli": "^5.0.0",
+    "@capacitor/cli": "^8.0.0",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.38.0",
     "@tailwindcss/typography": "^0.5.16",
