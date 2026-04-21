@@ -23,7 +23,7 @@ export const BookingModal: React.FC<{ trainer: any, onClose: () => void, selecte
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-h-[100vh] sm:max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-lg">
+      <div className="relative w-full max-h-[100vh] sm:max-h-[90vh] overflow-y-auto rounded-none sm:rounded-lg sm:max-w-lg pb-20 sm:pb-0">
         <Card className="rounded-none sm:rounded-lg flex flex-col h-full">
           {/* Mobile close button top-left */}
           <button aria-label="Close" className="absolute top-3 left-3 z-60 sm:hidden bg-white/90 dark:bg-slate-900/90 p-2 rounded-full shadow" onClick={onClose}>
