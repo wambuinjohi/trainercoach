@@ -42,7 +42,11 @@ import {
   TrendingUp,
   Footprints,
   Activity,
-  Hammer
+  Hammer,
+  Trophy,
+  Flame,
+  Wind,
+  Brain
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -781,53 +785,59 @@ export const ClientDashboard: React.FC = () => {
               <div className="col-span-2 text-center text-sm text-muted-foreground py-8">No categories available.</div>
             ) : (
               dbCategories.slice(0, 4).map((category) => {
-                // Category icon mapping
-                const getCategoryIcon = (categoryName: string) => {
-                  const name = (categoryName || '').toLowerCase()
+                // Icon mapping for fallback
+                const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
+                  'fitness': Dumbbell,
+                  'yoga': Wind,
+                  'pilates': Activity,
+                  'strength': Zap,
+                  'cardio': Heart,
+                  'boxing': Trophy,
+                  'martial arts': Hammer,
+                  'dance': Music,
+                  'running': Footprints,
+                  'cycling': Bike,
+                  'swimming': Waves,
+                  'hiit': Flame,
+                  'crossfit': Dumbbell,
+                  'stretching': Wind,
+                  'meditation': Brain,
+                  'badminton': TrendingUp,
+                  'tennis': TrendingUp,
+                  'table tennis': TrendingUp,
+                  'basketball': Zap,
+                  'soccer': Zap,
+                  'volleyball': Zap,
+                  'lawn tennis': TrendingUp,
+                  'baking': UtensilsCrossed,
+                  'cooking': UtensilsCrossed,
+                  'tour guide': MapPin,
+                  'climbing': Mountain,
+                  'hiking': Mountain,
+                }
+
+                // Get icon from database or fallback to hardcoded mapping
+                const renderCategoryIcon = (): React.ReactNode => {
                   const iconProps = { size: 40, className: 'text-white' }
 
-                  switch (name) {
-                    case 'badminton':
-                    case 'tennis':
-                    case 'lawn tennis':
-                    case 'table tennis':
-                      return <TrendingUp {...iconProps} />
-                    case 'basketball':
-                    case 'volleyball':
-                    case 'soccer':
-                    case 'football':
-                      return <Zap {...iconProps} />
-                    case 'fitness':
-                    case 'gym':
-                      return <Dumbbell {...iconProps} />
-                    case 'yoga':
-                      return <Heart {...iconProps} />
-                    case 'pilates':
-                      return <Activity {...iconProps} />
-                    case 'cooking':
-                    case 'baking':
-                      return <UtensilsCrossed {...iconProps} />
-                    case 'dance':
-                      return <Music {...iconProps} />
-                    case 'swimming':
-                      return <Waves {...iconProps} />
-                    case 'cycling':
-                      return <Bike {...iconProps} />
-                    case 'running':
-                      return <Footprints {...iconProps} />
-                    case 'boxing':
-                    case 'martial arts':
-                      return <Hammer {...iconProps} />
-                    case 'climbing':
-                    case 'hiking':
-                      return <Mountain {...iconProps} />
-                    case 'tour guide':
-                      return <MapPin {...iconProps} />
-                    case 'travel':
-                      return <Globe {...iconProps} />
-                    default:
-                      return <Compass {...iconProps} />
+                  // If icon exists and looks like emoji/unicode character
+                  if (category.icon && category.icon.length <= 2) {
+                    return <span className="text-4xl flex-shrink-0">{category.icon}</span>
                   }
+
+                  // If icon is a lucide icon name from database
+                  if (category.icon) {
+                    const normalized = (category.icon || '').toLowerCase().trim()
+                    const IconComponent = CATEGORY_ICONS[normalized]
+                    if (IconComponent) {
+                      return <IconComponent {...iconProps} />
+                    }
+                  }
+
+                  // Fallback to category name based mapping
+                  const normalized = (category.name || '').toLowerCase().trim()
+                  const IconComponent = CATEGORY_ICONS[normalized] || Compass
+                  return <IconComponent {...iconProps} />
                 }
 
                 return (
@@ -839,7 +849,7 @@ export const ClientDashboard: React.FC = () => {
                     <CardContent className="p-0 relative h-40 bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center">
                       <div className="absolute inset-0 group-hover:bg-black/30 transition-colors duration-200"></div>
                       <div className="relative z-10 flex flex-col items-center justify-center h-full gap-3">
-                        {getCategoryIcon(category.name)}
+                        {renderCategoryIcon()}
                         <h3 className="font-semibold text-sm text-white text-center px-2">{category.name.toUpperCase()}</h3>
                       </div>
                     </CardContent>
