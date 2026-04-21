@@ -628,15 +628,6 @@ export const ClientDashboard: React.FC = () => {
                 value={searchQuery}
                 onChange={setSearchQuery}
                 onSubmit={(query) => {
-                  if (!userLocation) {
-                    toast({
-                      title: 'Location required',
-                      description: 'Please enable GPS to search for trainers',
-                      variant: 'destructive'
-                    })
-                    requestLocation()
-                    return
-                  }
                   if (query) {
                     addSearch(query)
                     navigate('/client/explore')
@@ -1062,7 +1053,19 @@ export const ClientDashboard: React.FC = () => {
           <div className="space-y-2 md:space-y-3">
             {filteredTrainers.map((trainer, idx) => {
               const trainerCategories = getCategoryNamesForTrainer(trainer.categoryIds)
-              const displayCategory = trainerCategories[0]
+
+              // If search query matches a category name, show only that category
+              let displayCategory = trainerCategories[0]
+              if (searchQuery) {
+                const searchLower = searchQuery.toLowerCase()
+                const matchedCategory = trainerCategories.find(cat =>
+                  (cat.name || '').toLowerCase().includes(searchLower)
+                )
+                if (matchedCategory) {
+                  displayCategory = matchedCategory
+                }
+              }
+
               const isNearest = idx === 0 && userLocation && selectedCategory
 
               return (

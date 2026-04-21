@@ -35,20 +35,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
-  const [debouncedValue, setDebouncedValue] = useState(value)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceTimer = useRef<NodeJS.Timeout>()
-
-  // Debounce search value
-  useEffect(() => {
-    debounceTimer.current = setTimeout(() => {
-      setDebouncedValue(value)
-    }, 300)
-
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current)
-    }
-  }, [value])
 
   // Filter categories by search value
   const matchingCategories = categories.filter(cat =>
