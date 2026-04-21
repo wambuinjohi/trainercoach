@@ -1272,11 +1272,11 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
         {renderFormContent()}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:justify-end gap-2 border-t border-border pt-4 mt-auto flex-shrink-0 sticky bottom-0 bg-white dark:bg-slate-900 -mx-3 sm:-mx-6 px-3 sm:px-6 py-4">
+      <div className="flex flex-row justify-end gap-2 border-t border-border pt-4 mt-auto flex-shrink-0 sticky bottom-0 bg-white dark:bg-slate-900 -mx-3 sm:-mx-6 px-3 sm:px-6 py-4 pb-8 sm:pb-4">
         {shouldShowStep2() && bookingStep === 'step2' ? (
-          <Button variant="outline" onClick={() => setBookingStep('step1')} className="w-full sm:w-auto">Back</Button>
+          <Button variant="outline" onClick={() => setBookingStep('step1')} className="flex-1 sm:flex-none">Back</Button>
         ) : (
-          <Button variant="outline" onClick={() => onDone?.()} className="w-full sm:w-auto">Cancel</Button>
+          <Button variant="outline" onClick={() => onDone?.()} className="flex-1 sm:flex-none">Cancel</Button>
         )}
 
         {(() => {
@@ -1286,7 +1286,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
               <Button
                 onClick={submit}
                 disabled={loading}
-                className="bg-gradient-primary text-white"
+                className="flex-1 sm:flex-none bg-gradient-primary text-white"
               >
                 {loading ? 'Processing...' : 'Next: Set Times per Category'}
               </Button>
@@ -1307,7 +1307,7 @@ export const BookingForm: React.FC<{ trainer: any, trainerProfile?: any, onDone?
             <Button
               onClick={submit}
               disabled={submitDisabled}
-              className="w-full sm:w-auto bg-gradient-primary text-white"
+              className="flex-1 sm:flex-none bg-gradient-primary text-white"
               title={submitTitle}
             >
               {loading ? 'Processing...' : 'Confirm & Pay'}
