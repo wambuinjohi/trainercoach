@@ -770,16 +770,16 @@ export const ClientDashboard: React.FC = () => {
               dbCategories.slice(0, 4).map((category) => {
                 // Category background images - unique images for each category
                 const categoryImages: Record<string, string> = {
-                  'badminton': 'https://images.unsplash.com/photo-1599051246504-994150f9b491?w=400&h=300&fit=crop&q=80',
-                  'table tennis': 'https://images.unsplash.com/photo-1555170293-f3cf3476d054?w=400&h=300&fit=crop&q=80',
+                  'badminton': 'https://images.unsplash.com/photo-1621224971586-69613e40e88d?w=400&h=300&fit=crop&q=80',
+                  'table tennis': 'https://images.unsplash.com/photo-1611339555312-e607c04352fa?w=400&h=300&fit=crop&q=80',
                   'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34c8?w=400&h=300&fit=crop&q=80',
-                  'lawn tennis': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300&fit=crop&q=80',
+                  'lawn tennis': 'https://images.unsplash.com/photo-1595435934249-5df7ee0abc5e?w=400&h=300&fit=crop&q=80',
                   'basketball': 'https://images.unsplash.com/photo-1546519638-68711109d298?w=400&h=300&fit=crop&q=80',
                   'volleyball': 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&h=300&fit=crop&q=80',
                   'soccer': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=300&fit=crop&q=80',
                   'football': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=300&fit=crop&q=80',
                   'fitness': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop&q=80',
-                  'gym': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop&q=80',
+                  'gym': 'https://images.unsplash.com/photo-1552821206-86f7d68f4df8?w=400&h=300&fit=crop&q=80',
                   'yoga': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=300&fit=crop&q=80',
                   'pilates': 'https://images.unsplash.com/photo-1518611505868-d7f6527ad4b8?w=400&h=300&fit=crop&q=80',
                   'cooking': 'https://images.unsplash.com/photo-1556910103-1c02745aefb4?w=400&h=300&fit=crop&q=80',
@@ -788,13 +788,12 @@ export const ClientDashboard: React.FC = () => {
                   'swimming': 'https://images.unsplash.com/photo-1576610616656-d3aa5d1f3fab?w=400&h=300&fit=crop&q=80',
                   'cycling': 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=300&fit=crop&q=80',
                   'running': 'https://images.unsplash.com/photo-1552590582-7ee46a27bfb3?w=400&h=300&fit=crop&q=80',
-                  'boxing': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop&q=80',
+                  'boxing': 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&h=300&fit=crop&q=80',
                   'martial arts': 'https://images.unsplash.com/photo-1521573116473-e41aa97fa6c4?w=400&h=300&fit=crop&q=80',
                   'climbing': 'https://images.unsplash.com/photo-1529586411373-d07eadb00d5b?w=400&h=300&fit=crop&q=80',
                   'hiking': 'https://images.unsplash.com/photo-1551831820-330a71b99659?w=400&h=300&fit=crop&q=80',
-                  'swimming': 'https://images.unsplash.com/photo-1563338590-ab237987c1c9?w=400&h=300&fit=crop&q=80',
-                  'tour guide': 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop&q=80',
-                  'travel': 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop&q=80',
+                  'tour guide': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&h=300&fit=crop&q=80',
+                  'travel': 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=400&h=300&fit=crop&q=80',
                 }
 
                 const bgImage = categoryImages[(category.name || '').toLowerCase()] || 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop'
