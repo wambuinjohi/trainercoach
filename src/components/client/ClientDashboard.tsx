@@ -41,8 +41,8 @@ import {
   Heart,
   TrendingUp,
   Footprints,
-  Fist,
-  Activity
+  Activity,
+  Hammer
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -817,7 +817,7 @@ export const ClientDashboard: React.FC = () => {
                       return <Footprints {...iconProps} />
                     case 'boxing':
                     case 'martial arts':
-                      return <Fist {...iconProps} />
+                      return <Hammer {...iconProps} />
                     case 'climbing':
                     case 'hiking':
                       return <Mountain {...iconProps} />
