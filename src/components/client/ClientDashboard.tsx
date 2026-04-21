@@ -630,7 +630,19 @@ export const ClientDashboard: React.FC = () => {
                 onSubmit={(query) => {
                   if (query) {
                     addSearch(query)
-                    navigate('/client/explore')
+
+                    // Check if the query matches any category name (case-insensitive)
+                    const matchedCategory = dbCategories.find(
+                      (cat) => cat.name?.toLowerCase() === query.toLowerCase()
+                    )
+
+                    if (matchedCategory) {
+                      // If a category is matched, treat it as a category selection
+                      handleCategorySelect(matchedCategory.name)
+                    } else {
+                      // Otherwise, navigate to explore page for general search
+                      navigate('/client/explore')
+                    }
                   }
                 }}
                 suggestions={suggestions}
