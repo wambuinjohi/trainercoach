@@ -29,7 +29,20 @@ import {
   Repeat2,
   Send,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Dumbbell,
+  Bike,
+  Mountain,
+  Globe,
+  UtensilsCrossed,
+  Music,
+  Waves,
+  Zap,
+  Heart,
+  TrendingUp,
+  Footprints,
+  Fist,
+  Activity
 } from 'lucide-react'
 import { TrainerDetails } from './TrainerDetails'
 import { BookingModal } from './BookingModal'
@@ -768,35 +781,54 @@ export const ClientDashboard: React.FC = () => {
               <div className="col-span-2 text-center text-sm text-muted-foreground py-8">No categories available.</div>
             ) : (
               dbCategories.slice(0, 4).map((category) => {
-                // Category background images - unique images for each category
-                const categoryImages: Record<string, string> = {
-                  'badminton': 'https://images.pexels.com/photos/1977615/pexels-photo-1977615.jpeg?w=400&h=300&fit=crop',
-                  'table tennis': 'https://images.pexels.com/photos/3393630/pexels-photo-3393630.jpeg?w=400&h=300&fit=crop',
-                  'tennis': 'https://images.pexels.com/photos/2780447/pexels-photo-2780447.jpeg?w=400&h=300&fit=crop',
-                  'lawn tennis': 'https://images.pexels.com/photos/2738085/pexels-photo-2738085.jpeg?w=400&h=300&fit=crop',
-                  'basketball': 'https://images.pexels.com/photos/1954524/pexels-photo-1954524.jpeg?w=400&h=300&fit=crop',
-                  'volleyball': 'https://images.pexels.com/photos/8006104/pexels-photo-8006104.jpeg?w=400&h=300&fit=crop',
-                  'soccer': 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=400&h=300&fit=crop',
-                  'football': 'https://images.pexels.com/photos/274422/pexels-photo-274422.jpeg?w=400&h=300&fit=crop',
-                  'fitness': 'https://images.pexels.com/photos/416717/pexels-photo-416717.jpeg?w=400&h=300&fit=crop',
-                  'gym': 'https://images.pexels.com/photos/4325446/pexels-photo-4325446.jpeg?w=400&h=300&fit=crop',
-                  'yoga': 'https://images.pexels.com/photos/1822911/pexels-photo-1822911.jpeg?w=400&h=300&fit=crop',
-                  'pilates': 'https://images.pexels.com/photos/3761681/pexels-photo-3761681.jpeg?w=400&h=300&fit=crop',
-                  'cooking': 'https://images.pexels.com/photos/6280155/pexels-photo-6280155.jpeg?w=400&h=300&fit=crop',
-                  'baking': 'https://images.pexels.com/photos/3958519/pexels-photo-3958519.jpeg?w=400&h=300&fit=crop',
-                  'dance': 'https://images.pexels.com/photos/3945683/pexels-photo-3945683.jpeg?w=400&h=300&fit=crop',
-                  'swimming': 'https://images.pexels.com/photos/3945710/pexels-photo-3945710.jpeg?w=400&h=300&fit=crop',
-                  'cycling': 'https://images.pexels.com/photos/2398220/pexels-photo-2398220.jpeg?w=400&h=300&fit=crop',
-                  'running': 'https://images.pexels.com/photos/2532278/pexels-photo-2532278.jpeg?w=400&h=300&fit=crop',
-                  'boxing': 'https://images.pexels.com/photos/4761764/pexels-photo-4761764.jpeg?w=400&h=300&fit=crop',
-                  'martial arts': 'https://images.pexels.com/photos/4761792/pexels-photo-4761792.jpeg?w=400&h=300&fit=crop',
-                  'climbing': 'https://images.pexels.com/photos/3571453/pexels-photo-3571453.jpeg?w=400&h=300&fit=crop',
-                  'hiking': 'https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg?w=400&h=300&fit=crop',
-                  'tour guide': 'https://images.pexels.com/photos/3771081/pexels-photo-3771081.jpeg?w=400&h=300&fit=crop',
-                  'travel': 'https://images.pexels.com/photos/3915857/pexels-photo-3915857.jpeg?w=400&h=300&fit=crop',
-                }
+                // Category icon mapping
+                const getCategoryIcon = (categoryName: string) => {
+                  const name = (categoryName || '').toLowerCase()
+                  const iconProps = { size: 40, className: 'text-white' }
 
-                const bgImage = categoryImages[(category.name || '').toLowerCase()] || 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop'
+                  switch (name) {
+                    case 'badminton':
+                    case 'tennis':
+                    case 'lawn tennis':
+                    case 'table tennis':
+                      return <TrendingUp {...iconProps} />
+                    case 'basketball':
+                    case 'volleyball':
+                    case 'soccer':
+                    case 'football':
+                      return <Zap {...iconProps} />
+                    case 'fitness':
+                    case 'gym':
+                      return <Dumbbell {...iconProps} />
+                    case 'yoga':
+                      return <Heart {...iconProps} />
+                    case 'pilates':
+                      return <Activity {...iconProps} />
+                    case 'cooking':
+                    case 'baking':
+                      return <UtensilsCrossed {...iconProps} />
+                    case 'dance':
+                      return <Music {...iconProps} />
+                    case 'swimming':
+                      return <Waves {...iconProps} />
+                    case 'cycling':
+                      return <Bike {...iconProps} />
+                    case 'running':
+                      return <Footprints {...iconProps} />
+                    case 'boxing':
+                    case 'martial arts':
+                      return <Fist {...iconProps} />
+                    case 'climbing':
+                    case 'hiking':
+                      return <Mountain {...iconProps} />
+                    case 'tour guide':
+                      return <MapPin {...iconProps} />
+                    case 'travel':
+                      return <Globe {...iconProps} />
+                    default:
+                      return <Compass {...iconProps} />
+                  }
+                }
 
                 return (
                   <Card
@@ -804,14 +836,11 @@ export const ClientDashboard: React.FC = () => {
                     className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 group"
                     onClick={() => handleCategorySelect(category.name)}
                   >
-                    <CardContent className="p-0 relative h-40">
-                      <div
-                        className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-200"
-                        style={{ backgroundImage: `url(${bgImage})` }}
-                      ></div>
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-200"></div>
-                      <div className="absolute inset-0 flex items-end p-4">
-                        <h3 className="font-semibold text-lg text-white">{category.name}</h3>
+                    <CardContent className="p-0 relative h-40 bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center">
+                      <div className="absolute inset-0 group-hover:bg-black/30 transition-colors duration-200"></div>
+                      <div className="relative z-10 flex flex-col items-center justify-center h-full gap-3">
+                        {getCategoryIcon(category.name)}
+                        <h3 className="font-semibold text-sm text-white text-center px-2">{category.name.toUpperCase()}</h3>
                       </div>
                     </CardContent>
                   </Card>
